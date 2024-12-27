@@ -1,0 +1,123 @@
+.App {
+    min-height: 100vh;
+    width: 100vw;
+    display: flex;
+  }
+  
+  .login-container {
+    min-height: 100vh !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 2rem !important;
+    max-width: none !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .login-wrapper {
+    width: 900px !important;
+    min-height: 500px !important;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 0 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+.login-left {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem !important;
+  color: white;
+}
+
+.logo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 1.5rem;
+}
+
+.intro-content {
+  text-align: center;
+}
+
+.intro-content h5 {
+  font-size: 1.2rem !important;
+}
+
+.form-paper {
+  height: 100%;
+  padding: 2rem !important;
+  display: flex;
+  flex-direction: column;
+  box-shadow: none !important;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+  font-size: 1.8rem !important;
+}
+
+.form-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.8rem 0;
+}
+
+.submit-button {
+  margin: 1.5rem 0 !important;
+  padding: 0.6rem !important;
+  font-size: 1rem !important;
+}
+
+.social-login {
+  margin: 1.5rem 0;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: auto;
+}
+
+@media (max-width: 960px) {
+  .login-wrapper {
+    width: 95% !important;
+    min-height: auto !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-container {
+    padding: 1rem !important;
+  }
+
+  .form-paper {
+    padding: 1.5rem !important;
+  }
+
+  .login-left {
+    padding: 1.5rem !important;
+  }
+}

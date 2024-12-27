@@ -1,62 +1,250 @@
 import { useState } from 'react';
-import PropTypes from 'prop-types';
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  IconButton,
+  InputAdornment,
+  Divider,
+  Link,
+  Grid,
+  Checkbox,
+  FormControlLabel
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  Google,
+  Facebook
+} from '@mui/icons-material';
+import '../styles/Login.css';
+import viteLogo from '/vite.svg'
 
-function Login({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+function Login() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState({});
 
-  const handleSubmit = async (e) => {
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.email) {
+      newErrors.email = 'Email là bắt buộc';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+
+    if (!isLogin && !formData.username) {
+      newErrors.username = 'Tên người dùng là bắt buộc';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Mật khẩu là bắt buộc';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    }
+
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+    if (validateForm()) {
+      console.log('Form submitted:', formData);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: ''
       });
-      
-      const data = await response.json();
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        onLogin(data.token);
-      } else {
-        setError('Đăng nhập thất bại');
-      }
-    } catch (error) {
-        console.error('Lỗi:', error);
-        setError('Có lỗi xảy ra');
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
-      <h2>Đăng nhập</h2>
-      {error && <p className="error">{error}</p>}
-      <div>
-        <input
-          type="text"
-          placeholder="Tên đăng nhập"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </div>
-      <div>
-        <input
-          type="password"
-          placeholder="Mật khẩu"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-      <button type="submit">Đăng nhập</button>
-    </form>
+    <Container component="main" maxWidth="lg" className="login-container">
+      <Grid container spacing={2} className="login-wrapper">
+        {/* Left side - Introduction */}
+        <Grid item xs={12} md={6} className="login-left">
+          <Box className="intro-content">
+            <img src={viteLogo} className="logo" alt="Vite logo" />
+            <Typography variant="h5">
+              Hệ thống quản lý hình ảnh chuyên nghiệp
+            </Typography>
+          </Box>
+        </Grid>
+
+        {/* Right side - Login/Register Form */}
+        <Grid item xs={12} md={6}>
+          <Paper elevation={3} className="form-paper">
+            <Box className="form-header">
+              <Typography variant="h4" component="h2">
+                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
+              </Typography>
+              <Typography variant="body1" color="textSecondary">
+                {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+              </Typography>
+            </Box>
+
+            <Box component="form" onSubmit={handleSubmit} className="form-content">
+              {!isLogin && (
+                <TextField
+                  fullWidth
+                  label="Tên người dùng"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  error={!!errors.username}
+                  helperText={errors.username}
+                  margin="normal"
+                />
+              )}
+
+              <TextField
+                fullWidth
+                label="Email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                error={!!errors.email}
+                helperText={errors.email}
+                margin="normal"
+              />
+
+              <TextField
+                fullWidth
+                label="Mật khẩu"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleInputChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                margin="normal"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {!isLogin && (
+                <TextField
+                  fullWidth
+                  label="Xác nhận mật khẩu"
+                  name="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  error={!!errors.confirmPassword}
+                  helperText={errors.confirmPassword}
+                  margin="normal"
+                />
+              )}
+
+              {isLogin && (
+                <Box className="login-options">
+                  <FormControlLabel
+                    control={<Checkbox color="primary" />}
+                    label="Ghi nhớ đăng nhập"
+                  />
+                  <Link href="#" variant="body2">
+                    Quên mật khẩu?
+                  </Link>
+                </Box>
+              )}
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                className="submit-button"
+              >
+                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
+              </Button>
+
+              <Box className="social-login">
+                <Divider>
+                  <Typography variant="body2" color="textSecondary">
+                    Hoặc đăng nhập với
+                  </Typography>
+                </Divider>
+                <Box className="social-buttons">
+                  <Button
+                    variant="outlined"
+                    startIcon={<Google />}
+                    fullWidth
+                  >
+                    Google
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Facebook />}
+                    fullWidth
+                  >
+                    Facebook
+                  </Button>
+                </Box>
+              </Box>
+
+              <Box className="form-footer">
+                <Typography variant="body2">
+                  {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
+                  <Link
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsLogin(!isLogin);
+                      setFormData({
+                        username: '',
+                        email: '',
+                        password: '',
+                        confirmPassword: ''
+                      });
+                      setErrors({});
+                    }}
+                  >
+                    {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+                  </Link>
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Container>
   );
 }
 
-Login.propTypes = {
-  onLogin: PropTypes.func.isRequired,
-};
-
 export default Login;
+  
