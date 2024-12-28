@@ -104,7 +104,6 @@
 @media (max-width: 960px) {
   .login-wrapper {
     width: 95% !important;
-    min-height: auto !important;
   }
 }
 
