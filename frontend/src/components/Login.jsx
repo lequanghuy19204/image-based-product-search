@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -11,8 +12,9 @@ import {
   Divider,
   Link,
   Grid,
+  FormControlLabel,
   Checkbox,
-  FormControlLabel
+  Alert
 } from '@mui/material';
 import {
   Visibility,
@@ -20,19 +22,31 @@ import {
   Google,
   Facebook
 } from '@mui/icons-material';
+import { TEST_ACCOUNTS, mockLoginWithEmail } from '../utils/mockData';
 import '../styles/Login.css';
-import viteLogo from '/vite.svg'
+import viteLogo from '/vite.svg';
 
 function Login() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
   const [errors, setErrors] = useState({});
+  const [loginError, setLoginError] = useState('');
+
+  const handleDemoLogin = async (accountType) => {
+    const account = TEST_ACCOUNTS[accountType];
+    try {
+      await mockLoginWithEmail(account.email, account.password);
+      navigate('/search');
+    } catch (error) {
+      setLoginError(error.message);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -61,10 +75,15 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      console.log('Form submitted:', formData);
+      try {
+        await mockLoginWithEmail(formData.email, formData.password);
+        navigate('/search');
+      } catch (error) {
+        setLoginError(error.message);
+      }
     }
   };
 
@@ -92,12 +111,41 @@ function Login() {
             <Typography variant="h5">
               Hệ thống quản lý hình ảnh chuyên nghiệp
             </Typography>
+            
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="body1" gutterBottom>
+                Đăng nhập nhanh với tài khoản mẫu:
+              </Typography>
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                onClick={() => handleDemoLogin('admin')}
+                sx={{ mb: 1 }}
+              >
+                Admin (admin@test.com / admin123)
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                onClick={() => handleDemoLogin('user')}
+              >
+                User (user@test.com / user123)
+              </Button>
+            </Box>
           </Box>
         </Grid>
 
-        {/* Right side - Login/Register Form */}
+        {/* Right side - Login Form */}
         <Grid item xs={12} md={6}>
           <Paper elevation={3} className="form-paper">
+            {loginError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {loginError}
+              </Alert>
+            )}
+            
             <Box className="form-header">
               <Typography variant="h4" component="h2">
                 {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}

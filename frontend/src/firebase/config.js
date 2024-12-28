@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getStorage } from 'firebase/storage';
 import { getFirestore, collection, getDocs } from 'firebase/firestore'; // Thêm collection và getDocs
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDqXjeHVRijpR1qQLcWfn-EewgjpLtELEY",
@@ -30,6 +30,30 @@ const checkFirebaseConnection = async () => {
   } catch (error) {
     console.error('❌ Lỗi kết nối Firebase:', error);
     return false;
+  }
+};
+
+// Thêm tài khoản test
+export const TEST_ACCOUNTS = {
+  admin: {
+    email: 'admin@test.com',
+    password: 'admin123'
+  },
+  user: {
+    email: 'user@test.com', 
+    password: 'user123'
+  }
+};
+
+// Hàm đăng nhập
+export const loginWithEmail = async (email, password) => {
+  try {
+    const auth = getAuth();
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error('Lỗi đăng nhập:', error);
+    throw error;
   }
 };
 
