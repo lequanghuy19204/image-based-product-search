@@ -5,7 +5,12 @@
   padding: 2rem;
   box-sizing: border-box;
   margin: 0 !important;
-  max-width: none !important; /* Ghi đè MUI Container */
+  max-width: none !important;
+  transition: margin-left 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms;
+}
+
+.content-shift {
+  margin-left: 240px !important;
 }
 
 .header-section {

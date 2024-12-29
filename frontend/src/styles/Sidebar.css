@@ -1,0 +1,117 @@
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.sidebar-open {
+  width: 10px;
+  transition: width 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms;
+}
+
+.sidebar-close {
+  width: 65px;
+  transition: width 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms;
+  overflow-x: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px;
+  min-height: 64px;
+}
+
+.sidebar-menu {
+  padding: 8px;
+}
+
+.menu-item {
+  border-radius: 8px;
+  margin: 4px 0;
+  padding: 12px !important;
+}
+
+.menu-item.active {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+.menu-item.active .menu-icon {
+  color: #667eea;
+}
+
+.menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.menu-icon {
+  min-width: 40px !important;
+  color: #666;
+}
+
+/* Animation cho icon khi hover */
+.menu-item:hover .menu-icon {
+  transform: scale(1.1);
+  transition: transform 0.2s ease-in-out;
+}
+
+/* Custom scrollbar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* Thêm styles mới cho phần user profile */
+.user-profile {
+  margin-top: auto;
+  padding: 5px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.profile-item {
+  border-radius: 8px;
+  margin: 4px 0;
+  padding: 8px !important;
+}
+
+.user-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  background-color: #667eea !important;
+}
+
+.user-info {
+  margin-left:8px;
+  overflow: hidden;
+}
+
+.profile-menu {
+  margin-top: 8px;
+}
+
+/* Animation cho profile item */
+.profile-item:hover {
+  background-color: rgba(102, 126, 234, 0.1);
+}
+
+.profile-item:hover .user-avatar {
+  transform: scale(1.05);
+  transition: transform 0.2s ease-in-out;
+}
