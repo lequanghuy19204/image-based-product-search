@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { auth } from '../../firebase/config';
+import { useUser } from '../../contexts/UserContext';
 import {
   Drawer,
   List,
@@ -11,23 +15,17 @@ import {
   Avatar,
   Typography,
   Menu,
-  MenuItem
+  MenuItem,
+  CircularProgress
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   ChevronLeft,
-  Dashboard,
   ShoppingBag,
   People,
-  Settings,
   Search,
-  Image,
-  Person,
   ExitToApp,
-  VpnKey
 } from '@mui/icons-material';
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import '../../styles/Sidebar.css';
 
@@ -35,22 +33,18 @@ function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
-  
-  // Mock user data - thay thế bằng dữ liệu thực từ context/redux
-  const user = {
-    name: 'Admin User',
-    email: 'admin@example.com',
-    avatar: null // URL ảnh đại diện
-  };
+  const { userData, loading, setUserData } = useUser();
+  const isAdmin = userData?.role === 'admin';
 
   const menuItems = [
-    { text: 'Tìm kiếm', icon: <Search />, path: '/search' },
-    { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
-    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag />, path: '/admin/products' },
-    { text: 'Quản lý Người dùng', icon: <People />, path: '/admin/users' },
-    { text: 'Thư viện Ảnh', icon: <Image />, path: '/admin/images' },
-    { text: 'Cài đặt', icon: <Settings />, path: '/admin/settings' }
+    { text: 'Tìm kiếm', icon: <Search />, path: '/search', showFor: ['admin', 'user'] },
+    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag />, path: '/admin/products', showFor: ['admin', 'user'] },
+    { text: 'Quản lý Người dùng', icon: <People />, path: '/admin/users', showFor: ['admin'] },
   ];
+
+  const filteredMenuItems = menuItems.filter(item => 
+    item.showFor.includes(userData?.role || 'user')
+  );
 
   const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -60,10 +54,14 @@ function Sidebar({ open, onToggle }) {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    // Xử lý đăng xuất
-    handleProfileMenuClose();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      setUserData(null);
+      navigate('/login');
+    } catch (error) {
+      console.error('Lỗi đăng xuất:', error);
+    }
   };
 
   return (
@@ -81,7 +79,7 @@ function Sidebar({ open, onToggle }) {
       <Divider />
       
       <List className="sidebar-menu">
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <Tooltip 
             key={item.path}
             title={!open ? item.text : ''}
@@ -112,21 +110,45 @@ function Sidebar({ open, onToggle }) {
           className="profile-item"
         >
           <ListItemIcon>
-            <Avatar 
-              src={user.avatar}
-              className="user-avatar"
-            >
-              {user.name.charAt(0)}
-            </Avatar>
+            {loading ? (
+              <CircularProgress size={40} />
+            ) : (
+              <Avatar 
+                src={userData?.avatar}
+                className="user-avatar"
+              >
+                {userData?.name ? userData.name.charAt(0) : '?'}
+              </Avatar>
+            )}
           </ListItemIcon>
           {open && (
-            <Box className="user-info">
+            <Box className="user-info" sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="subtitle1" noWrap>
-                {user.name}
+                {loading ? 'Đang tải...' : userData?.name || 'Không có tên'}
               </Typography>
-              <Typography variant="body2" color="textSecondary" noWrap>
-                {user.email}
+              <Typography 
+                variant="body2"
+                noWrap
+                sx={{ 
+                  color: userData?.role === 'admin' ? 'primary.main' : 'text.secondary',
+                  fontWeight: 'medium'
+                }}
+              >
+                {loading ? 'Đang tải...' : userData?.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
               </Typography>
+              {!loading && userData && (
+                <>
+                  <Typography variant="body2" color="textSecondary" noWrap>
+                    {userData.email || 'Không có email'}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" noWrap>
+                    CT: {userData.companyName || 'Không có'}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" noWrap>
+                    Mã: {userData.companyCode || 'Không có'}
+                  </Typography>
+                </>
+              )}
             </Box>
           )}
         </ListItem>
@@ -137,24 +159,7 @@ function Sidebar({ open, onToggle }) {
           onClose={handleProfileMenuClose}
           className="profile-menu"
         >
-          <MenuItem onClick={() => {
-            navigate('/profile');
-            handleProfileMenuClose();
-          }}>
-            <ListItemIcon>
-              <Person fontSize="small" />
-            </ListItemIcon>
-            Thông tin cá nhân
-          </MenuItem>
-          <MenuItem onClick={() => {
-            navigate('/change-password');
-            handleProfileMenuClose();
-          }}>
-            <ListItemIcon>
-              <VpnKey fontSize="small" />
-            </ListItemIcon>
-            Đổi mật khẩu
-          </MenuItem>
+        
           <Divider />
           <MenuItem onClick={handleLogout}>
             <ListItemIcon>

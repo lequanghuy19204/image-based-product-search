@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -14,7 +14,14 @@ import {
   Grid,
   FormControlLabel,
   Checkbox,
-  Alert
+  Alert,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Visibility,
@@ -22,9 +29,12 @@ import {
   Google,
   Facebook
 } from '@mui/icons-material';
-import { TEST_ACCOUNTS, mockLoginWithEmail } from '../utils/mockData';
 import '../styles/Login.css';
 import viteLogo from '/vite.svg';
+import { loginWithEmail, registerWithEmail, loginWithGoogle, loginWithFacebook } from '../services/authService';
+import { generateUniqueCompanyCode } from '../utils/helpers';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 function Login() {
   const navigate = useNavigate();
@@ -33,18 +43,83 @@ function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    username: '',
+    role: 'user',
+    companyName: '',
+    companyCode: ''
   });
+  const [generatedCode, setGeneratedCode] = useState('');
   const [errors, setErrors] = useState({});
-  const [loginError, setLoginError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [socialAuthData, setSocialAuthData] = useState(null);
+  const [showSocialDataModal, setShowSocialDataModal] = useState(false);
+  const [socialFormData, setSocialFormData] = useState({
+    role: 'user',
+    companyName: '',
+    companyCode: ''
+  });
+  const [generatedSocialCode, setGeneratedSocialCode] = useState('');
 
-  const handleDemoLogin = async (accountType) => {
-    const account = TEST_ACCOUNTS[accountType];
+  useEffect(() => {
+    if (!isLogin && formData.role === 'admin') {
+      generateUniqueCompanyCode().then(code => {
+        setGeneratedCode(code);
+      });
+    }
+  }, [formData.role, isLogin]);
+
+  useEffect(() => {
+    if (showSocialDataModal && socialFormData.role === 'admin') {
+      generateUniqueCompanyCode().then(code => {
+        setGeneratedSocialCode(code);
+      });
+    }
+  }, [socialFormData.role, showSocialDataModal]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setLoading(true);
     try {
-      await mockLoginWithEmail(account.email, account.password);
-      navigate('/search');
+      if (isLogin) {
+        const { userData } = await loginWithEmail(formData.email, formData.password);
+        if (userData?.role === 'admin') {
+          navigate('/admin/products');
+        } else {
+          navigate('/search');
+        }
+      } else {
+        const userData = {
+          username: formData.username,
+          role: formData.role,
+          email: formData.email
+        };
+
+        if (formData.role === 'admin') {
+          userData.company_name = formData.companyName;
+          userData.company_code = generatedCode;
+        } else {
+          userData.company_code = formData.companyCode;
+        }
+
+        await registerWithEmail(formData.email, formData.password, userData);
+        setIsLogin(true);
+        setFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          username: '',
+          role: 'user',
+          companyName: '',
+          companyCode: ''
+        });
+      }
     } catch (error) {
-      setLoginError(error.message);
+      setErrors({ submit: error.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -57,46 +132,136 @@ function Login() {
       newErrors.email = 'Email không hợp lệ';
     }
 
-    if (!isLogin && !formData.username) {
-      newErrors.username = 'Tên người dùng là bắt buộc';
-    }
-
     if (!formData.password) {
       newErrors.password = 'Mật khẩu là bắt buộc';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     }
 
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+    if (!isLogin) {
+      if (!formData.username) {
+        newErrors.username = 'Tên người dùng là bắt buộc';
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+      }
+
+      if (formData.role === 'admin' && !formData.companyName) {
+        newErrors.companyName = 'Tên công ty là bắt buộc';
+      }
+
+      if (formData.role === 'user' && !formData.companyCode) {
+        newErrors.companyCode = 'Mã công ty là bắt buộc';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      try {
-        await mockLoginWithEmail(formData.email, formData.password);
-        navigate('/search');
-      } catch (error) {
-        setLoginError(error.message);
-      }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: ''
+  const handleRoleChange = (event, newRole) => {
+    if (newRole !== null) {
+      setFormData(prev => ({
+        ...prev,
+        role: newRole
+      }));
+    }
+  };
+
+  const handleSocialLogin = async (provider) => {
+    if (loading) return;
+    
+    setLoading(true);
+    try {
+      const result = await provider();
+      
+      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.role === 'admin') {
+          navigate('/admin/products');
+        } else {
+          navigate('/search');
+        }
+      } else {
+        setSocialAuthData({
+          user: result.user,
+          provider: provider
+        });
+        setShowSocialDataModal(true);
+      }
+    } catch (error) {
+      setErrors({ submit: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialFormSubmit = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      if (socialFormData.role === 'admin' && !socialFormData.companyName) {
+        throw new Error('Vui lòng nhập tên công ty');
+      }
+      if (socialFormData.role === 'user' && !socialFormData.companyCode) {
+        throw new Error('Vui lòng nhập mã công ty');
+      }
+
+      const companyData = {
+        companyName: socialFormData.companyName,
+        companyCode: socialFormData.role === 'admin' ? generatedSocialCode : socialFormData.companyCode
+      };
+
+      const { userData } = await socialAuthData.provider(
+        socialFormData.role,
+        companyData
+      );
+
+      setShowSocialDataModal(false);
+      setSocialAuthData(null);
+      setSocialFormData({
+        role: 'user',
+        companyName: '',
+        companyCode: ''
+      });
+
+      if (userData.role === 'admin') {
+        navigate('/admin/products');
+      } else {
+        navigate('/search');
+      }
+    } catch (error) {
+      setErrors({ submit: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialRoleChange = (event, newRole) => {
+    if (newRole !== null) {
+      setSocialFormData({
+        ...socialFormData,
+        role: newRole,
+        companyName: '',
+        companyCode: ''
       });
     }
   };
@@ -104,48 +269,17 @@ function Login() {
   return (
     <Container component="main" maxWidth="lg" className="login-container">
       <Grid container spacing={2} className="login-wrapper">
-        {/* Left side - Introduction */}
         <Grid item xs={12} md={6} className="login-left">
           <Box className="intro-content">
             <img src={viteLogo} className="logo" alt="Vite logo" />
             <Typography variant="h5">
               Hệ thống quản lý hình ảnh chuyên nghiệp
             </Typography>
-            
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="body1" gutterBottom>
-                Đăng nhập nhanh với tài khoản mẫu:
-              </Typography>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={() => handleDemoLogin('admin')}
-                sx={{ mb: 1 }}
-              >
-                Admin (admin@test.com / admin123)
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={() => handleDemoLogin('user')}
-              >
-                User (user@test.com / user123)
-              </Button>
-            </Box>
           </Box>
         </Grid>
 
-        {/* Right side - Login Form */}
         <Grid item xs={12} md={6}>
           <Paper elevation={3} className="form-paper">
-            {loginError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {loginError}
-              </Alert>
-            )}
-            
             <Box className="form-header">
               <Typography variant="h4" component="h2">
                 {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
@@ -157,16 +291,64 @@ function Login() {
 
             <Box component="form" onSubmit={handleSubmit} className="form-content">
               {!isLogin && (
-                <TextField
-                  fullWidth
-                  label="Tên người dùng"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  error={!!errors.username}
-                  helperText={errors.username}
-                  margin="normal"
-                />
+                <>
+                  <TextField
+                    fullWidth
+                    label="Tên người dùng"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    error={!!errors.username}
+                    helperText={errors.username}
+                    margin="normal"
+                  />
+
+                  <ToggleButtonGroup
+                    value={formData.role}
+                    exclusive
+                    onChange={handleRoleChange}
+                    fullWidth
+                    sx={{ mt: 2, mb: 2 }}
+                  >
+                    <ToggleButton value="user">
+                      Người dùng
+                    </ToggleButton>
+                    <ToggleButton value="admin">
+                      Quản trị viên
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+
+                  {formData.role === 'admin' ? (
+                    <>
+                      <TextField
+                        fullWidth
+                        label="Tên công ty"
+                        name="companyName"
+                        value={formData.companyName}
+                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        error={!!errors.companyName}
+                        helperText={errors.companyName}
+                        margin="normal"
+                      />
+                      {generatedCode && (
+                        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                          Mã công ty: {generatedCode}
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="Mã công ty"
+                      name="companyCode"
+                      value={formData.companyCode}
+                      onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
+                      error={!!errors.companyCode}
+                      helperText={errors.companyCode}
+                      margin="normal"
+                    />
+                  )}
+                </>
               )}
 
               <TextField
@@ -231,14 +413,24 @@ function Login() {
                 </Box>
               )}
 
+              {errors.submit && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {errors.submit}
+                </Alert>
+              )}
+
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
-                color="primary"
-                className="submit-button"
+                disabled={loading}
+                sx={{ mt: 3, mb: 2 }}
               >
-                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
+                {loading ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  isLogin ? 'Đăng nhập' : 'Đăng ký'
+                )}
               </Button>
 
               <Box className="social-login">
@@ -252,6 +444,8 @@ function Login() {
                     variant="outlined"
                     startIcon={<Google />}
                     fullWidth
+                    onClick={() => handleSocialLogin(loginWithGoogle)}
+                    disabled={loading}
                   >
                     Google
                   </Button>
@@ -259,6 +453,8 @@ function Login() {
                     variant="outlined"
                     startIcon={<Facebook />}
                     fullWidth
+                    onClick={() => handleSocialLogin(loginWithFacebook)}
+                    disabled={loading}
                   >
                     Facebook
                   </Button>
@@ -274,10 +470,13 @@ function Login() {
                       e.preventDefault();
                       setIsLogin(!isLogin);
                       setFormData({
-                        username: '',
                         email: '',
                         password: '',
-                        confirmPassword: ''
+                        confirmPassword: '',
+                        username: '',
+                        role: 'user',
+                        companyName: '',
+                        companyCode: ''
                       });
                       setErrors({});
                     }}
@@ -290,6 +489,87 @@ function Login() {
           </Paper>
         </Grid>
       </Grid>
+
+      <Dialog 
+        open={showSocialDataModal} 
+        onClose={() => !loading && setShowSocialDataModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Thông tin bổ sung
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <ToggleButtonGroup
+              value={socialFormData.role}
+              exclusive
+              onChange={handleSocialRoleChange}
+              fullWidth
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value="user">
+                Người dùng
+              </ToggleButton>
+              <ToggleButton value="admin">
+                Quản trị viên
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            {socialFormData.role === 'admin' ? (
+              <>
+                <TextField
+                  fullWidth
+                  label="Tên công ty"
+                  value={socialFormData.companyName}
+                  onChange={(e) => setSocialFormData({
+                    ...socialFormData,
+                    companyName: e.target.value
+                  })}
+                  margin="normal"
+                />
+                {generatedSocialCode && (
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    Mã công ty: {generatedSocialCode}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <TextField
+                fullWidth
+                label="Mã công ty"
+                value={socialFormData.companyCode}
+                onChange={(e) => setSocialFormData({
+                  ...socialFormData,
+                  companyCode: e.target.value
+                })}
+                margin="normal"
+              />
+            )}
+
+            {errors.submit && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {errors.submit}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowSocialDataModal(false)}
+            disabled={loading}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSocialFormSubmit}
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Xác nhận'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
+import { useUser } from '../../contexts/UserContext';
 
 function ProductManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -50,6 +51,8 @@ function ProductManagement() {
     },
     // Thêm sản phẩm mẫu khác...
   ]);
+  const { userData } = useUser();
+  const isAdmin = userData?.role === 'Quản trị viên';
 
   const handleOpenDialog = (product = null) => {
     setSelectedProduct(product);
@@ -152,14 +155,16 @@ function ProductManagement() {
                           <EditIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton 
-                          size="small"
-                          color="error"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {isAdmin && (
+                        <Tooltip title="Xóa">
+                          <IconButton 
+                            size="small"
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>

@@ -37,8 +37,21 @@ import {
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/UserManagement.css';
+import { useUser } from '../../contexts/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 function UserManagement() {
+  const navigate = useNavigate();
+  const { userData } = useUser();
+  const isAdmin = userData?.role === 'admin';
+
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate('/search');
+    }
+  }, [isAdmin, navigate]);
+
+  // State declarations
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -61,14 +74,19 @@ function UserManagement() {
     role: 'user'
   });
 
-  // Mock data cho demo
+  // Load mock data
   useEffect(() => {
-    setUsers([
+    const mockUsers = [
       { id: 1, username: 'admin', email: 'admin@test.com', role: 'admin', status: 'active' },
       { id: 2, username: 'user1', email: 'user1@test.com', role: 'user', status: 'active' },
-      // ... thêm data demo khác
-    ]);
+      { id: 3, username: 'user2', email: 'user2@test.com', role: 'user', status: 'blocked' },
+    ];
+    setUsers(mockUsers);
   }, []);
+
+  if (!isAdmin) {
+    return <Navigate to="/search" />;
+  }
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);

@@ -1,64 +1,52 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getFirestore, collection, getDocs } from 'firebase/firestore'; // Thêm collection và getDocs
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDqXjeHVRijpR1qQLcWfn-EewgjpLtELEY",
-    authDomain: "search-images-v1.firebaseapp.com",
-    projectId: "search-images-v1",
-    storageBucket: "search-images-v1.firebasestorage.app",
-    messagingSenderId: "1059477552626",
-    appId: "1:1059477552626:web:ef81ee972916bd8b697f6b",
-    measurementId: "G-PM1MZ27C98"
-  };
-// Khởi tạo Firebase
-const app = initializeApp(firebaseConfig);
-
-// Kiểm tra kết nối
-const checkFirebaseConnection = async () => {
-  try {
-    console.log('Đang kiểm tra kết nối Firebase...');
-    
-    const db = getFirestore(app);
-    // Sử dụng collection() và getDocs() thay vì db.collection
-    const testCollection = collection(db, 'test');
-    await getDocs(testCollection);
-    
-    console.log('✅ Kết nối Firebase thành công!');
-    return true;
-  } catch (error) {
-    console.error('❌ Lỗi kết nối Firebase:', error);
-    return false;
-  }
+  apiKey: "AIzaSyDqXjeHVRijpR1qQLcWfn-EewgjpLtELEY",
+  authDomain: "search-images-v1.firebaseapp.com",
+  databaseURL: "https://search-images-v1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "search-images-v1",
+  storageBucket: "search-images-v1.firebasestorage.app",
+  messagingSenderId: "1059477552626",
+  appId: "1:1059477552626:web:ef81ee972916bd8b697f6b",
+  measurementId: "G-PM1MZ27C98"
 };
 
-// Thêm tài khoản test
-export const TEST_ACCOUNTS = {
-  admin: {
-    email: 'admin@test.com',
-    password: 'admin123'
-  },
-  user: {
-    email: 'user@test.com', 
-    password: 'user123'
-  }
-};
+let app;
+let auth;
+let db;
+let storage;
 
-// Hàm đăng nhập
-export const loginWithEmail = async (email, password) => {
+export const initFirebase = async () => {
   try {
-    const auth = getAuth();
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    
+    return { app, auth, db, storage };
   } catch (error) {
-    console.error('Lỗi đăng nhập:', error);
+    console.error('Lỗi khởi tạo Firebase:', error);
     throw error;
   }
 };
 
-// Khởi tạo các services
-export const storage = getStorage(app);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export { checkFirebaseConnection };
+// Thêm hàm kiểm tra kết nối
+export const checkFirebaseConnection = async () => {
+  try {
+    if (!app) {
+      await initFirebase();
+    }
+    // Thử kết nối đến Firestore để kiểm tra
+    const db = getFirestore(app);
+    await db.terminate(); // Đóng kết nối sau khi kiểm tra
+    return true;
+  } catch (error) {
+    console.error('Lỗi kết nối Firebase:', error);
+    return false;
+  }
+};
+
+export { auth, db, storage };
