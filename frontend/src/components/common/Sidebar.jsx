@@ -34,7 +34,7 @@ function Sidebar({ open, onToggle }) {
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
   const { userData, loading, setUserData } = useUser();
-  const isAdmin = userData?.role === 'admin';
+  const menuOpen = Boolean(anchorEl);
 
   const menuItems = [
     { text: 'Tìm kiếm', icon: <Search />, path: '/search', showFor: ['admin', 'user'] },
@@ -86,9 +86,9 @@ function Sidebar({ open, onToggle }) {
             placement="right"
           >
             <ListItem
-              button
               onClick={() => navigate(item.path)}
               className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+              sx={{ cursor: 'pointer' }}
             >
               <ListItemIcon className="menu-icon">
                 {item.icon}
@@ -105,9 +105,12 @@ function Sidebar({ open, onToggle }) {
       {/* User Profile Section */}
       <Box className="user-profile">
         <ListItem 
-          button 
           onClick={handleProfileMenuOpen}
           className="profile-item"
+          aria-controls={menuOpen ? 'profile-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={menuOpen ? 'true' : undefined}
+          sx={{ cursor: 'pointer' }}
         >
           <ListItemIcon>
             {loading ? (
@@ -117,14 +120,18 @@ function Sidebar({ open, onToggle }) {
                 src={userData?.avatar}
                 className="user-avatar"
               >
-                {userData?.name ? userData.name.charAt(0) : '?'}
+                {userData?.username ? userData.username.charAt(0).toUpperCase() : '?'}
               </Avatar>
             )}
           </ListItemIcon>
           {open && (
             <Box className="user-info" sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle1" noWrap>
-                {loading ? 'Đang tải...' : userData?.name || 'Không có tên'}
+              <Typography 
+                variant="subtitle1" 
+                noWrap
+                sx={{ fontWeight: 'medium' }}
+              >
+                {loading ? 'Đang tải...' : userData?.username || 'Không có tên'}
               </Typography>
               <Typography 
                 variant="body2"
@@ -154,14 +161,30 @@ function Sidebar({ open, onToggle }) {
         </ListItem>
 
         <Menu
+          id="profile-menu"
           anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
+          open={menuOpen}
           onClose={handleProfileMenuClose}
           className="profile-menu"
+          MenuListProps={{
+            'aria-labelledby': 'profile-button',
+            role: 'menu'
+          }}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          keepMounted
         >
-        
-          <Divider />
-          <MenuItem onClick={handleLogout}>
+          <MenuItem 
+            onClick={handleLogout}
+            role="menuitem"
+            tabIndex={0}
+          >
             <ListItemIcon>
               <ExitToApp fontSize="small" />
             </ListItemIcon>

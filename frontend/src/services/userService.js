@@ -3,9 +3,7 @@ import {
   collection,
   doc,
   setDoc,
-  getDoc,
   getDocs,
-  updateDoc,
   query,
   where,
   serverTimestamp 
