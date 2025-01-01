@@ -172,7 +172,7 @@ function ProductManagement() {
       console.log('Saving product:', formData);
       handleCloseDialog();
     } catch (error) {
-      setFormError('Có lỗi xảy ra. Vui lòng thử lại.');
+      setFormError('Có lỗi xảy ra. Vui lòng thử lại.', error);
     }
   };
 
@@ -459,7 +459,7 @@ function ProductManagement() {
           </DialogTitle>
           <DialogContent>
             <Typography>
-              Bạn có chắc chắn muốn xóa sản phẩm "{selectedProduct?.name}" không?
+              Bạn có chắc chắn muốn xóa sản phẩm {selectedProduct?.name} không?
             </Typography>
           </DialogContent>
           <DialogActions>

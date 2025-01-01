@@ -126,7 +126,7 @@ function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [setSelectedUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [snackbar, setSnackbar] = useState({
     open: false,
