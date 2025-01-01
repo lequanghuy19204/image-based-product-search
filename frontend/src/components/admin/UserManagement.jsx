@@ -34,13 +34,14 @@ import {
   Search as SearchIcon,
   BlockOutlined,
   AdminPanelSettings,
-  PersonOutline
+  PersonOutline,
+  Save as SaveIcon
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/UserManagement.css';
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase/config';
@@ -139,8 +140,15 @@ function UserManagement() {
     password: '',
     confirmPassword: '',
     role: 'user',
-    company_id: '',
+    company: {
+      id: userData.company_id,
+      name: userData.companyName,
+      code: userData.companyCode
+    }
   });
+
+  // Thêm state để quản lý loading khi tạo user
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!userData || userData.role !== 'admin') {
     return <Navigate to="/search" />;
@@ -155,25 +163,31 @@ function UserManagement() {
     setPage(0);
   };
 
-  const handleOpenDialog = (user = null) => {
-    setSelectedUser(user);
-    if (user) {
-      setFormData({
-        username: user.username,
-        email: user.email,
-        password: '',
-        confirmPassword: '',
-        role: user.role
+  const handleOpenDialog = () => {
+    // Kiểm tra quyền admin
+    if (!userData || userData.role !== 'admin') {
+      setSnackbar({
+        open: true,
+        message: 'Bạn không có quyền thêm người dùng mới',
+        severity: 'error'
       });
-    } else {
-      setFormData({
-        username: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        role: 'user'
-      });
+      return;
     }
+
+    // Reset form data với thông tin công ty của admin đang đăng nhập
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'user',
+      company: {
+        id: userData.company_id,
+        name: userData.companyName,
+        code: userData.companyCode
+      }
+    });
+
     setOpenDialog(true);
   };
 
@@ -185,80 +199,114 @@ function UserManagement() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'user'
+      role: 'user',
+      company: {
+        id: userData.company_id,
+        name: userData.companyName,
+        code: userData.companyCode
+      }
     });
   };
 
-  const handleSubmit = async () => {
-    if (!formData.username || !formData.email || !formData.password) {
-      setSnackbar({
-        open: true,
-        message: 'Vui lòng điền đầy đủ thông tin',
-        severity: 'error'
-      });
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setSnackbar({
-        open: true,
-        message: 'Mật khẩu xác nhận không khớp',
-        severity: 'error'
-      });
-      return;
-    }
+  const handleCreateUser = async () => {
+    if (isSubmitting) return;
 
     try {
-      // Tạo tài khoản authentication
+      setIsSubmitting(true);
+
+      // Lưu thông tin user hiện tại trước khi tạo tài khoản mới
+      const currentUser = auth.currentUser;
+      
+      // Tạo tài khoản mới
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         formData.email,
         formData.password
       );
 
-      // Tạo document trong collection users
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
+      // Ngay lập tức đăng nhập lại bằng tài khoản admin cũ
+      await auth.updateCurrentUser(currentUser);
+
+      // Tiếp tục code hiện tại để tạo document trong Firestore
+      const newUserData = {
         username: formData.username,
-        email: formData.email,
+        email: formData.email.toLowerCase(),
         role: formData.role,
         status: 'active',
-        company_id: userData.company_id, // Mặc định là công ty của admin tạo
+        company_id: formData.company.id,
+        companyName: formData.company.name,
+        companyCode: formData.company.code,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp()
-      });
+      };
 
-      // Thêm user mới vào state
+      await setDoc(doc(db, 'users', userCredential.user.uid), newUserData);
+
+      // Cập nhật UI với user mới
       const newUser = {
         id: userCredential.user.uid,
         username: formData.username,
-        email: formData.email,
+        email: formData.email.toLowerCase(),
         role: formData.role,
         status: 'active',
+        created_at: new Date().toLocaleString(),
+        updated_at: new Date().toLocaleString(),
         company: {
-          id: userData.company_id,
-          name: userData.companyName,
-          code: userData.companyCode
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+          id: formData.company.id,
+          name: formData.company.name,
+          code: formData.company.code
+        }
       };
 
-      setUsers([...users, newUser]);
+      setUsers(prevUsers => [...prevUsers, newUser]);
 
+      // Hiển thị thông báo thành công
       setSnackbar({
         open: true,
-        message: 'Thêm người dùng mới thành công!',
+        message: `Tạo ${formData.role === 'admin' ? 'admin' : 'người dùng'} mới thành công!`,
         severity: 'success'
       });
 
+      // Đóng dialog và reset form
       handleCloseDialog();
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        role: 'user',
+        company: null
+      });
+
     } catch (error) {
       console.error('Error creating user:', error);
+      // Xử lý các loại lỗi cụ thể
+      let errorMessage = 'Không thể tạo tài khoản mới: ';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage += 'Email này đã được sử dụng';
+          break;
+        case 'auth/invalid-email':
+          errorMessage += 'Email không hợp lệ';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage += 'Tạo tài khoản bị vô hiệu hóa';
+          break;
+        case 'auth/weak-password':
+          errorMessage += 'Mật khẩu không đủ mạnh';
+          break;
+        default:
+          errorMessage += error.message;
+      }
+
       setSnackbar({
         open: true,
-        message: 'Không thể tạo người dùng mới: ' + error.message,
+        message: errorMessage,
         severity: 'error'
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -436,7 +484,8 @@ function UserManagement() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
+              onClick={handleOpenDialog}
+              disabled={!userData || userData.role !== 'admin'}
             >
               Thêm mới
             </Button>
@@ -559,6 +608,7 @@ function UserManagement() {
                 <TextField
                   fullWidth
                   label="Tên người dùng"
+                  name="username"
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
                 />
@@ -566,8 +616,9 @@ function UserManagement() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  type="email"
                   label="Email"
+                  name="email"
+                  type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                 />
@@ -575,8 +626,9 @@ function UserManagement() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  type="password"
                   label="Mật khẩu"
+                  name="password"
+                  type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
@@ -584,8 +636,9 @@ function UserManagement() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  type="password"
                   label="Xác nhận mật khẩu"
+                  name="confirmPassword"
+                  type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                 />
@@ -594,23 +647,47 @@ function UserManagement() {
                 <FormControl fullWidth>
                   <InputLabel>Vai trò</InputLabel>
                   <Select
+                    name="role"
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                     label="Vai trò"
                   >
                     <MenuItem value="user">Người dùng</MenuItem>
-                    {userData.companyCode === 'SUPER' && (
+                    {userData?.companyCode === 'SUPER' && (
                       <MenuItem value="admin">Quản trị viên</MenuItem>
                     )}
                   </Select>
                 </FormControl>
               </Grid>
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" color="textSecondary">
+                    Thông tin công ty
+                  </Typography>
+                  <Typography>
+                    Tên công ty: {userData?.companyName}
+                  </Typography>
+                  <Typography>
+                    Mã công ty: {userData?.companyCode}
+                  </Typography>
+                </Paper>
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>Hủy</Button>
-            <Button onClick={handleSubmit} variant="contained">
-              Thêm mới
+            <Button 
+              onClick={handleCloseDialog}
+              disabled={isSubmitting}
+            >
+              Hủy
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={handleCreateUser}
+              startIcon={<SaveIcon />}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Đang xử lý...' : 'Thêm mới'}
             </Button>
           </DialogActions>
         </Dialog>

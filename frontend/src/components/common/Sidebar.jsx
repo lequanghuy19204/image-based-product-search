@@ -33,13 +33,28 @@ function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
-  const { userData, loading, setUserData } = useUser();
+  const { userData, loading } = useUser();
   const menuOpen = Boolean(anchorEl);
 
   const menuItems = [
-    { text: 'Tìm kiếm', icon: <Search />, path: '/search', showFor: ['admin', 'user'] },
-    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag />, path: '/admin/products', showFor: ['admin', 'user'] },
-    { text: 'Quản lý Người dùng', icon: <People />, path: '/admin/users', showFor: ['admin'] },
+    { 
+      text: 'Tìm kiếm', 
+      icon: <Search />, 
+      path: '/search', 
+      showFor: ['admin', 'user'] 
+    },
+    { 
+      text: 'Sản phẩm', 
+      icon: <ShoppingBag />, 
+      path: userData?.role === 'admin' ? '/admin/products' : '/products', 
+      showFor: ['admin', 'user'] 
+    },
+    { 
+      text: 'Quản lý Người dùng', 
+      icon: <People />, 
+      path: '/admin/users', 
+      showFor: ['admin'] 
+    },
   ];
 
   const filteredMenuItems = menuItems.filter(item => 
@@ -57,7 +72,6 @@ function Sidebar({ open, onToggle }) {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      setUserData(null);
       navigate('/login');
     } catch (error) {
       console.error('Lỗi đăng xuất:', error);

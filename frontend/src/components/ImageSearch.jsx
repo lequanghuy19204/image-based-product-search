@@ -39,8 +39,10 @@ import {
 } from '@mui/icons-material';
 import Sidebar from './common/Sidebar';
 import '../styles/ImageSearch.css';
+import { useAuth } from '../contexts/AuthContext';
 
 function ImageSearch() {
+  const { currentUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [images, setImages] = useState([]);
   const [searchResults, setSearchResults] = useState([]);

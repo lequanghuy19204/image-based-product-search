@@ -134,3 +134,22 @@ html, body, #root {
     min-height: 100% !important;
   }
 }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Thêm màu đỏ cho thông báo lỗi */
+.MuiAlert-standardError {
+  margin-top: 16px;
+  background-color: #fdeded;
+  color: #5f2120;
+  border-radius: 4px;
+  padding: 6px 16px;
+}

@@ -35,8 +35,11 @@ import { loginWithEmail, registerWithEmail, loginWithGoogle, loginWithFacebook }
 import { generateUniqueCompanyCode } from '../utils/helpers';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -60,6 +63,13 @@ function Login() {
     companyCode: ''
   });
   const [generatedSocialCode, setGeneratedSocialCode] = useState('');
+  const [shake, setShake] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/search');
+    }
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     if (!isLogin && formData.role === 'admin') {
@@ -77,6 +87,14 @@ function Login() {
     }
   }, [socialFormData.role, showSocialDataModal]);
 
+  useEffect(() => {
+    if (errors.submit) {
+      setShake(true);
+      const timer = setTimeout(() => setShake(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [errors.submit]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -84,12 +102,8 @@ function Login() {
     setLoading(true);
     try {
       if (isLogin) {
-        const { userData } = await loginWithEmail(formData.email, formData.password);
-        if (userData?.role === 'admin') {
-          navigate('/admin/products');
-        } else {
-          navigate('/search');
-        }
+        await loginWithEmail(formData.email, formData.password);
+        navigate('/search');
       } else {
         const userData = {
           username: formData.username,
@@ -117,7 +131,43 @@ function Login() {
         });
       }
     } catch (error) {
-      setErrors({ submit: error.message });
+      let errorMessage = 'Đã có lỗi xảy ra';
+      
+      switch (error.code) {
+        case 'auth/invalid-email':
+          errorMessage = 'Email không hợp lệ';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'Tài khoản không tồn tại. Vui lòng kiểm tra lại email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Mật khẩu không chính xác';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Email hoặc mật khẩu không chính xác';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra lại kết nối internet';
+          break;
+        default:
+          errorMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại sau';
+      }
+      
+      setErrors({ 
+        submit: errorMessage,
+        ...(error.code === 'auth/invalid-email' && { email: 'Email không hợp lệ' }),
+        ...(error.code === 'auth/wrong-password' && { password: 'Mật khẩu không chính xác' })
+      });
+
+      if (error.code === 'auth/wrong-password') {
+        setFormData(prev => ({
+          ...prev,
+          password: ''
+        }));
+      }
     } finally {
       setLoading(false);
     }
@@ -189,17 +239,14 @@ function Login() {
     setLoading(true);
     try {
       const result = await provider();
-      
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       
       if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.role === 'admin') {
-          navigate('/admin/products');
-        } else {
-          navigate('/search');
-        }
+        navigate('/search');
       } else {
+        setErrors({
+          submit: 'Vui lòng cung cấp thêm thông tin để hoàn tất đăng ký tài khoản'
+        });
         setSocialAuthData({
           user: result.user,
           provider: provider
@@ -207,7 +254,15 @@ function Login() {
         setShowSocialDataModal(true);
       }
     } catch (error) {
-      setErrors({ submit: error.message });
+      let errorMessage = 'Đã có lỗi xảy ra khi đăng nhập';
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Bạn đã đóng cửa sổ đăng nhập';
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = 'Yêu cầu đăng nhập đã bị hủy';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép popup và thử lại';
+      }
+      setErrors({ submit: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -218,11 +273,22 @@ function Login() {
 
     setLoading(true);
     try {
-      if (socialFormData.role === 'admin' && !socialFormData.companyName) {
-        throw new Error('Vui lòng nhập tên công ty');
-      }
-      if (socialFormData.role === 'user' && !socialFormData.companyCode) {
-        throw new Error('Vui lòng nhập mã công ty');
+      if (socialFormData.role === 'admin') {
+        if (!socialFormData.companyName?.trim()) {
+          throw new Error('Vui lòng nhập tên công ty của bạn');
+        }
+      } else if (socialFormData.role === 'user') {
+        if (!socialFormData.companyCode?.trim()) {
+          throw new Error('Vui lòng nhập mã công ty được cấp bởi quản trị viên');
+        }
+        const companyQuery = query(
+          collection(db, 'companies'), 
+          where('company_code', '==', socialFormData.companyCode)
+        );
+        const companySnapshot = await getDocs(companyQuery);
+        if (companySnapshot.empty) {
+          throw new Error('Mã công ty không hợp lệ. Vui lòng kiểm tra lại');
+        }
       }
 
       const companyData = {
@@ -242,12 +308,9 @@ function Login() {
         companyName: '',
         companyCode: ''
       });
+      setErrors({});
 
-      if (userData.role === 'admin') {
-        navigate('/admin/products');
-      } else {
-        navigate('/search');
-      }
+      navigate('/search');
     } catch (error) {
       setErrors({ submit: error.message });
     } finally {
@@ -289,7 +352,11 @@ function Login() {
               </Typography>
             </Box>
 
-            <Box component="form" onSubmit={handleSubmit} className="form-content">
+            <Box 
+              component="form" 
+              onSubmit={handleSubmit} 
+              className={`form-content ${shake ? 'shake' : ''}`}
+            >
               {!isLogin && (
                 <>
                   <TextField
@@ -497,9 +564,13 @@ function Login() {
         fullWidth
       >
         <DialogTitle>
-          Thông tin bổ sung
+          Hoàn tất đăng ký tài khoản
         </DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Để hoàn tất quá trình đăng ký, vui lòng chọn vai trò và điền thông tin bổ sung
+          </Typography>
+          
           <Box sx={{ mt: 2 }}>
             <ToggleButtonGroup
               value={socialFormData.role}
@@ -545,6 +616,18 @@ function Login() {
                 })}
                 margin="normal"
               />
+            )}
+
+            {socialFormData.role === 'user' && (
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1, mb: 2 }}>
+                Nếu bạn là nhân viên, vui lòng nhập mã công ty được cấp bởi quản trị viên
+              </Typography>
+            )}
+            
+            {socialFormData.role === 'admin' && (
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1, mb: 2 }}>
+                Là quản trị viên, bạn sẽ được cấp một mã công ty duy nhất sau khi đăng ký
+              </Typography>
             )}
 
             {errors.submit && (

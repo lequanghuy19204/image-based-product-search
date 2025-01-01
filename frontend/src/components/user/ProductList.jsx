@@ -23,27 +23,18 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel
+  TablePagination
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
-  Image as ImageIcon,
-  Save as SaveIcon
+  Image as ImageIcon
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
 
-function ProductManagement() {
+function ProductList() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { userData } = useUser();
@@ -54,18 +45,6 @@ function ProductManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    category: '',
-    description: '',
-    status: 'active',
-    image: null,
-    featured: false
-  });
-
   const [products] = useState([
     {
       id: 1,
@@ -73,117 +52,27 @@ function ProductManagement() {
       price: 199000,
       image: 'https://picsum.photos/300/300',
       category: 'Áo',
-      description: 'Áo thun nam chất lượng cao',
-      status: 'active',
-      featured: true
+      status: 'active'
     },
     // Thêm sản phẩm mẫu khác...
   ]);
-
-  const categories = [
-    'Áo', 'Quần', 'Giày', 'Phụ kiện'
-  ];
 
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-
-    if (userData?.role !== 'admin') {
-      navigate('/products');
-      return;
-    }
-
     setLoading(false);
-  }, [currentUser, userData, navigate]);
+  }, [currentUser, navigate]);
 
   const handleOpenDialog = (product = null) => {
-    if (product) {
-      setFormData({
-        name: product.name,
-        price: product.price,
-        category: product.category,
-        description: product.description || '',
-        status: product.status,
-        image: product.image,
-        featured: product.featured || false
-      });
-    } else {
-      setFormData({
-        name: '',
-        price: '',
-        category: '',
-        description: '',
-        status: 'active',
-        image: null,
-        featured: false
-      });
-    }
     setSelectedProduct(product);
     setDialogOpen(true);
-    setFormError('');
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setSelectedProduct(null);
-    setFormError('');
-  };
-
-  const handleOpenDeleteDialog = (product) => {
-    setSelectedProduct(product);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Thêm xử lý upload ảnh ở đây
-      setFormData(prev => ({
-        ...prev,
-        image: URL.createObjectURL(file)
-      }));
-    }
-  };
-
-  const handleSubmit = async () => {
-    // Validate form
-    if (!formData.name || !formData.price || !formData.category) {
-      setFormError('Vui lòng điền đầy đủ thông tin bắt buộc');
-      return;
-    }
-
-    try {
-      // Thêm xử lý lưu sản phẩm vào database
-      console.log('Saving product:', formData);
-      handleCloseDialog();
-    } catch (error) {
-      setFormError('Có lỗi xảy ra. Vui lòng thử lại.');
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      // Thêm xử lý xóa sản phẩm
-      console.log('Deleting product:', selectedProduct);
-      handleCloseDeleteDialog();
-    } catch (error) {
-      console.error('Error deleting product:', error);
-    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -208,7 +97,7 @@ function ProductManagement() {
       
       <Box className={`product-management ${sidebarOpen ? 'content-shift' : ''}`}>
         <Paper className="toolbar">
-          <Typography variant="h5">Quản lý Sản phẩm</Typography>
+          <Typography variant="h5">Danh sách Sản phẩm</Typography>
           
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField
@@ -244,7 +133,6 @@ function ProductManagement() {
                 <TableCell>Tên sản phẩm</TableCell>
                 <TableCell>Danh mục</TableCell>
                 <TableCell align="right">Giá</TableCell>
-                <TableCell>Trạng thái</TableCell>
                 <TableCell align="right">Thao tác</TableCell>
               </TableRow>
             </TableHead>
@@ -268,13 +156,6 @@ function ProductManagement() {
                   <TableCell align="right">
                     {product.price.toLocaleString('vi-VN')}đ
                   </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={product.status === 'active' ? 'Đang bán' : 'Ngừng bán'}
-                      color={product.status === 'active' ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
                   <TableCell align="right">
                     <Box className="table-actions">
                       <Tooltip title="Chỉnh sửa">
@@ -283,15 +164,6 @@ function ProductManagement() {
                           onClick={() => handleOpenDialog(product)}
                         >
                           <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton 
-                          size="small"
-                          color="error"
-                          onClick={() => handleOpenDeleteDialog(product)}
-                        >
-                          <DeleteIcon />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -314,7 +186,6 @@ function ProductManagement() {
           />
         </TableContainer>
 
-        {/* Dialog thêm/sửa sản phẩm */}
         <Dialog 
           open={dialogOpen} 
           onClose={handleCloseDialog}
@@ -325,91 +196,30 @@ function ProductManagement() {
             {selectedProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
           </DialogTitle>
           <DialogContent>
-            {formError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {formError}
-              </Alert>
-            )}
             <Grid container spacing={2} className="form-content">
               <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Tên sản phẩm"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
                   variant="outlined"
-                  required
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Giá"
-                  name="price"
                   type="number"
-                  value={formData.price}
-                  onChange={handleInputChange}
                   variant="outlined"
-                  required
                   InputProps={{
                     endAdornment: <InputAdornment position="end">đ</InputAdornment>,
                   }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Danh mục</InputLabel>
-                  <Select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    label="Danh mục"
-                  >
-                    {categories.map((category) => (
-                      <MenuItem key={category} value={category}>
-                        {category}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Mô tả"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
+                  label="Danh mục"
                   variant="outlined"
-                  multiline
-                  rows={3}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Trạng thái</InputLabel>
-                  <Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    label="Trạng thái"
-                  >
-                    <MenuItem value="active">Đang bán</MenuItem>
-                    <MenuItem value="inactive">Ngừng bán</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.featured}
-                      onChange={handleInputChange}
-                      name="featured"
-                    />
-                  }
-                  label="Sản phẩm nổi bật"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -424,54 +234,15 @@ function ProductManagement() {
                     type="file"
                     hidden
                     accept="image/*"
-                    onChange={handleImageChange}
                   />
                 </Button>
               </Grid>
-              {formData.image && (
-                <Grid item xs={12}>
-                  <Box className="preview-image">
-                    <img src={formData.image} alt="Preview" />
-                  </Box>
-                </Grid>
-              )}
             </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Hủy</Button>
-            <Button 
-              variant="contained"
-              onClick={handleSubmit}
-              startIcon={<SaveIcon />}
-            >
+            <Button variant="contained">
               {selectedProduct ? 'Cập nhật' : 'Thêm mới'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Dialog xác nhận xóa */}
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={handleCloseDeleteDialog}
-        >
-          <DialogTitle>
-            Xác nhận xóa sản phẩm
-          </DialogTitle>
-          <DialogContent>
-            <Typography>
-              Bạn có chắc chắn muốn xóa sản phẩm "{selectedProduct?.name}" không?
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDeleteDialog}>
-              Hủy
-            </Button>
-            <Button 
-              onClick={handleDelete}
-              variant="contained"
-              color="error"
-            >
-              Xóa
             </Button>
           </DialogActions>
         </Dialog>
@@ -480,4 +251,4 @@ function ProductManagement() {
   );
 }
 
-export default ProductManagement;
+export default ProductList; 
