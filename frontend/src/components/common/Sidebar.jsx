@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import PropTypes from 'prop-types';
 import '../../styles/Sidebar.css';
+import { motion } from 'framer-motion';
 
 function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
@@ -78,6 +79,11 @@ function Sidebar({ open, onToggle }) {
     }
   };
 
+  const menuItemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 }
+  };
+
   return (
     <Drawer
       variant="permanent"
@@ -92,26 +98,36 @@ function Sidebar({ open, onToggle }) {
       
       <Divider />
       
-      <List className="sidebar-menu">
-        {filteredMenuItems.map((item) => (
-          <Tooltip 
-            key={item.path}
-            title={!open ? item.text : ''}
-            placement="right"
-          >
-            <ListItem
-              onClick={() => navigate(item.path)}
-              className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
-              sx={{ cursor: 'pointer' }}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        transition={{ staggerChildren: 0.1 }}
+      >
+        <List className="sidebar-menu">
+          {filteredMenuItems.map((item) => (
+            <motion.div
+              key={item.path}
+              variants={menuItemVariants}
+              transition={{ duration: 0.3 }}
             >
-              <ListItemIcon className="menu-icon">
-                {item.icon}
-              </ListItemIcon>
-              {open && <ListItemText primary={item.text} />}
-            </ListItem>
-          </Tooltip>
-        ))}
-      </List>
+              <Tooltip 
+                title={!open ? item.text : ''}
+                placement="right"
+              >
+                <ListItem
+                  onClick={() => navigate(item.path)}
+                  className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+                >
+                  <ListItemIcon className="menu-icon">
+                    {item.icon}
+                  </ListItemIcon>
+                  {open && <ListItemText primary={item.text} />}
+                </ListItem>
+              </Tooltip>
+            </motion.div>
+          ))}
+        </List>
+      </motion.div>
 
       <Box sx={{ flexGrow: 1 }} />
       <Divider />

@@ -37,6 +37,7 @@ import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { motion } from 'framer-motion';
 
 function Login() {
   const { currentUser } = useAuth();
@@ -331,231 +332,237 @@ function Login() {
 
   return (
     <Container component="main" maxWidth="lg" className="login-container">
-      <Grid container spacing={2} className="login-wrapper">
-        <Grid item xs={12} md={6} className="login-left">
-          <Box className="intro-content">
-            <img src={viteLogo} className="logo" alt="Vite logo" />
-            <Typography variant="h5">
-              Hệ thống quản lý hình ảnh chuyên nghiệp
-            </Typography>
-          </Box>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} className="form-paper">
-            <Box className="form-header">
-              <Typography variant="h4" component="h2">
-                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
-              </Typography>
-              <Typography variant="body1" color="textSecondary">
-                {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Grid container spacing={2} className="login-wrapper">
+          <Grid item xs={12} md={6} className="login-left">
+            <Box className="intro-content">
+              <img src={viteLogo} className="logo" alt="Vite logo" />
+              <Typography variant="h5">
+                Hệ thống quản lý hình ảnh chuyên nghiệp
               </Typography>
             </Box>
+          </Grid>
 
-            <Box 
-              component="form" 
-              onSubmit={handleSubmit} 
-              className={`form-content ${shake ? 'shake' : ''}`}
-            >
-              {!isLogin && (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Tên người dùng"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    error={!!errors.username}
-                    helperText={errors.username}
-                    margin="normal"
-                  />
-
-                  <ToggleButtonGroup
-                    value={formData.role}
-                    exclusive
-                    onChange={handleRoleChange}
-                    fullWidth
-                    sx={{ mt: 2, mb: 2 }}
-                  >
-                    <ToggleButton value="user">
-                      Người dùng
-                    </ToggleButton>
-                    <ToggleButton value="admin">
-                      Quản trị viên
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-
-                  {formData.role === 'admin' ? (
-                    <>
-                      <TextField
-                        fullWidth
-                        label="Tên công ty"
-                        name="companyName"
-                        value={formData.companyName}
-                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                        error={!!errors.companyName}
-                        helperText={errors.companyName}
-                        margin="normal"
-                      />
-                      {generatedCode && (
-                        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                          Mã công ty: {generatedCode}
-                        </Typography>
-                      )}
-                    </>
-                  ) : (
-                    <TextField
-                      fullWidth
-                      label="Mã công ty"
-                      name="companyCode"
-                      value={formData.companyCode}
-                      onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
-                      error={!!errors.companyCode}
-                      helperText={errors.companyCode}
-                      margin="normal"
-                    />
-                  )}
-                </>
-              )}
-
-              <TextField
-                fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                error={!!errors.email}
-                helperText={errors.email}
-                margin="normal"
-              />
-
-              <TextField
-                fullWidth
-                label="Mật khẩu"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleInputChange}
-                error={!!errors.password}
-                helperText={errors.password}
-                margin="normal"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              {!isLogin && (
-                <TextField
-                  fullWidth
-                  label="Xác nhận mật khẩu"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  error={!!errors.confirmPassword}
-                  helperText={errors.confirmPassword}
-                  margin="normal"
-                />
-              )}
-
-              {isLogin && (
-                <Box className="login-options">
-                  <FormControlLabel
-                    control={<Checkbox color="primary" />}
-                    label="Ghi nhớ đăng nhập"
-                  />
-                  <Link href="#" variant="body2">
-                    Quên mật khẩu?
-                  </Link>
-                </Box>
-              )}
-
-              {errors.submit && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {errors.submit}
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                disabled={loading}
-                sx={{ mt: 3, mb: 2 }}
-              >
-                {loading ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  isLogin ? 'Đăng nhập' : 'Đăng ký'
-                )}
-              </Button>
-
-              <Box className="social-login">
-                <Divider>
-                  <Typography variant="body2" color="textSecondary">
-                    Hoặc đăng nhập với
-                  </Typography>
-                </Divider>
-                <Box className="social-buttons">
-                  <Button
-                    variant="outlined"
-                    startIcon={<Google />}
-                    fullWidth
-                    onClick={() => handleSocialLogin(loginWithGoogle)}
-                    disabled={loading}
-                  >
-                    Google
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Facebook />}
-                    fullWidth
-                    onClick={() => handleSocialLogin(loginWithFacebook)}
-                    disabled={loading}
-                  >
-                    Facebook
-                  </Button>
-                </Box>
-              </Box>
-
-              <Box className="form-footer">
-                <Typography variant="body2">
-                  {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                  <Link
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setIsLogin(!isLogin);
-                      setFormData({
-                        email: '',
-                        password: '',
-                        confirmPassword: '',
-                        username: '',
-                        role: 'user',
-                        companyName: '',
-                        companyCode: ''
-                      });
-                      setErrors({});
-                    }}
-                  >
-                    {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
-                  </Link>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} className="form-paper">
+              <Box className="form-header">
+                <Typography variant="h4" component="h2">
+                  {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
+                </Typography>
+                <Typography variant="body1" color="textSecondary">
+                  {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
                 </Typography>
               </Box>
-            </Box>
-          </Paper>
+
+              <Box 
+                component="form" 
+                onSubmit={handleSubmit} 
+                className={`form-content ${shake ? 'shake' : ''}`}
+              >
+                {!isLogin && (
+                  <>
+                    <TextField
+                      fullWidth
+                      label="Tên người dùng"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      error={!!errors.username}
+                      helperText={errors.username}
+                      margin="normal"
+                    />
+
+                    <ToggleButtonGroup
+                      value={formData.role}
+                      exclusive
+                      onChange={handleRoleChange}
+                      fullWidth
+                      sx={{ mt: 2, mb: 2 }}
+                    >
+                      <ToggleButton value="user">
+                        Người dùng
+                      </ToggleButton>
+                      <ToggleButton value="admin">
+                        Quản trị viên
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+
+                    {formData.role === 'admin' ? (
+                      <>
+                        <TextField
+                          fullWidth
+                          label="Tên công ty"
+                          name="companyName"
+                          value={formData.companyName}
+                          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                          error={!!errors.companyName}
+                          helperText={errors.companyName}
+                          margin="normal"
+                        />
+                        {generatedCode && (
+                          <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                            Mã công ty: {generatedCode}
+                          </Typography>
+                        )}
+                      </>
+                    ) : (
+                      <TextField
+                        fullWidth
+                        label="Mã công ty"
+                        name="companyCode"
+                        value={formData.companyCode}
+                        onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
+                        error={!!errors.companyCode}
+                        helperText={errors.companyCode}
+                        margin="normal"
+                      />
+                    )}
+                  </>
+                )}
+
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  error={!!errors.email}
+                  helperText={errors.email}
+                  margin="normal"
+                />
+
+                <TextField
+                  fullWidth
+                  label="Mật khẩu"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  error={!!errors.password}
+                  helperText={errors.password}
+                  margin="normal"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+
+                {!isLogin && (
+                  <TextField
+                    fullWidth
+                    label="Xác nhận mật khẩu"
+                    name="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    error={!!errors.confirmPassword}
+                    helperText={errors.confirmPassword}
+                    margin="normal"
+                  />
+                )}
+
+                {isLogin && (
+                  <Box className="login-options">
+                    <FormControlLabel
+                      control={<Checkbox color="primary" />}
+                      label="Ghi nhớ đăng nhập"
+                    />
+                    <Link href="#" variant="body2">
+                      Quên mật khẩu?
+                    </Link>
+                  </Box>
+                )}
+
+                {errors.submit && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {errors.submit}
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  disabled={loading}
+                  sx={{ mt: 3, mb: 2 }}
+                >
+                  {loading ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    isLogin ? 'Đăng nhập' : 'Đăng ký'
+                  )}
+                </Button>
+
+                <Box className="social-login">
+                  <Divider>
+                    <Typography variant="body2" color="textSecondary">
+                      Hoặc đăng nhập với
+                    </Typography>
+                  </Divider>
+                  <Box className="social-buttons">
+                    <Button
+                      variant="outlined"
+                      startIcon={<Google />}
+                      fullWidth
+                      onClick={() => handleSocialLogin(loginWithGoogle)}
+                      disabled={loading}
+                    >
+                      Google
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Facebook />}
+                      fullWidth
+                      onClick={() => handleSocialLogin(loginWithFacebook)}
+                      disabled={loading}
+                    >
+                      Facebook
+                    </Button>
+                  </Box>
+                </Box>
+
+                <Box className="form-footer">
+                  <Typography variant="body2">
+                    {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
+                    <Link
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setIsLogin(!isLogin);
+                        setFormData({
+                          email: '',
+                          password: '',
+                          confirmPassword: '',
+                          username: '',
+                          role: 'user',
+                          companyName: '',
+                          companyCode: ''
+                        });
+                        setErrors({});
+                      }}
+                    >
+                      {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+                    </Link>
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      </motion.div>
 
       <Dialog 
         open={showSocialDataModal} 

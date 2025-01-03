@@ -45,6 +45,7 @@ import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc, s
 import { db } from '../../firebase/config';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase/config';
+import { motion } from 'framer-motion';
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -126,7 +127,7 @@ function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [openDialog, setOpenDialog] = useState(false);
-  const [setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -452,45 +453,56 @@ function UserManagement() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       
-      <Box className={`user-management ${sidebarOpen ? 'content-shift' : ''}`}>
-        <Paper className="toolbar">
-          <Typography variant="h5">Quản lý Người dùng</Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-field"
-              InputProps={{
-                startAdornment: <SearchIcon />
-              }}
-            />
+      <Box className={`user-management ${sidebarOpen ? 'content-shift' : 'content-normal'}`}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Paper className="toolbar">
+            <Typography variant="h5" sx={{ fontWeight: 600, color: '#111827' }}>
+              Quản lý Người dùng
+            </Typography>
             
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Vai trò</InputLabel>
-              <Select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                label="Vai trò"
-              >
-                <MenuItem value="all">Tất cả</MenuItem>
-                <MenuItem value="admin">Quản trị viên</MenuItem>
-                <MenuItem value="user">Người dùng</MenuItem>
-              </Select>
-            </FormControl>
+            <Box className="toolbar-actions">
+              <TextField
+                size="small"
+                placeholder="Tìm kiếm..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="search-field"
+                InputProps={{
+                  startAdornment: (
+                    <SearchIcon sx={{ color: '#6B7280', mr: 1 }} />
+                  )
+                }}
+              />
+              
+              <FormControl size="small" className="role-filter">
+                <InputLabel>Vai trò</InputLabel>
+                <Select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  label="Vai trò"
+                >
+                  <MenuItem value="all">Tất cả</MenuItem>
+                  <MenuItem value="admin">Quản trị viên</MenuItem>
+                  <MenuItem value="user">Người dùng</MenuItem>
+                </Select>
+              </FormControl>
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenDialog}
-              disabled={!userData || userData.role !== 'admin'}
-            >
-              Thêm mới
-            </Button>
-          </Box>
-        </Paper>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenDialog}
+                disabled={!userData || userData.role !== 'admin'}
+                className="add-button"
+              >
+                Thêm mới
+              </Button>
+            </Box>
+          </Paper>
+        </motion.div>
 
         <TableContainer component={Paper}>
           <Table>
@@ -653,7 +665,7 @@ function UserManagement() {
                     label="Vai trò"
                   >
                     <MenuItem value="user">Người dùng</MenuItem>
-                    {userData?.companyCode === 'SUPER' && (
+                    {userData?.role === 'admin' && (
                       <MenuItem value="admin">Quản trị viên</MenuItem>
                     )}
                   </Select>
