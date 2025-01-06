@@ -1,3 +1,4 @@
+/* Thiết lập cơ bản cho sidebar */
 .sidebar {
   width: 240px;
   flex-shrink: 0;
@@ -8,59 +9,68 @@
   height: 100vh;
 }
 
+/* Style khi sidebar được mở rộng */
 .sidebar-open {
-  width: 30px;
+  width: 40px;
   transition: width 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms;
 }
 
+/* Style khi sidebar thu gọn */
 .sidebar-close {
   width: 70px;
   transition: width 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms;
   overflow-x: hidden;
 }
 
+/* Phần header của sidebar chứa nút toggle */
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 12px;
+  padding: 20px;
   min-height: 64px;
 }
 
+/* Container cho menu items */
 .sidebar-menu {
-  padding: 8px;
+  padding: 10px;
 }
 
+/* Style cho từng menu item */
 .menu-item {
   border-radius: 8px;
-  margin: 4px 0;
+  margin: 10px 0px 10px 20px;
   padding: 12px !important;
 }
 
+/* Style cho menu item đang được chọn */
 .menu-item.active {
   background-color: rgba(102, 126, 234, 0.1) !important;
 }
 
+/* Màu icon khi menu item được chọn */
 .menu-item.active .menu-icon {
   color: #667eea;
 }
 
+/* Hiệu ứng hover cho menu item */
 .menu-item:hover {
   background-color: rgba(0, 0, 0, 0.04);
 }
 
+/* Style cơ bản cho icons trong menu */
 .menu-icon {
   min-width: 40px !important;
   color: #666;
 }
 
-/* Animation cho icon khi hover */
+/* Hiệu ứng animation cho icon khi hover */
 .menu-item:hover .menu-icon {
   transform: scale(1.1);
   transition: transform 0.2s ease-in-out;
 }
 
-/* Custom scrollbar */
+/* Tùy chỉnh thanh cuộn */
 .sidebar::-webkit-scrollbar {
   width: 6px;
 }
@@ -78,39 +88,44 @@
   background: #bbb;
 }
 
-/* Thêm styles mới cho phần user profile */
+/* Phần style cho khu vực thông tin người dùng */
 .user-profile {
-  margin-top: auto;
+  margin-top: auto; /* Đẩy profile xuống cuối sidebar */
   padding: 5px;
   border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
 
+/* Style cho container thông tin người dùng */
 .profile-item {
   border-radius: 8px;
   margin: 4px 0;
   padding: 8px !important;
 }
 
+/* Style cho avatar người dùng */
 .user-avatar {
   width: 40px !important;
   height: 40px !important;
   background-color: #667eea !important;
 }
 
+/* Container cho thông tin text của user */
 .user-info {
   margin-left:8px;
   overflow: hidden;
 }
 
+/* Style cho menu profile dropdown */
 .profile-menu {
   margin-top: 8px;
 }
 
-/* Animation cho profile item */
+/* Hiệu ứng hover cho profile section */
 .profile-item:hover {
   background-color: rgba(102, 126, 234, 0.1);
 }
 
+/* Animation cho avatar khi hover */
 .profile-item:hover .user-avatar {
   transform: scale(1.05);
   transition: transform 0.2s ease-in-out;
