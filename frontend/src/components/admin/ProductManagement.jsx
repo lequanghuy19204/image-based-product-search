@@ -210,7 +210,7 @@ function ProductManagement() {
         <Paper className="toolbar">
           <Typography variant="h5">Quản lý Sản phẩm</Typography>
           
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box className="toolbar-actions" sx={{ display: 'flex', gap: 2 }}>
             <TextField
               size="small"
               placeholder="Tìm kiếm sản phẩm..."
@@ -227,11 +227,12 @@ function ProductManagement() {
             />
             
             <Button
+              className="add-button"
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => handleOpenDialog()}
             >
-              Thêm sản phẩm
+              Thêm mới
             </Button>
           </Box>
         </Paper>
