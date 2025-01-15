@@ -7,6 +7,7 @@ import ProductManagement from './components/admin/ProductManagement';
 import UserManagement from './components/admin/UserManagement';
 // import InitializeData from './components/common/InitializeData';
 import './App.css';
+// import './styles/responsive.css';
 import { UserProvider } from './contexts/UserContext';
 import ProductList from './components/user/ProductList';
 

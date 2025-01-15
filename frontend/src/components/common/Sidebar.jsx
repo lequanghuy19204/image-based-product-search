@@ -89,6 +89,17 @@ function Sidebar({ open, onToggle }) {
       variant="permanent"
       open={open}
       className={`sidebar ${open ? 'sidebar-open' : 'sidebar-close'}`}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: 'auto',
+          boxSizing: 'border-box',
+          border: 'none',
+          overflowX: 'hidden',
+          backgroundColor: '#fff',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          
+        },
+      }}
     >
       <Box className="sidebar-header">
         <IconButton onClick={onToggle}>
@@ -144,7 +155,7 @@ function Sidebar({ open, onToggle }) {
         >
           <ListItemIcon>
             {loading ? (
-              <CircularProgress size={40} />
+              <CircularProgress size={30} />
             ) : (
               <Avatar 
                 src={userData?.avatar}

@@ -1,0 +1,229 @@
+/* Common breakpoints */
+/* Mobile: < 600px */
+/* Tablet: 600px - 960px */ 
+/* Laptop: 960px - 1280px */
+/* Desktop: > 1280px */
+
+/* ProductManagement & UserManagement */
+@media screen and (max-width: 1280px) {
+    .product-management,
+    .user-management {
+      padding: 16px;
+    }
+  
+    .toolbar {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+  
+    .table-container {
+      overflow-x: auto;
+    }
+  }
+  
+  @media screen and (max-width: 960px) {
+    .content-shift {
+      margin-left: 0;
+    }
+  
+    .toolbar {
+      flex-direction: column;
+      gap: 16px;
+    }
+  
+    .toolbar-actions {
+      width: 100%;
+      flex-direction: column;
+      gap: 12px;
+    }
+  
+    .search-field {
+      width: 100%;
+    }
+  
+    .add-button {
+      width: 100%;
+    }
+  
+    /* Điều chỉnh bảng */
+    .product-table-image {
+      width: 60px;
+      height: 60px;
+    }
+  
+    .MuiTableCell-root {
+      padding: 12px 8px;
+    }
+  }
+  
+  @media screen and (max-width: 600px) {
+    .product-management,
+    .user-management {
+      padding: 12px;
+    }
+  
+    /* Ẩn một số cột trong bảng trên mobile */
+    .MuiTableCell-head:nth-child(3),
+    .MuiTableCell-body:nth-child(3) {
+      display: none;
+    }
+  
+    .product-table-image {
+      width: 50px;
+      height: 50px;
+    }
+  }
+  
+  /* ImageSearch */
+  @media screen and (max-width: 1280px) {
+    .search-container {
+      padding: 16px;
+    }
+  
+    .results-grid {
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+      gap: 16px !important;
+    }
+  }
+  
+  @media screen and (max-width: 960px) {
+    .header-section {
+      padding: 24px 16px;
+    }
+  
+    .upload-section {
+      padding: 16px;
+    }
+  
+    .upload-box {
+      min-height: 200px;
+    }
+  
+    .results-grid {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+    }
+  
+    .result-item img {
+      height: 200px !important;
+    }
+  }
+  
+  @media screen and (max-width: 600px) {
+    .search-container {
+      padding: 12px;
+    }
+  
+    .header-section {
+      padding: 16px;
+    }
+  
+    .page-title {
+      font-size: 1.5rem;
+    }
+  
+    .upload-box {
+      min-height: 150px;
+    }
+  
+    .results-grid {
+      grid-template-columns: 1fr !important;
+    }
+  
+    .result-item img {
+      height: 250px !important;
+    }
+  }
+  
+  /* Login */
+  @media screen and (max-width: 1280px) {
+    .login-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+  }
+  
+  @media screen and (max-width: 960px) {
+    .login-container {
+      padding: 16px !important;
+    }
+  
+    .login-left {
+      display: none !important;
+    }
+  
+    .login-wrapper .MuiGrid-item {
+      width: 100%;
+    }
+  
+    .form-paper {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+  }
+  
+  @media screen and (max-width: 600px) {
+    .login-container {
+      padding: 12px !important;
+    }
+  
+    .form-paper {
+      padding: 16px !important;
+    }
+  
+    .social-buttons {
+      flex-direction: column;
+    }
+  
+    .social-buttons .MuiButton-outlined {
+      width: 100%;
+    }
+  }
+  
+  /* Sidebar */
+  @media screen and (max-width: 960px) {
+    .sidebar {
+      position: fixed;
+      z-index: 1200;
+      background: white;
+    }
+  
+    .sidebar-open {
+      width: 240px;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+  
+    .sidebar-close {
+      width: 0;
+      overflow: hidden;
+    }
+  
+    /* Overlay khi sidebar mở */
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1100;
+      display: none;
+    }
+  
+    .sidebar-open + .sidebar-overlay {
+      display: block;
+    }
+  }
+  
+  @media screen and (max-width: 600px) {
+    .menu-item {
+      padding: 8px 16px;
+    }
+  
+    .menu-icon {
+      min-width: 40px;
+    }
+  
+    .profile-item {
+      padding: 12px;
+    }
+  }
