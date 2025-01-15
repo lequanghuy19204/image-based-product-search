@@ -16,12 +16,9 @@ import {
 import {
   Menu as MenuIcon,
   ChevronLeft,
-  Dashboard,
   ShoppingBag,
   People,
-  Settings,
   Search,
-  Image,
   Person,
   ExitToApp,
   VpnKey
@@ -45,11 +42,8 @@ function Sidebar({ open, onToggle }) {
 
   const menuItems = [
     { text: 'Tìm kiếm', icon: <Search />, path: '/search' },
-    { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
     { text: 'Quản lý Sản phẩm', icon: <ShoppingBag />, path: '/admin/products' },
     { text: 'Quản lý Người dùng', icon: <People />, path: '/admin/users' },
-    { text: 'Thư viện Ảnh', icon: <Image />, path: '/admin/images' },
-    { text: 'Cài đặt', icon: <Settings />, path: '/admin/settings' }
   ];
 
   const handleProfileMenuOpen = (event) => {

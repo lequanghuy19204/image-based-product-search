@@ -112,28 +112,7 @@ function Login() {
               Hệ thống quản lý hình ảnh chuyên nghiệp
             </Typography>
             
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="body1" gutterBottom>
-                Đăng nhập nhanh với tài khoản mẫu:
-              </Typography>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={() => handleDemoLogin('admin')}
-                sx={{ mb: 1 }}
-              >
-                Admin (admin@test.com / admin123)
-              </Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={() => handleDemoLogin('user')}
-              >
-                User (user@test.com / user123)
-              </Button>
-            </Box>
+            
           </Box>
         </Grid>
 
