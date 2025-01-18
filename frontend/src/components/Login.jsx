@@ -1,30 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  IconButton,
-  InputAdornment,
-  Divider,
-  Link,
-  Grid,
-  FormControlLabel,
-  Checkbox,
-  Alert
-} from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-  Google,
-  Facebook
-} from '@mui/icons-material';
+import { Google, Facebook } from '@mui/icons-material';
 import { TEST_ACCOUNTS, mockLoginWithEmail } from '../utils/mockData';
-import '../styles/Login.css';
 import viteLogo from '/vite.svg';
+import '../styles/Login.css';
 
 function Login() {
   const navigate = useNavigate();
@@ -102,174 +81,179 @@ function Login() {
   };
 
   return (
-    <Container component="main" maxWidth="lg" className="login-container">
-      <Grid container spacing={2} className="login-wrapper">
+    <div className="container-fluid min-vh-100">
+      <div className="row h-100 align-items-center justify-content-center">
         {/* Left side - Introduction */}
-        <Grid item xs={12} md={6} className="login-left">
-          <Box className="intro-content">
-            <img src={viteLogo} className="logo" alt="Vite logo" />
-            <Typography variant="h5">
-              Hệ thống quản lý hình ảnh chuyên nghiệp
-            </Typography>
-            
-            
-          </Box>
-        </Grid>
+        <div className="col-12 col-md-6 text-center intro-section">
+          <div className="p-4">
+            <img src={viteLogo} alt="Vite logo" style={{ width: '64px' }} className="mb-3" />
+            <h4 className="mb-3">Hệ thống quản lý hình ảnh chuyên nghiệp</h4>
+          </div>
+        </div>
 
         {/* Right side - Login Form */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} className="form-paper">
-            {loginError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {loginError}
-              </Alert>
-            )}
-            
-            <Box className="form-header">
-              <Typography variant="h4" component="h2">
-                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
-              </Typography>
-              <Typography variant="body1" color="textSecondary">
-                {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
-              </Typography>
-            </Box>
-
-            <Box component="form" onSubmit={handleSubmit} className="form-content">
-              {!isLogin && (
-                <TextField
-                  fullWidth
-                  label="Tên người dùng"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  error={!!errors.username}
-                  helperText={errors.username}
-                  margin="normal"
-                />
+        <div className="col-12 col-md-6">
+          <div className="card shadow-sm mx-auto" style={{ maxWidth: '500px' }}>
+            <div className="card-body p-4">
+              {loginError && (
+                <div className="alert alert-danger" role="alert">
+                  {loginError}
+                </div>
               )}
 
-              <TextField
-                fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                error={!!errors.email}
-                helperText={errors.email}
-                margin="normal"
-              />
+              <div className="text-center mb-4">
+                <h3>{isLogin ? 'Đăng Nhập' : 'Đăng Ký'}</h3>
+                <p className="text-muted">
+                  {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+                </p>
+              </div>
 
-              <TextField
-                fullWidth
-                label="Mật khẩu"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleInputChange}
-                error={!!errors.password}
-                helperText={errors.password}
-                margin="normal"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              <form onSubmit={handleSubmit}>
+                {!isLogin && (
+                  <div className="mb-3">
+                    <label className="form-label">Tên người dùng</label>
+                    <input
+                      type="text"
+                      className={`form-control ${errors.username ? 'is-invalid' : ''}`}
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                    />
+                    {errors.username && (
+                      <div className="invalid-feedback">{errors.username}</div>
+                    )}
+                  </div>
+                )}
 
-              {!isLogin && (
-                <TextField
-                  fullWidth
-                  label="Xác nhận mật khẩu"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  error={!!errors.confirmPassword}
-                  helperText={errors.confirmPassword}
-                  margin="normal"
-                />
-              )}
-
-              {isLogin && (
-                <Box className="login-options">
-                  <FormControlLabel
-                    control={<Checkbox color="primary" />}
-                    label="Ghi nhớ đăng nhập"
+                <div className="mb-3">
+                  <label className="form-label">Email</label>
+                  <input
+                    type="email"
+                    className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                   />
-                  <Link href="#" variant="body2">
-                    Quên mật khẩu?
-                  </Link>
-                </Box>
-              )}
+                  {errors.email && (
+                    <div className="invalid-feedback">{errors.email}</div>
+                  )}
+                </div>
 
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                color="primary"
-                className="submit-button"
-              >
-                {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
-              </Button>
+                <div className="mb-3">
+                  <label className="form-label">Mật khẩu</label>
+                  <div className="input-group">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                    />
+                    <button
+                      className="btn btn-outline-secondary"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? 'Ẩn' : 'Hiện'}
+                    </button>
+                    {errors.password && (
+                      <div className="invalid-feedback">{errors.password}</div>
+                    )}
+                  </div>
+                </div>
 
-              <Box className="social-login">
-                <Divider>
-                  <Typography variant="body2" color="textSecondary">
-                    Hoặc đăng nhập với
-                  </Typography>
-                </Divider>
-                <Box className="social-buttons">
-                  <Button
-                    variant="outlined"
-                    startIcon={<Google />}
-                    fullWidth
-                  >
-                    Google
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Facebook />}
-                    fullWidth
-                  >
-                    Facebook
-                  </Button>
-                </Box>
-              </Box>
+                {!isLogin && (
+                  <div className="mb-3">
+                    <label className="form-label">Xác nhận mật khẩu</label>
+                    <input
+                      type="password"
+                      className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                    />
+                    {errors.confirmPassword && (
+                      <div className="invalid-feedback">{errors.confirmPassword}</div>
+                    )}
+                  </div>
+                )}
 
-              <Box className="form-footer">
-                <Typography variant="body2">
-                  {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                  <Link
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setIsLogin(!isLogin);
-                      setFormData({
-                        username: '',
-                        email: '',
-                        password: '',
-                        confirmPassword: ''
-                      });
-                      setErrors({});
-                    }}
-                  >
-                    {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
-                  </Link>
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+                {isLogin && (
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div className="form-check">
+                      <input type="checkbox" className="form-check-input" id="remember" />
+                      <label className="form-check-label" htmlFor="remember">
+                        Ghi nhớ đăng nhập
+                      </label>
+                    </div>
+                    <a href="#" className="text-decoration-none">Quên mật khẩu?</a>
+                  </div>
+                )}
+
+                <button type="submit" className="btn btn-primary w-100 py-2 mb-3">
+                  {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
+                </button>
+
+                <div className="text-center mb-3">
+                  <div className="position-relative">
+                    <hr className="my-4" />
+                    <span className="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted">
+                      Hoặc đăng nhập với
+                    </span>
+                  </div>
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-6">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary w-100"
+                      onClick={() => handleDemoLogin('user')}
+                    >
+                      <Google className="me-2" />
+                      Google
+                    </button>
+                  </div>
+                  <div className="col-6">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary w-100"
+                      onClick={() => handleDemoLogin('admin')}
+                    >
+                      <Facebook className="me-2" />
+                      Facebook
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="mb-0">
+                    {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
+                    <a
+                      href="#"
+                      className="text-decoration-none"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setIsLogin(!isLogin);
+                        setFormData({
+                          username: '',
+                          email: '',
+                          password: '',
+                          confirmPassword: ''
+                        });
+                        setErrors({});
+                      }}
+                    >
+                      {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
+                    </a>
+                  </p>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

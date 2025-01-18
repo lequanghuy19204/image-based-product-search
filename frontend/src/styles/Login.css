@@ -1,134 +1,413 @@
-/* Reset CSS */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+:root {
+  --primary-color: #2563eb;
+  --secondary-color: #1d4ed8;
+  --background-color: #f8f9fa;
+  --box-shadow: 0 8px 24px rgba(149, 157, 165, 0.2);
+  --text-color: #1e293b;
+  --hover-bg: #f1f5f9;
 }
 
-html, body, #root {
-  height: 100%;
+.container-fluid {
+  background: linear-gradient(145deg, #81cad3, #633cb0) fixed;
+  min-height: 100vh;
+  padding: 3rem;
+  position: relative;
+  width: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.container-fluid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.05), rgba(99, 102, 241, 0.05));
+}
+
+.card {
+  background: white;
+  border: none;
+  box-shadow: var(--box-shadow);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.2), rgba(99, 102, 241, 0.2));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) padding-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) padding-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Logo section styling */
+.col-md-6:first-child {
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border-radius: 16px;
+  padding: 3rem;
+  color: #2c3e50;
+  box-shadow: var(--box-shadow);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.col-md-6:first-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.1), rgba(99, 102, 241, 0.1));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) padding-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+}
+
+/* Right side - Login Form styling */
+.col-md-6:last-child {
+  position: relative;
+  padding: 2rem;
+  border-radius: 16px;
+}
+
+.col-md-6:last-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.1), rgba(99, 102, 241, 0.1));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) padding-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Form controls styling */
+.form-control {
+  border: 2px solid #c8cbd0;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background-color: white;
+}
+
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  background-color: white;
+}
+
+/* Button styling */
+.btn-primary {
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.btn-primary:hover {
+  background: var(--secondary-color);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 2px solid #e2e8f0;
+  color: var(--text-color);
+  background: white;
+}
+
+.btn-outline-secondary:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Divider styling */
+.position-relative hr {
+  border-color: #e2e8f0;
+  opacity: 0.7;
+}
+
+.position-relative span {
+  background: white;
+  color: #64748b;
+  font-weight: 500;
+  padding: 0 16px;
+}
+
+/* Link styling */
+a {
+  color: var(--primary-color);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  position: relative;
+}
+
+a:hover {
+  color: var(--secondary-color);
+}
+
+/* Underline animation for links */
+a:not(.btn):after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+a:not(.btn):hover:after {
   width: 100%;
 }
 
-.App {
-  min-height: 100vh;
-  width: 100vw;
-  display: flex;
+/* Alert styling */
+.alert-danger {
+  background: #fef2f2;
+  border: 2px solid #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  font-weight: 500;
+  padding: 1rem;
 }
 
-.login-container {
-  min-height: 100vh !important;
-  width: 100vw !important;
-  margin: 0 !important;
-  padding: 2rem !important;
-  max-width: none !important;
-  display: flex !important;
-  align-items: center;
-  justify-content: center !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-size: cover !important;
-  background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
+/* Custom checkbox */
+.form-check-input {
+  width: 1.2em;
+  height: 1.2em;
+  margin-top: 0.15em;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.login-wrapper {
-  width: 900px !important;
-  min-height: 500px !important;
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  margin: 0 !important;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  transform: scale(1.1);
 }
 
-.login-left {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem !important;
-  color: white;
+.form-check-label {
+  cursor: pointer;
+  user-select: none;
 }
 
-.logo {
-  width: 120px;
-  height: auto;
-  margin-bottom: 1.5rem;
-}
-
-.intro-content {
-  text-align: center;
-}
-
-.intro-content h5 {
-  font-size: 1.2rem !important;
-}
-
-.form-paper {
-  height: 100%;
-  padding: 2rem !important;
-  display: flex;
-  flex-direction: column;
-  box-shadow: none !important;
-}
-
-.form-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.form-header h2 {
-  font-size: 2rem !important;
-}
-
-.form-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0rem;
-}
-
-.login-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0.5rem 0;
-}
-
-.submit-button {
-  margin: 1.5rem 0 !important;
-  padding: 0.6rem !important;
-  font-size: 1rem !important;
-}
-
-.social-login {
-  margin: 0.5rem 0;
-}
-
-.social-buttons {
-  display: flex;
-  gap: 0.8rem;
-  margin-top: 0.8rem;
-}
-
-.form-footer {
-  text-align: center;
-  margin-top: auto;
-}
-
-@media (max-width: 960px) {
-  .login-container {
-    padding: 1rem !important;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 1.5rem;
   }
   
-  .login-wrapper {
-    width: 95% !important;
+  .col-md-6:first-child,
+  .col-md-6:last-child {
+    margin: 1rem;
+    padding: 1.5rem;
   }
 }
 
-@media (max-height: 600px) {
-  .login-container {
-    position: relative !important;
-    min-height: 100% !important;
+/* Animation effects */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Soft shadows and transitions */
+.form-control, .btn {
+  transition: all 0.3s ease;
+}
+
+.form-control:hover {
+  background-color: white;
+}
+
+/* Social buttons styling */
+.btn-outline-secondary {
+  position: relative;
+  overflow: hidden;
+  background: white;
+}
+
+.btn-outline-secondary:hover {
+  background: #f8f9fa;
+}
+
+/* Additional improvements */
+.logo {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  position: relative;
+  z-index: 2;
+}
+
+.card-body {
+  padding: 2rem;
+}
+
+h3 {
+  color: var(--text-color);
+  font-weight: 700;
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+h4 {
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 1.5rem;
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.text-muted {
+  color: #6c757d !important;
+}
+
+/* Input group styling */
+.input-group-text {
+  background: #f8f9fa;
+  border-color: #e1e1e1;
+}
+
+/* Focus states */
+.btn:focus, .form-control:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+/* Animation for form elements */
+.form-control, .btn, a {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover effect for form inputs */
+.form-control:hover {
+  border-color: #cbd5e1;
+}
+
+/* Focus visible outline */
+.btn:focus-visible,
+.form-control:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Button loading state */
+.btn.loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.btn.loading:after {
+  content: '';
+  width: 1em;
+  height: 1em;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: rotate 0.8s linear infinite;
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@keyframes rotate {
+  100% {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+/* Animation for borders */
+@keyframes borderGlow {
+  0% {
+    border-color: rgba(37, 99, 235, 0.1);
+  }
+  50% {
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+  100% {
+    border-color: rgba(37, 99, 235, 0.1);
+  }
+}
+
+.col-md-6:first-child,
+.col-md-6:last-child {
+  animation: borderGlow 3s infinite;
+}
+
+/* Row styling */
+.row {
+  position: relative;
+  z-index: 1;
 }

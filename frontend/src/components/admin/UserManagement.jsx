@@ -1,37 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Button,
-  TextField,
-  IconButton,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Chip,
-  Grid,
-  Alert,
-  Snackbar
-} from '@mui/material';
-import {
-  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Add as AddIcon,
   Search as SearchIcon,
+  NavigateNext as NextIcon,
+  NavigateBefore as PrevIcon,
   Block as BlockIcon,
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
@@ -39,313 +13,225 @@ import Sidebar from '../common/Sidebar';
 import '../../styles/UserManagement.css';
 
 function UserManagement() {
-  const [users, setUsers] = useState([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const handleToggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebarOpen', JSON.stringify(newState));
+  };
+
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'user'
-  });
+  // Mock data
+  const [users] = useState([
+    { 
+      id: 1, 
+      username: 'admin', 
+      email: 'admin@test.com', 
+      role: 'admin', 
+      status: 'active',
+      createdAt: '2024-03-15',
+      lastLogin: '2024-03-20 14:30'
+    },
+    { 
+      id: 2, 
+      username: 'user1', 
+      email: 'user1@test.com', 
+      role: 'user', 
+      status: 'blocked',
+      createdAt: '2024-03-10',
+      lastLogin: '2024-03-18 09:15'
+    },
+    // Thêm users demo khác...
+  ]);
 
-  // Mock data cho demo
-  useEffect(() => {
-    setUsers([
-      { id: 1, username: 'admin', email: 'admin@test.com', role: 'admin', status: 'active' },
-      { id: 2, username: 'user1', email: 'user1@test.com', role: 'user', status: 'active' },
-      // ... thêm data demo khác
-    ]);
-  }, []);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(users.length / rowsPerPage);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleOpenDialog = (user = null) => {
-    setSelectedUser(user);
-    if (user) {
-      setFormData({
-        username: user.username,
-        email: user.email,
-        password: '',
-        confirmPassword: '',
-        role: user.role
-      });
-    } else {
-      setFormData({
-        username: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        role: 'user'
-      });
-    }
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setSelectedUser(null);
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'user'
-    });
-  };
-
-  const handleSubmit = () => {
-    // Xử lý thêm/sửa user
-    const message = selectedUser 
-      ? 'Cập nhật người dùng thành công!'
-      : 'Thêm người dùng mới thành công!';
-    
-    setSnackbar({
-      open: true,
-      message,
-      severity: 'success'
-    });
-    handleCloseDialog();
-  };
-
-  const handleDeleteUser = (user) => {
-    if (window.confirm(`Bạn có chắc muốn xóa người dùng ${user.username}?`)) {
-      // Xử lý xóa user
-      setSnackbar({
-        open: true,
-        message: 'Xóa người dùng thành công!',
-        severity: 'success'
-      });
-    }
+    setPage(1);
   };
 
   const handleToggleStatus = (user) => {
     // Xử lý thay đổi trạng thái user
-    const newStatus = user.status === 'active' ? 'blocked' : 'active';
-    const message = `${newStatus === 'active' ? 'Kích hoạt' : 'Khóa'} tài khoản thành công!`;
-    
-    setSnackbar({
-      open: true,
-      message,
-      severity: 'success'
-    });
+    console.log('Toggle status:', user);
   };
 
   const filteredUsers = users.filter(user => {
-    const matchSearch = user.username.toLowerCase().includes(search.toLowerCase()) ||
-                       user.email.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = (
+      user.username.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase())
+    );
     const matchRole = roleFilter === 'all' || user.role === roleFilter;
     return matchSearch && matchRole;
   });
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <Sidebar 
-        open={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+    <div className="layout-container">
+      <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
       
-      <Box className={`user-management ${sidebarOpen ? 'content-shift' : ''}`}>
-        <Paper className="toolbar">
-          <Typography variant="h5">Quản lý Người dùng</Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-field"
-              InputProps={{
-                startAdornment: <SearchIcon />
-              }}
-            />
-            
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Vai trò</InputLabel>
-              <Select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                label="Vai trò"
-              >
-                <MenuItem value="all">Tất cả</MenuItem>
-                <MenuItem value="admin">Quản trị viên</MenuItem>
-                <MenuItem value="user">Người dùng</MenuItem>
-              </Select>
-            </FormControl>
-
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-            >
-              Thêm mới
-            </Button>
-          </Box>
-        </Paper>
-
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Tên người dùng</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Vai trò</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell align="right">Hành động</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
-                        color={user.role === 'admin' ? 'primary' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
-                        color={user.status === 'active' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Chỉnh sửa">
-                        <IconButton onClick={() => handleOpenDialog(user)}>
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={user.status === 'active' ? 'Khóa' : 'Kích hoạt'}>
-                        <IconButton onClick={() => handleToggleStatus(user)}>
-                          {user.status === 'active' ? <BlockIcon /> : <CheckCircleIcon />}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton onClick={() => handleDeleteUser(user)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            component="div"
-            count={filteredUsers.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Số hàng mỗi trang:"
-          />
-        </TableContainer>
-
-        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-          <DialogTitle>
-            {selectedUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
-          </DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} className="form-content">
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Tên người dùng"
-                  value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+      <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
+        <div className="user-management">
+          <div className="toolbar">
+            <div className="d-flex align-items-center gap-3">
+              <h4 className="mb-0">Quản lý Người dùng</h4>
+              <div className="input-group search-field">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Tìm kiếm người dùng..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  type="email"
-                  label="Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-              </Grid>
-              {!selectedUser && (
-                <>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      type="password"
-                      label="Mật khẩu"
-                      value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      type="password"
-                      label="Xác nhận mật khẩu"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                    />
-                  </Grid>
-                </>
-              )}
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Vai trò</InputLabel>
-                  <Select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    label="Vai trò"
+                <select 
+                  className="form-select"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  style={{ maxWidth: '150px' }}
+                >
+                  <option value="all">Tất cả vai trò</option>
+                  <option value="admin">Quản trị viên</option>
+                  <option value="user">Người dùng</option>
+                </select>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setOpenDialog(true)}>
+              <AddIcon className="me-2" />
+              Thêm người dùng
+            </button>
+          </div>
+
+          <div className="table-container">
+            <table className="table table-bordered table-hover align-middle">
+              <thead>
+                <tr className="bg-primary text-white">
+                  <th>Tên người dùng</th>
+                  <th>Email</th>
+                  <th>Vai trò</th>
+                  <th>Trạng thái</th>
+                  <th>Ngày tạo</th>
+                  <th>Đăng nhập cuối</th>
+                  <th className="text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers
+                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
+                  .map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.username}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        <span className={`badge ${user.role === 'admin' ? 'bg-primary' : 'bg-secondary'}`}>
+                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
+                          {user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
+                        </span>
+                      </td>
+                      <td>{user.createdAt}</td>
+                      <td>{user.lastLogin}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button 
+                            className="btn btn-sm btn-icon"
+                            onClick={() => setOpenDialog(true)}
+                            title="Chỉnh sửa"
+                          >
+                            <EditIcon fontSize="small" />
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-icon"
+                            onClick={() => handleToggleStatus(user)}
+                            title={user.status === 'active' ? 'Khóa' : 'Kích hoạt'}
+                          >
+                            {user.status === 'active' ? 
+                              <BlockIcon fontSize="small" className="text-danger" /> : 
+                              <CheckCircleIcon fontSize="small" className="text-success" />
+                            }
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-icon"
+                            title="Xóa"
+                          >
+                            <DeleteIcon fontSize="small" className="text-danger" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+
+            <div className="pagination-container">
+              <div className="pagination-controls-container">
+                <div className="rows-per-page">
+                  <span>Hiển thị</span>
+                  <select 
+                    className="form-select"
+                    value={rowsPerPage}
+                    onChange={handleChangeRowsPerPage}
                   >
-                    <MenuItem value="admin">Quản trị viên</MenuItem>
-                    <MenuItem value="user">Người dùng</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Hủy</Button>
-            <Button onClick={handleSubmit} variant="contained">
-              {selectedUser ? 'Cập nhật' : 'Thêm mới'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span>người dùng mỗi trang</span>
+                </div>
+                
+                <div className="pagination-info">
+                  Hiển thị {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, filteredUsers.length)} trong số {filteredUsers.length} người dùng
+                </div>
+              </div>
 
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={3000}
-          onClose={() => setSnackbar({...snackbar, open: false})}
-        >
-          <Alert severity={snackbar.severity}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Box>
-    </Box>
+              <div className="pagination-controls">
+                <button 
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                >
+                  <PrevIcon fontSize="small" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    className={`btn btn-sm ${pageNum === page ? 'btn-primary' : 'btn-outline-primary'}`}
+                    onClick={() => handlePageChange(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                <button 
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  <NextIcon fontSize="small" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
 

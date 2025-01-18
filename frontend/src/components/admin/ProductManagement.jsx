@@ -1,247 +1,210 @@
 import { useState } from 'react';
 import {
-  Box,
-  Paper,
-  TextField,
-  Button,
-  IconButton,
-  Typography,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  InputAdornment,
-  Tooltip,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination
-} from '@mui/material';
-import {
-  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Add as AddIcon,
   Search as SearchIcon,
-  Image as ImageIcon
+  NavigateNext as NextIcon,
+  NavigateBefore as PrevIcon,
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
 
 function ProductManagement() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const handleToggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebarOpen', JSON.stringify(newState));
+  };
+
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Mock data
   const [products] = useState([
     {
-      id: 1,
-      name: 'Áo thun nam',
-      price: 199000,
-      image: 'https://picsum.photos/300/300',
-      category: 'Áo',
-      status: 'active'
+      id: 'CP_x3945',
+      code: 'DHT287-TRT1523',
+      brand: 'Nike',
+      images: [
+        'https://picsum.photos/300/300?random=1',
+        'https://picsum.photos/300/300?random=2',
+        'https://picsum.photos/300/300?random=3',
+        'https://picsum.photos/300/300?random=3',
+        'https://picsum.photos/300/300?random=3'
+      ],
+      notes: 'Áo thun cotton 100%, form regular fit',
+      creator: 'Mkt trưởng',
     },
-    // Thêm sản phẩm mẫu khác...
+    // Thêm nhiều sản phẩm mẫu...
   ]);
 
-  const handleOpenDialog = (product = null) => {
-    setSelectedProduct(product);
-    setOpenDialog(true);
-  };
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(products.length / rowsPerPage);
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setSelectedProduct(null);
-  };
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+    setPage(1); // Reset về trang 1 khi thay đổi số lượng items/trang
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <div className="layout-container">
       <Sidebar 
         open={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onToggle={handleToggleSidebar}
       />
       
-      <Box className={`product-management ${sidebarOpen ? 'content-shift' : ''}`}>
-        <Paper className="toolbar">
-          <Typography variant="h5">Quản lý Sản phẩm</Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm sản phẩm..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-field"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                )
-              }}
-            />
-            
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-            >
+      <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
+        <div className="product-management">
+          {/* Toolbar */}
+          <div className="toolbar">
+            <div className="d-flex align-items-center gap-3">
+              <h4 className="mb-0">Quản lý Sản phẩm</h4>
+              <div className="input-group search-field">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Tìm kiếm sản phẩm..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <button className="btn btn-outline-secondary">
+                  <SearchIcon fontSize="small" />
+                </button>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setOpenDialog(true)}>
+              <AddIcon className="me-2" />
               Thêm sản phẩm
-            </Button>
-          </Box>
-        </Paper>
+            </button>
+          </div>
 
-        <TableContainer component={Paper} className="table-container">
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Hình ảnh</TableCell>
-                <TableCell>Tên sản phẩm</TableCell>
-                <TableCell>Danh mục</TableCell>
-                <TableCell align="right">Giá</TableCell>
-                <TableCell align="right">Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredProducts
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <Box className="product-table-image">
-                      <img src={product.image} alt={product.name} />
-                    </Box>
-                  </TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={product.category}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    {product.price.toLocaleString('vi-VN')}đ
-                  </TableCell>
-                  <TableCell align="right">
-                    <Box className="table-actions">
-                      <Tooltip title="Chỉnh sửa">
-                        <IconButton 
-                          size="small"
-                          onClick={() => handleOpenDialog(product)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton 
-                          size="small"
-                          color="error"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            component="div"
-            count={filteredProducts.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Số hàng mỗi trang:"
-            labelDisplayedRows={({ from, to, count }) => 
-              `${from}-${to} trên ${count}`
-            }
-          />
-        </TableContainer>
+          {/* Table */}
+          <div className="table-container">
+            <table className="table table-bordered table-hover align-middle">
+              <thead>
+                <tr className="bg-primary text-white">
+                  <th className="text-uppercase image-column">Hình ảnh</th>
+                  <th className="text-uppercase code-column">Mã sản phẩm</th>
+                  <th className="text-uppercase brand-column">Thương hiệu</th>
+                  <th className="text-uppercase notes-column">Ghi chú</th>
+                  <th className="text-uppercase creator-column">Người tạo</th>
+                  <th className="text-uppercase actions-column text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products
+                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
+                  .map((product) => (
+                    <tr key={product.id}>
+                      <td style={{minWidth: '400px'}}>
+                        <div className="product-images-container">
+                          {product.images.map((img, index) => (
+                            <div key={index} className="product-table-image">
+                              <img
+                                src={img}
+                                alt={`Product ${index + 1}`}
+                                className="img-fluid"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="product-code">
+                          <div>{product.id}</div>
+                          <div className="text-muted">{product.code}</div>
+                        </div>
+                      </td>
+                      <td>{product.brand}</td>
+                      <td>
+                        <p className="notes-column">{product.notes}</p>
+                      </td>
+                      <td>{product.creator}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button 
+                            className="btn btn-sm btn-icon"
+                            onClick={() => setOpenDialog(true)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </button>
+                          <button className="btn btn-sm btn-icon">
+                            <DeleteIcon fontSize="small" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
 
-        <Dialog 
-          open={openDialog} 
-          onClose={handleCloseDialog}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>
-            {selectedProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
-          </DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} className="form-content">
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Tên sản phẩm"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Giá"
-                  type="number"
-                  variant="outlined"
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">đ</InputAdornment>,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Danh mục"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<ImageIcon />}
-                  fullWidth
+            {/* Pagination */}
+            <div className="pagination-container">
+              <div className="pagination-controls-container">
+                <div className="rows-per-page">
+                  <span>Hiển thị</span>
+                  <select 
+                    className="form-select"
+                    value={rowsPerPage}
+                    onChange={handleChangeRowsPerPage}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span>sản phẩm mỗi trang</span>
+                </div>
+                
+                <div className="pagination-info">
+                  Hiển thị {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, products.length)} trong số {products.length} sản phẩm
+                </div>
+              </div>
+
+              <div className="pagination-controls">
+                <button 
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
                 >
-                  Tải ảnh lên
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                  />
-                </Button>
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Hủy</Button>
-            <Button variant="contained">
-              {selectedProduct ? 'Cập nhật' : 'Thêm mới'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
-    </Box>
+                  <PrevIcon fontSize="small" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    className={`btn btn-sm ${pageNum === page ? 'btn-primary' : 'btn-outline-primary'}`}
+                    onClick={() => handlePageChange(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                <button 
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  <NextIcon fontSize="small" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
 

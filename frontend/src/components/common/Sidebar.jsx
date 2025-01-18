@@ -1,164 +1,154 @@
-import {
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  IconButton,
-  Divider,
-  Box,
-  Tooltip,
-  Avatar,
-  Typography,
-  Menu,
-  MenuItem
-} from '@mui/material';
-import {
-  Menu as MenuIcon,
-  ChevronLeft,
-  ShoppingBag,
-  People,
-  Search,
-  Person,
-  ExitToApp,
-  VpnKey
-} from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import {
+  Search,
+  ShoppingBag,
+  People,
+  Person,
+  ExitToApp,
+  VpnKey,
+  Menu as MenuIcon,
+  ChevronLeft,
+  Close
+} from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 
 function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
-  // Mock user data - thay thế bằng dữ liệu thực từ context/redux
-  const user = {
-    name: 'Admin User',
-    email: 'admin@example.com',
-    avatar: null // URL ảnh đại diện
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavigation = (path) => {
+    navigate(path);
+    if (isMobile) {
+      onToggle(false);
+    }
+    setShowProfileMenu(false);
   };
 
   const menuItems = [
-    { text: 'Tìm kiếm', icon: <Search />, path: '/search' },
-    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag />, path: '/admin/products' },
-    { text: 'Quản lý Người dùng', icon: <People />, path: '/admin/users' },
+    { text: 'Tìm kiếm', icon: <Search/>, path: '/search' },
+    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag/>, path: '/admin/products' },
+    { text: 'Quản lý Người dùng', icon: <People/>, path: '/admin/users' },
   ];
 
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    // Xử lý đăng xuất
-    handleProfileMenuClose();
-    navigate('/login');
-  };
-
   return (
-    <Drawer
-      variant="permanent"
-      open={open}
-      className={`sidebar ${open ? 'sidebar-open' : 'sidebar-close'}`}
-    >
-      <Box className="sidebar-header">
-        <IconButton onClick={onToggle}>
-          {open ? <ChevronLeft /> : <MenuIcon />}
-        </IconButton>
-      </Box>
-      
-      <Divider />
-      
-      <List className="sidebar-menu">
-        {menuItems.map((item) => (
-          <Tooltip 
-            key={item.path}
-            title={!open ? item.text : ''}
-            placement="right"
-          >
-            <ListItem
-              button
-              onClick={() => navigate(item.path)}
-              className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
-            >
-              <ListItemIcon className="menu-icon">
-                {item.icon}
-              </ListItemIcon>
-              {open && <ListItemText primary={item.text} />}
-            </ListItem>
-          </Tooltip>
-        ))}
-      </List>
-
-      <Box sx={{ flexGrow: 1 }} />
-      <Divider />
-      
-      {/* User Profile Section */}
-      <Box className="user-profile">
-        <ListItem 
-          button 
-          onClick={handleProfileMenuOpen}
-          className="profile-item"
+    <>
+      {isMobile && (
+        <button 
+          className="mobile-toggle-btn"
+          onClick={() => onToggle(!open)}
         >
-          <ListItemIcon>
-            <Avatar 
-              src={user.avatar}
-              className="user-avatar"
+          <MenuIcon/>
+        </button>
+      )}
+
+      <div className={`sidebar ${!open ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''} ${isMobile && open ? 'expanded' : ''}`}>
+        <div className="sidebar-header">
+          <div className="d-flex align-items-center">
+            {open && <h5 className="mb-0 ms-2">Admin Portal</h5>}
+          </div>
+          {!isMobile && (
+            <button 
+              className="btn btn-icon"
+              onClick={() => onToggle(!open)}
             >
-              {user.name.charAt(0)}
-            </Avatar>
-          </ListItemIcon>
-          {open && (
-            <Box className="user-info">
-              <Typography variant="subtitle1" noWrap>
-                {user.name}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" noWrap>
-                {user.email}
-              </Typography>
-            </Box>
+              {open ? <ChevronLeft/> : <MenuIcon/>}
+            </button>
           )}
-        </ListItem>
+        </div>
+        
+        <hr className="divider my-0"/>
+        
+        <nav className="sidebar-menu">
+          {menuItems.map((item) => (
+            <div 
+              key={item.path}
+              className="nav-item"
+              title={!open ? item.text : undefined}
+            >
+              <button
+                className={`nav-link d-flex align-items-center ${
+                  location.pathname === item.path ? 'active' : ''
+                }`}
+                onClick={() => handleNavigation(item.path)}
+              >
+                <span className="icon-wrapper">
+                  {item.icon}
+                </span>
+                {open && <span className="nav-text">{item.text}</span>}
+              </button>
+            </div>
+          ))}
+        </nav>
 
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleProfileMenuClose}
-          className="profile-menu"
-        >
-          <MenuItem onClick={() => {
-            navigate('/profile');
-            handleProfileMenuClose();
-          }}>
-            <ListItemIcon>
-              <Person fontSize="small" />
-            </ListItemIcon>
-            Thông tin cá nhân
-          </MenuItem>
-          <MenuItem onClick={() => {
-            navigate('/change-password');
-            handleProfileMenuClose();
-          }}>
-            <ListItemIcon>
-              <VpnKey fontSize="small" />
-            </ListItemIcon>
-            Đổi mật khẩu
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleLogout}>
-            <ListItemIcon>
-              <ExitToApp fontSize="small" />
-            </ListItemIcon>
-            Đăng xuất
-          </MenuItem>
-        </Menu>
-      </Box>
-    </Drawer>
+        <hr className="divider mt-auto mb-0"/>
+        
+        <div className="user-profile">
+          <div className="dropdown">
+            <button
+              className="profile-toggle d-flex align-items-center w-100"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+            >
+              <div className="user-avatar">
+                <span>A</span>
+              </div>
+              {open && (
+                <div className="user-info ms-3">
+                  <div className="user-name">Admin User</div>
+                  <small className="user-email">admin@example.com</small>
+                </div>
+              )}
+            </button>
+
+            <div className={`dropdown-menu ${showProfileMenu ? 'show' : ''}`}>
+              <div className="dropdown-header">
+                <small className="text-muted">Đã đăng nhập với</small>
+                <div className="fw-bold">admin@example.com</div>
+              </div>
+              <div className="dropdown-divider"></div>
+              <button 
+                className="dropdown-item d-flex align-items-center"
+                onClick={() => handleNavigation('/profile')}
+              >
+                <Person className="me-2"/>
+                <span>Thông tin cá nhân</span>
+              </button>
+              <button 
+                className="dropdown-item d-flex align-items-center"
+                onClick={() => handleNavigation('/change-password')}
+              >
+                <VpnKey className="me-2"/>
+                <span>Đổi mật khẩu</span>
+              </button>
+              <div className="dropdown-divider"></div>
+              <button 
+                className="dropdown-item d-flex align-items-center text-danger"
+                onClick={() => handleNavigation('/login')}
+              >
+                <ExitToApp className="me-2"/>
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isMobile && open && (
+        <div className="sidebar-overlay" onClick={() => onToggle(false)}/>
+      )}
+    </>
   );
 }
 
