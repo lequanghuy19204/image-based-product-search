@@ -10,7 +10,6 @@ import {
   VpnKey,
   Menu as MenuIcon,
   ChevronLeft,
-  Close
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 

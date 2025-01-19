@@ -89,7 +89,7 @@ function Login() {
 
     try {
       if (isLogin) {
-        const response = await authService.login(formData.email, formData.password);
+        await authService.login(formData.email, formData.password);
         navigate('/search');
       } else {
         let company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
@@ -260,30 +260,32 @@ function Login() {
                       className={`form-control ${errors.companyName ? 'is-invalid' : ''}`}
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Nhập tên công ty"
                     />
                     {errors.companyName && (
                       <div className="invalid-feedback">{errors.companyName}</div>
                     )}
                     
                     <div className="company-code-display mt-3">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <label className="form-label mb-0">Mã công ty của bạn</label>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="code-label">Mã công ty</span>
                         <button 
                           type="button"
-                          className="btn btn-outline-primary btn-sm"
+                          className="code-copy-btn d-flex align-items-center gap-1"
                           onClick={generateCompanyCode}
                           disabled={isGeneratingCode}
                         >
+                          <i className="fas fa-sync-alt"></i>
                           {isGeneratingCode ? 'Đang tạo...' : 'Tạo mã mới'}
                         </button>
                       </div>
-                      <div className="generated-code-container p-3 bg-light rounded border">
+                      <div className="generated-code-container">
                         {isGeneratingCode ? (
-                          <div className="text-center text-muted">
-                            <div className="spinner-border spinner-border-sm me-2" role="status">
+                          <div className="d-flex align-items-center justify-content-center gap-2">
+                            <div className="spinner-border spinner-border-sm" role="status">
                               <span className="visually-hidden">Loading...</span>
                             </div>
-                            Đang tạo mã...
+                            <span className="text-muted small">Đang tạo mã...</span>
                           </div>
                         ) : (
                           <div className="d-flex align-items-center justify-content-between">
@@ -291,7 +293,7 @@ function Login() {
                             {generatedCompanyCode && (
                               <button
                                 type="button"
-                                className="btn btn-link btn-sm p-0"
+                                className="code-copy-btn"
                                 onClick={() => {
                                   navigator.clipboard.writeText(generatedCompanyCode);
                                 }}

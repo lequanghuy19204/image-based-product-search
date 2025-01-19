@@ -120,6 +120,13 @@
   font-size: 1rem;
   transition: all 0.3s ease;
   background-color: white;
+  height: 42px;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.input-group .form-control {
+  height: 42px;
 }
 
 .form-control:focus {
@@ -473,6 +480,10 @@ h4 {
   padding: 0.75rem;
   border-radius: 6px;
   margin-top: 0.75rem;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 .generated-code {
@@ -511,6 +522,11 @@ h4 {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   transition: all 0.3s ease;
+  background: white;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
 }
 
 .generated-code-container:hover {
@@ -523,6 +539,10 @@ h4 {
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #2563eb;
+  letter-spacing: 1px;
 }
 
 .btn-copy {
@@ -532,4 +552,26 @@ h4 {
 
 .btn-copy:hover {
   color: var(--primary-color);
+}
+
+.code-copy-btn {
+  padding: 4px 8px;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.code-copy-btn:hover {
+  background: #f1f5f9;
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.code-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
 }
