@@ -139,6 +139,7 @@ function ProductManagement() {
                           <button 
                             className="btn btn-sm btn-icon"
                             onClick={() => setOpenDialog(true)}
+                            
                           >
                             <EditIcon fontSize="small" />
                           </button>

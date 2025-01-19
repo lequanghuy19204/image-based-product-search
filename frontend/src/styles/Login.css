@@ -133,7 +133,7 @@
   background: var(--primary-color);
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
+  padding: 0.5rem 1rem;
   font-weight: 600;
   letter-spacing: 0.5px;
   transition: all 0.3s ease;
@@ -153,12 +153,13 @@
 
 .btn-outline-secondary {
   border-radius: 8px;
-  padding: 12px;
+  padding: 0.5rem;
   font-weight: 500;
   transition: all 0.3s ease;
   border: 2px solid #e2e8f0;
   color: var(--text-color);
   background: white;
+  font-size: 0.9rem;
 }
 
 .btn-outline-secondary:hover {
@@ -180,6 +181,7 @@
   color: #64748b;
   font-weight: 500;
   padding: 0 16px;
+  font-size: 0.85rem;
 }
 
 /* Link styling */
@@ -189,6 +191,7 @@ a {
   transition: all 0.3s ease;
   text-decoration: none;
   position: relative;
+  font-size: 0.9rem;
 }
 
 a:hover {
@@ -223,9 +226,9 @@ a:not(.btn):hover:after {
 
 /* Custom checkbox */
 .form-check-input {
-  width: 1.2em;
-  height: 1.2em;
-  margin-top: 0.15em;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.25em;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -239,6 +242,7 @@ a:not(.btn):hover:after {
 .form-check-label {
   cursor: pointer;
   user-select: none;
+  font-size: 0.9rem;
 }
 
 /* Responsive adjustments */
@@ -258,7 +262,7 @@ a:not(.btn):hover:after {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -298,7 +302,7 @@ a:not(.btn):hover:after {
 }
 
 .card-body {
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 h3 {
@@ -410,4 +414,122 @@ h4 {
 .row {
   position: relative;
   z-index: 1;
+}
+
+/* Account Type Selector */
+.account-type-selector {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.account-type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: white;
+}
+
+.account-type-option::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.account-type-option.selected::before {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  box-shadow: inset 0 0 0 4px white;
+}
+
+.account-type-option:hover {
+  border-color: var(--primary-color);
+}
+
+.account-type-option span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.account-type-option.selected span {
+  color: var(--primary-color);
+}
+
+/* Company Code Display */
+.company-code-display {
+  background: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-top: 0.75rem;
+}
+
+.generated-code {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  letter-spacing: 2px;
+}
+
+.btn-outline-secondary.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Animation for account type selection */
+.account-type-option {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* New styles for company code display */
+.generated-code-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.generated-code-container:hover {
+  border-color: var(--primary-color);
+}
+
+.generated-code {
+  font-family: monospace;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  letter-spacing: 2px;
+}
+
+.btn-copy {
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.btn-copy:hover {
+  color: var(--primary-color);
 }

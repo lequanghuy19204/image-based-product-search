@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Google, Facebook } from '@mui/icons-material';
 import { TEST_ACCOUNTS, mockLoginWithEmail } from '../utils/mockData';
 import viteLogo from '/vite.svg';
 import '../styles/Login.css';
+import { authService } from '../services/auth.service';
 
 function Login() {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ function Login() {
   });
   const [errors, setErrors] = useState({});
   const [loginError, setLoginError] = useState('');
+  const [accountType, setAccountType] = useState('user');
+  const [companyCode, setCompanyCode] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [generatedCompanyCode, setGeneratedCompanyCode] = useState('');
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   const handleDemoLogin = async (accountType) => {
     const account = TEST_ACCOUNTS[accountType];
@@ -24,6 +30,18 @@ function Login() {
       navigate('/search');
     } catch (error) {
       setLoginError(error.message);
+    }
+  };
+
+  const generateCompanyCode = async () => {
+    try {
+      setIsGeneratingCode(true);
+      const response = await authService.generateCompanyCode();
+      setGeneratedCompanyCode(response.company_code);
+    } catch (error) {
+      console.error('Lỗi khi tạo mã công ty:', error);
+    } finally {
+      setIsGeneratingCode(false);
     }
   };
 
@@ -50,19 +68,47 @@ function Login() {
       newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
     }
 
+    if (!isLogin) {
+      if (accountType === 'admin' && !companyName) {
+        newErrors.companyName = 'Tên công ty là bắt buộc';
+      }
+      if (accountType === 'user' && !companyCode) {
+        newErrors.companyCode = 'Mã công ty là bắt buộc';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      try {
-        await mockLoginWithEmail(formData.email, formData.password);
+    setLoginError('');
+    
+    if (!validateForm()) return;
+
+    try {
+      if (isLogin) {
+        const response = await authService.login(formData.email, formData.password);
         navigate('/search');
-      } catch (error) {
-        setLoginError(error.message);
+      } else {
+        let company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
+        
+        const userData = {
+          username: formData.username || formData.email.split('@')[0],
+          email: formData.email,
+          password: formData.password,
+          role: accountType === 'admin' ? "Admin" : "User",
+          company_code: company_code,
+          company_name: accountType === 'admin' ? companyName : undefined
+        };
+
+        await authService.register(userData);
+        navigate('/search');
       }
+    } catch (error) {
+      console.error('Lỗi:', error);
+      setLoginError(error.message || 'Có lỗi xảy ra khi xử lý yêu cầu');
     }
   };
 
@@ -79,6 +125,12 @@ function Login() {
       });
     }
   };
+
+  useEffect(() => {
+    if (!isLogin && accountType === 'admin') {
+      generateCompanyCode();
+    }
+  }, [isLogin, accountType]);
 
   return (
     <div className="container-fluid min-vh-100">
@@ -178,6 +230,99 @@ function Login() {
                   </div>
                 )}
 
+                {!isLogin && (
+                  <div className="mb-3">
+                    <label className="form-label">Loại tài khoản</label>
+                    <div className="account-type-selector">
+                      <div
+                        className={`account-type-option ${accountType === 'user' ? 'selected' : ''}`}
+                        onClick={() => setAccountType('user')}
+                      >
+                        <i className="fas fa-user"></i>
+                        <span>Người dùng</span>
+                      </div>
+                      <div
+                        className={`account-type-option ${accountType === 'admin' ? 'selected' : ''}`}
+                        onClick={() => setAccountType('admin')}
+                      >
+                        <i className="fas fa-user-tie"></i>
+                        <span>Quản trị viên</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isLogin && accountType === 'admin' && (
+                  <div className="mb-3">
+                    <label className="form-label">Tên công ty</label>
+                    <input
+                      type="text"
+                      className={`form-control ${errors.companyName ? 'is-invalid' : ''}`}
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                    {errors.companyName && (
+                      <div className="invalid-feedback">{errors.companyName}</div>
+                    )}
+                    
+                    <div className="company-code-display mt-3">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <label className="form-label mb-0">Mã công ty của bạn</label>
+                        <button 
+                          type="button"
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={generateCompanyCode}
+                          disabled={isGeneratingCode}
+                        >
+                          {isGeneratingCode ? 'Đang tạo...' : 'Tạo mã mới'}
+                        </button>
+                      </div>
+                      <div className="generated-code-container p-3 bg-light rounded border">
+                        {isGeneratingCode ? (
+                          <div className="text-center text-muted">
+                            <div className="spinner-border spinner-border-sm me-2" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            Đang tạo mã...
+                          </div>
+                        ) : (
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="generated-code">{generatedCompanyCode || 'Chưa có mã'}</span>
+                            {generatedCompanyCode && (
+                              <button
+                                type="button"
+                                className="btn btn-link btn-sm p-0"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(generatedCompanyCode);
+                                }}
+                              >
+                                <i className="fas fa-copy"></i>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isLogin && accountType === 'user' && (
+                  <div className="mb-3">
+                    <label className="form-label">Mã công ty</label>
+                    <input
+                      type="text"
+                      className={`form-control ${errors.companyCode ? 'is-invalid' : ''}`}
+                      value={companyCode}
+                      onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                      placeholder="Nhập mã công ty"
+              
+                    />
+                    {errors.companyCode && (
+                      <div className="invalid-feedback">{errors.companyCode}</div>
+                    )}
+                  </div>
+                )}
+
                 {isLogin && (
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <div className="form-check">
@@ -258,4 +403,3 @@ function Login() {
 }
 
 export default Login;
-  
