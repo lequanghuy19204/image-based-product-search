@@ -18,6 +18,8 @@ function Sidebar({ open, onToggle }) {
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [userDetails, setUserDetails] = useState(null);
+  const [user, setUser] = useState(null);
   
   useEffect(() => {
     const handleResize = () => {
@@ -28,6 +30,53 @@ function Sidebar({ open, onToggle }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+      fetchUserDetails();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchUserDetails();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const fetchUserDetails = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('Không tìm thấy token');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to fetch user details');
+      }
+
+      const data = await response.json();
+      // console.log('User details:', data);
+      setUserDetails(data);
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin user:', error);
+    }
+  };
+
   const handleNavigation = (path) => {
     navigate(path);
     if (isMobile) {
@@ -36,17 +85,23 @@ function Sidebar({ open, onToggle }) {
     setShowProfileMenu(false);
   };
 
+  const handleLogout = () => {
+    // Xóa token
+    localStorage.removeItem('token');
+    // Xóa thông tin user
+    localStorage.removeItem('user');
+    // Reset state
+    setUser(null);
+    setUserDetails(null);
+    // Chuyển hướng về trang login
+    navigate('/login');
+  };
+
   const menuItems = [
     { text: 'Tìm kiếm', icon: <Search/>, path: '/search' },
     { text: 'Quản lý Sản phẩm', icon: <ShoppingBag/>, path: '/admin/products' },
     { text: 'Quản lý Người dùng', icon: <People/>, path: '/admin/users' },
   ];
-
-  // Lấy thông tin user từ localStorage
-  const [user, setUser] = useState(() => {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
-  });
 
   return (
     <>
@@ -107,39 +162,37 @@ function Sidebar({ open, onToggle }) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <div className="user-avatar">
-                <span>{user?.username?.charAt(0).toUpperCase()}</span>
+                <span>{userDetails?.username?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase()}</span>
               </div>
               {open && (
                 <div className="user-info ms-3">
-                  <div className="user-name">{user?.username}</div>
-                  <small className="user-email">{user?.email}</small>
+                  <div className="user-name">{userDetails?.username || user?.username}</div>
+                  <small className="user-email">{userDetails?.email || user?.email}</small>
                 </div>
               )}
             </button>
 
             <div className={`dropdown-menu ${showProfileMenu ? 'show' : ''}`}>
-              {/* Thông tin chi tiết người dùng */}
               <div className="dropdown-item-text">
                 <div className="mb-1">
                   <small className="text-muted">Vai trò:</small>
-                  <div className="fw-semibold">{user?.role}</div>
+                  <div className="fw-semibold">{userDetails?.role || user?.role}</div>
                 </div>
-                {user?.company_name && (
+                {userDetails?.company_name && (
                   <div className="mb-1">
                     <small className="text-muted">Công ty:</small>
-                    <div className="fw-semibold">{user?.company_name}</div>
+                    <div className="fw-semibold">{userDetails.company_name}</div>
                   </div>
                 )}
-                {user?.company_code && (
+                {userDetails?.company_code && (
                   <div className="mb-1">
                     <small className="text-muted">Mã công ty:</small>
-                    <div className="fw-semibold">{user?.company_code}</div>
+                    <div className="fw-semibold">{userDetails.company_code}</div>
                   </div>
                 )}
               </div>
               <div className="dropdown-divider"></div>
 
-              {/* Các nút thao tác */}
               <button 
                 className="dropdown-item d-flex align-items-center"
                 onClick={() => handleNavigation('/profile')}
@@ -157,7 +210,7 @@ function Sidebar({ open, onToggle }) {
               <div className="dropdown-divider"></div>
               <button 
                 className="dropdown-item d-flex align-items-center text-danger"
-                onClick={() => handleNavigation('/login')}
+                onClick={handleLogout}  // Thay đổi từ handleNavigation sang handleLogout
               >
                 <ExitToApp className="me-2"/>
                 <span>Đăng xuất</span>

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import PrivateRoute from './components/common/PrivateRoute';
 import Login from './components/Login';
 import ImageSearch from './components/ImageSearch';
 import ProductManagement from './components/admin/ProductManagement';
@@ -12,14 +13,36 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/search" element={<ImageSearch />} />
-          <Route path="/admin/products" element={<ProductManagement />} />
-          <Route path="/admin/users" element={<UserManagement />} />
+          
+          {/* Routes được bảo vệ */}
+          <Route 
+            path="/search" 
+            element={
+              <PrivateRoute>
+                <ImageSearch />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/admin/products" 
+            element={
+              <PrivateRoute>
+                <ProductManagement />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/admin/users" 
+            element={
+              <PrivateRoute>
+                <UserManagement />
+              </PrivateRoute>
+            } 
+          />
         </Routes>
       </div>
     </BrowserRouter>
   );
 }
-
 
 export default App;

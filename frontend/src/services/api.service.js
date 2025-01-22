@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config/api.config';
+import { authService } from './auth.service';
 
 class ApiService {
   constructor() {
@@ -14,6 +15,13 @@ class ApiService {
   }
 
   async handleResponse(response) {
+    if (response.status === 401) {
+      // Token không hợp lệ hoặc hết hạn
+      authService.logout();
+      window.location.href = '/login';
+      throw new Error('Phiên đăng nhập đã hết hạn');
+    }
+    
     const data = await response.json();
     
     if (!response.ok) {

@@ -48,7 +48,24 @@ class AuthService {
   }
 
   isAuthenticated() {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+      // Decode token để kiểm tra thời hạn
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000; // Chuyển sang milliseconds
+      
+      if (Date.now() >= exp) {
+        // Token hết hạn, xóa khỏi localStorage
+        this.logout();
+        return false;
+      }
+      
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async generateCompanyCode() {
