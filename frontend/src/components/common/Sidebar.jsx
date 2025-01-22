@@ -42,6 +42,12 @@ function Sidebar({ open, onToggle }) {
     { text: 'Quản lý Người dùng', icon: <People/>, path: '/admin/users' },
   ];
 
+  // Lấy thông tin user từ localStorage
+  const [user, setUser] = useState(() => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  });
+
   return (
     <>
       {isMobile && (
@@ -101,28 +107,45 @@ function Sidebar({ open, onToggle }) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <div className="user-avatar">
-                <span>A</span>
+                <span>{user?.username?.charAt(0).toUpperCase()}</span>
               </div>
               {open && (
                 <div className="user-info ms-3">
-                  <div className="user-name">Admin User</div>
-                  <small className="user-email">admin@example.com</small>
+                  <div className="user-name">{user?.username}</div>
+                  <small className="user-email">{user?.email}</small>
                 </div>
               )}
             </button>
 
             <div className={`dropdown-menu ${showProfileMenu ? 'show' : ''}`}>
-              <div className="dropdown-header">
-                <small className="text-muted">Đã đăng nhập với</small>
-                <div className="fw-bold">admin@example.com</div>
+              {/* Thông tin chi tiết người dùng */}
+              <div className="dropdown-item-text">
+                <div className="mb-1">
+                  <small className="text-muted">Vai trò:</small>
+                  <div className="fw-semibold">{user?.role}</div>
+                </div>
+                {user?.company_name && (
+                  <div className="mb-1">
+                    <small className="text-muted">Công ty:</small>
+                    <div className="fw-semibold">{user?.company_name}</div>
+                  </div>
+                )}
+                {user?.company_code && (
+                  <div className="mb-1">
+                    <small className="text-muted">Mã công ty:</small>
+                    <div className="fw-semibold">{user?.company_code}</div>
+                  </div>
+                )}
               </div>
               <div className="dropdown-divider"></div>
+
+              {/* Các nút thao tác */}
               <button 
                 className="dropdown-item d-flex align-items-center"
                 onClick={() => handleNavigation('/profile')}
               >
                 <Person className="me-2"/>
-                <span>Thông tin cá nhân</span>
+                <span>Hồ sơ</span>
               </button>
               <button 
                 className="dropdown-item d-flex align-items-center"

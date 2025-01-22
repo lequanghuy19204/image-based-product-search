@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Google, Facebook } from '@mui/icons-material';
-import { TEST_ACCOUNTS, mockLoginWithEmail } from '../utils/mockData';
 import viteLogo from '/vite.svg';
 import '../styles/Login.css';
 import { authService } from '../services/auth.service';
@@ -22,16 +20,7 @@ function Login() {
   const [companyName, setCompanyName] = useState('');
   const [generatedCompanyCode, setGeneratedCompanyCode] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
-
-  const handleDemoLogin = async (accountType) => {
-    const account = TEST_ACCOUNTS[accountType];
-    try {
-      await mockLoginWithEmail(account.email, account.password);
-      navigate('/search');
-    } catch (error) {
-      setLoginError(error.message);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   const generateCompanyCode = async () => {
     try {
@@ -88,6 +77,7 @@ function Login() {
     if (!validateForm()) return;
 
     try {
+      setIsLoading(true);
       if (isLogin) {
         await authService.login(formData.email, formData.password);
         navigate('/search');
@@ -109,6 +99,8 @@ function Login() {
     } catch (error) {
       console.error('Lỗi:', error);
       setLoginError(error.message || 'Có lỗi xảy ra khi xử lý yêu cầu');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -337,41 +329,20 @@ function Login() {
                   </div>
                 )}
 
-                <button type="submit" className="btn btn-primary w-100 py-2 mb-3">
-                  {isLogin ? 'Đăng Nhập' : 'Đăng Ký'}
-                </button>
-
-                <div className="text-center mb-3">
-                  <div className="position-relative">
-                    <hr className="my-4" />
-                    <span className="position-absolute top-50 start-50 translate-middle px-3 bg-white text-muted">
-                      Hoặc đăng nhập với
+                <button 
+                  type="submit" 
+                  className={`btn btn-primary w-100 py-2 mb-3 ${isLoading ? 'loading' : ''}`}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="d-flex align-items-center justify-content-center gap-2">
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      {isLogin ? 'Đang đăng nhập...' : 'Đang đăng ký...'}
                     </span>
-                  </div>
-                </div>
-
-                <div className="row g-3 mb-3">
-                  <div className="col-6">
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary w-100"
-                      onClick={() => handleDemoLogin('user')}
-                    >
-                      <Google className="me-2" />
-                      Google
-                    </button>
-                  </div>
-                  <div className="col-6">
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary w-100"
-                      onClick={() => handleDemoLogin('admin')}
-                    >
-                      <Facebook className="me-2" />
-                      Facebook
-                    </button>
-                  </div>
-                </div>
+                  ) : (
+                    isLogin ? 'Đăng Nhập' : 'Đăng Ký'
+                  )}
+                </button>
 
                 <div className="text-center">
                   <p className="mb-0">

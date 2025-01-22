@@ -169,6 +169,20 @@
   background: var(--sidebar-hover);
 }
 
+.dropdown-item-text {
+  padding: 0.5rem 1rem;
+  color: var(--bs-dropdown-color);
+}
+
+.dropdown-item-text small {
+  font-size: 0.75rem;
+}
+
+.dropdown-item-text .fw-semibold {
+  font-size: 0.875rem;
+  margin-top: 0.125rem;
+}
+
 /* Main content */
 .main-content {
   flex: 1;
