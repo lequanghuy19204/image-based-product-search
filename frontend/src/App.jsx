@@ -1,9 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import PrivateRoute from './components/common/PrivateRoute';
 import Login from './components/Login';
 import ImageSearch from './components/ImageSearch';
 import ProductManagement from './components/admin/ProductManagement';
 import UserManagement from './components/admin/UserManagement';
+import Profile from './components/Profile';
+import ChangePassword from './components/ChangePassword';
+import AdminRoute from './components/common/AdminRoute';
 import './App.css';
 
 function App() {
@@ -34,8 +38,24 @@ function App() {
           <Route 
             path="/admin/users" 
             element={
-              <PrivateRoute>
+              <AdminRoute>
                 <UserManagement />
+              </AdminRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/change-password" 
+            element={
+              <PrivateRoute>
+                <ChangePassword />
               </PrivateRoute>
             } 
           />

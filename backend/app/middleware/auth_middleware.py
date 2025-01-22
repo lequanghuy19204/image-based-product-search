@@ -43,4 +43,18 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
         raise HTTPException(
             status_code=401,
             detail="Token không hợp lệ"
-        ) 
+        )
+
+async def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Verify JWT token and check if user is admin
+    """
+    payload = await verify_token(credentials)
+    
+    # Kiểm tra role từ payload
+    if payload.get("role", "").lower() != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn không có quyền truy cập"
+        )
+    return payload

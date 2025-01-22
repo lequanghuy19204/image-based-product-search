@@ -12,6 +12,7 @@ import {
   ChevronLeft,
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
+import { authService } from '../../services/auth.service';
 
 function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
@@ -31,12 +32,9 @@ function Sidebar({ open, onToggle }) {
   }, []);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const userData = JSON.parse(userStr);
-      setUser(userData);
-      fetchUserDetails();
-    }
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser);
+    fetchUserDetails();
   }, []);
 
   useEffect(() => {
@@ -98,9 +96,24 @@ function Sidebar({ open, onToggle }) {
   };
 
   const menuItems = [
-    { text: 'Tìm kiếm', icon: <Search/>, path: '/search' },
-    { text: 'Quản lý Sản phẩm', icon: <ShoppingBag/>, path: '/admin/products' },
-    { text: 'Quản lý Người dùng', icon: <People/>, path: '/admin/users' },
+    {
+      title: 'Tìm kiếm Sản phẩm',
+      path: '/search',
+      icon: <Search />,
+      showFor: ['Admin', 'User']
+    },
+    {
+      title: 'Quản lý Sản phẩm',
+      path: '/admin/products',
+      icon: <ShoppingBag />,
+      showFor: ['Admin', 'User']
+    },
+    {
+      title: 'Quản lý Người dùng',
+      path: '/admin/users',
+      icon: <People />,
+      showFor: ['Admin']
+    }
   ];
 
   return (
@@ -132,25 +145,27 @@ function Sidebar({ open, onToggle }) {
         <hr className="divider my-0"/>
         
         <nav className="sidebar-menu">
-          {menuItems.map((item) => (
-            <div 
-              key={item.path}
-              className="nav-item"
-              title={!open ? item.text : undefined}
-            >
-              <button
-                className={`nav-link d-flex align-items-center ${
-                  location.pathname === item.path ? 'active' : ''
-                }`}
-                onClick={() => handleNavigation(item.path)}
+          {menuItems
+            .filter(item => user && item.showFor.includes(user.role))
+            .map((item) => (
+              <div 
+                key={item.path}
+                className="nav-item"
+                title={!open ? item.title : undefined}
               >
-                <span className="icon-wrapper">
-                  {item.icon}
-                </span>
-                {open && <span className="nav-text">{item.text}</span>}
-              </button>
-            </div>
-          ))}
+                <button
+                  className={`nav-link d-flex align-items-center ${
+                    location.pathname === item.path ? 'active' : ''
+                  }`}
+                  onClick={() => handleNavigation(item.path)}
+                >
+                  <span className="icon-wrapper">
+                    {item.icon}
+                  </span>
+                  {open && <span className="nav-text">{item.title}</span>}
+                </button>
+              </div>
+            ))}
         </nav>
 
         <hr className="divider mt-auto mb-0"/>
@@ -210,7 +225,7 @@ function Sidebar({ open, onToggle }) {
               <div className="dropdown-divider"></div>
               <button 
                 className="dropdown-item d-flex align-items-center text-danger"
-                onClick={handleLogout}  // Thay đổi từ handleNavigation sang handleLogout
+                onClick={handleLogout}
               >
                 <ExitToApp className="me-2"/>
                 <span>Đăng xuất</span>

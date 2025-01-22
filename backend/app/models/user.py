@@ -23,3 +23,12 @@ class UserResponse(BaseModel):
     company_id: Optional[str]
     created_at: datetime
     updated_at: datetime 
+    
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+class UpdateProfileRequest(BaseModel):
+    username: str
+    email: EmailStr

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
+import { apiService } from '../../services/api.service';
 
 function ProductManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -58,6 +59,38 @@ function ProductManagement() {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(1); // Reset về trang 1 khi thay đổi số lượng items/trang
+  };
+
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    // Lấy thông tin user từ localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    setUser(currentUser);
+  }, []);
+
+  // Hàm kiểm tra quyền xóa
+  const canDelete = () => {
+    return user?.role === 'Admin';
+  };
+
+  // Hàm xử lý xóa sản phẩm
+  const handleDelete = async (productId) => {
+    if (!canDelete()) {
+      alert('Bạn không có quyền xóa sản phẩm');
+      return;
+    }
+
+    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+      try {
+        await apiService.delete(`/api/admin/products/${productId}`);
+        // Cập nhật lại danh sách sản phẩm
+        fetchProducts();
+      } catch (error) {
+        console.error('Lỗi khi xóa sản phẩm:', error);
+        alert('Không thể xóa sản phẩm. Vui lòng thử lại sau.');
+      }
+    }
   };
 
   return (
@@ -139,13 +172,19 @@ function ProductManagement() {
                           <button 
                             className="btn btn-sm btn-icon"
                             onClick={() => setOpenDialog(true)}
-                            
+                            title="Chỉnh sửa"
                           >
                             <EditIcon fontSize="small" />
                           </button>
-                          <button className="btn btn-sm btn-icon">
-                            <DeleteIcon fontSize="small" />
-                          </button>
+                          {canDelete() && (
+                            <button 
+                              className="btn btn-sm btn-icon text-danger"
+                              onClick={() => handleDelete(product.id)}
+                              title="Xóa"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
