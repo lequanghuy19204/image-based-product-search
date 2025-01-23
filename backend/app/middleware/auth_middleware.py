@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from app.config.firebase_config import db
 
 # Load biến môi trường
 load_dotenv()
@@ -45,16 +46,33 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
             detail="Token không hợp lệ"
         )
 
-async def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    Verify JWT token and check if user is admin
-    """
-    payload = await verify_token(credentials)
-    
-    # Kiểm tra role từ payload
-    if payload.get("role", "").lower() != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="Bạn không có quyền truy cập"
+async def verify_admin(credentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(
+            token, 
+            os.getenv("JWT_SECRET_KEY"),
+            algorithms=["HS256"]
         )
-    return payload
+        
+        # Lấy thông tin user từ database
+        user_doc = db.collection('users').document(payload['sub']).get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+            
+        user_data = user_doc.to_dict()
+        
+        # Kiểm tra role admin
+        if user_data.get('role') != 'Admin':
+            raise HTTPException(
+                status_code=403,
+                detail="Bạn không có quyền truy cập"
+            )
+            
+        return payload
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token không hợp lệ hoặc đã hết hạn"
+        )

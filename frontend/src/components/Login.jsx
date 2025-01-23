@@ -21,6 +21,7 @@ function Login() {
   const [generatedCompanyCode, setGeneratedCompanyCode] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const generateCompanyCode = async () => {
     try {
@@ -79,7 +80,18 @@ function Login() {
     try {
       setIsLoading(true);
       if (isLogin) {
-        await authService.login(formData.email, formData.password);
+        const response = await authService.login(formData.email, formData.password);
+        
+        if (rememberMe) {
+          localStorage.setItem('token', response.access_token);
+          localStorage.setItem('rememberedLogin', 'true');
+          localStorage.setItem('userDetails', JSON.stringify(response.user));
+        } else {
+          sessionStorage.setItem('token', response.access_token);
+          localStorage.setItem('rememberedLogin', 'false');
+          sessionStorage.setItem('userDetails', JSON.stringify(response.user));
+        }
+        
         navigate('/search');
       } else {
         let company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
@@ -123,6 +135,15 @@ function Login() {
       generateCompanyCode();
     }
   }, [isLogin, accountType]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const rememberedLogin = localStorage.getItem('rememberedLogin');
+    
+    if (token && rememberedLogin === 'true') {
+      navigate('/search');
+    }
+  }, [navigate]);
 
   return (
     <div className="container-fluid min-vh-100">
@@ -320,12 +341,17 @@ function Login() {
                 {isLogin && (
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <div className="form-check">
-                      <input type="checkbox" className="form-check-input" id="remember" />
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input" 
+                        id="remember"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                      />
                       <label className="form-check-label" htmlFor="remember">
                         Ghi nhớ đăng nhập
                       </label>
                     </div>
-                    <a href="#" className="text-decoration-none">Quên mật khẩu?</a>
                   </div>
                 )}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -10,6 +10,7 @@ import {
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
+import { apiService } from '../../services/api.service';
 import '../../styles/UserManagement.css';
 
 function UserManagement() {
@@ -28,29 +29,9 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-
-  // Mock data
-  const [users] = useState([
-    { 
-      id: 1, 
-      username: 'admin', 
-      email: 'admin@test.com', 
-      role: 'admin', 
-      status: 'active',
-      createdAt: '2024-03-15',
-      lastLogin: '2024-03-20 14:30'
-    },
-    { 
-      id: 2, 
-      username: 'user1', 
-      email: 'user1@test.com', 
-      role: 'user', 
-      status: 'blocked',
-      createdAt: '2024-03-10',
-      lastLogin: '2024-03-18 09:15'
-    },
-    // Thêm users demo khác...
-  ]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -72,13 +53,33 @@ function UserManagement() {
     console.log('Toggle status:', user);
   };
 
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.get('/api/admin/users');
+      setUsers(response);
+      setError('');
+    } catch (err) {
+      setError('Không thể tải danh sách người dùng');
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const filteredUsers = users.filter(user => {
-    const matchSearch = (
-      user.username.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
-    );
-    const matchRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchSearch && matchRole;
+    const matchesSearch = user.username.toLowerCase().includes(search.toLowerCase()) ||
+                         user.email.toLowerCase().includes(search.toLowerCase()) ||
+                         user.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+                         user.company_code?.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesRole = roleFilter === 'all' || user.role.toLowerCase() === roleFilter.toLowerCase();
+    
+    return matchesSearch && matchesRole;
   });
 
   return (
@@ -116,38 +117,43 @@ function UserManagement() {
             </button>
           </div>
 
-          <div className="table-container">
-            <table className="table table-bordered table-hover align-middle">
-              <thead>
-                <tr className="bg-primary text-white">
-                  <th>Tên người dùng</th>
-                  <th>Email</th>
-                  <th>Vai trò</th>
-                  <th>Trạng thái</th>
-                  <th>Ngày tạo</th>
-                  <th>Đăng nhập cuối</th>
-                  <th className="text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers
-                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
-                  .map((user) => (
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
+          
+          {loading ? (
+            <div className="text-center my-4">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Đang tải...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Tên người dùng</th>
+                    <th>Email</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th>Đăng nhập cuối</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(user => (
                     <tr key={user.id}>
                       <td>{user.username}</td>
                       <td>{user.email}</td>
-                      <td>
-                        <span className={`badge ${user.role === 'admin' ? 'bg-primary' : 'bg-secondary'}`}>
-                          {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
-                        </span>
-                      </td>
+                      <td>{user.role}</td>
                       <td>
                         <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
                           {user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
                         </span>
                       </td>
-                      <td>{user.createdAt}</td>
-                      <td>{user.lastLogin}</td>
+                      <td>{user.last_login ? new Date(user.last_login).toLocaleDateString('vi-VN') : '-'}</td>
                       <td>
                         <div className="table-actions">
                           <button 
@@ -177,56 +183,57 @@ function UserManagement() {
                       </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            <div className="pagination-container">
-              <div className="pagination-controls-container">
-                <div className="rows-per-page">
-                  <span>Hiển thị</span>
-                  <select 
-                    className="form-select"
-                    value={rowsPerPage}
-                    onChange={handleChangeRowsPerPage}
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span>người dùng mỗi trang</span>
-                </div>
-                
-                <div className="pagination-info">
-                  Hiển thị {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, filteredUsers.length)} trong số {filteredUsers.length} người dùng
-                </div>
+          <div className="pagination-container">
+            <div className="pagination-controls-container">
+              <div className="rows-per-page">
+                <span>Hiển thị</span>
+                <select 
+                  className="form-select"
+                  value={rowsPerPage}
+                  onChange={handleChangeRowsPerPage}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>người dùng mỗi trang</span>
               </div>
+              
+              <div className="pagination-info">
+                Hiển thị {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, filteredUsers.length)} trong số {filteredUsers.length} người dùng
+              </div>
+            </div>
 
-              <div className="pagination-controls">
-                <button 
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
+            <div className="pagination-controls">
+              <button 
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
+              >
+                <PrevIcon fontSize="small" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  className={`btn btn-sm ${pageNum === page ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => handlePageChange(pageNum)}
                 >
-                  <PrevIcon fontSize="small" />
+                  {pageNum}
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    className={`btn btn-sm ${pageNum === page ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => handlePageChange(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-                <button 
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === totalPages}
-                >
-                  <NextIcon fontSize="small" />
-                </button>
-              </div>
+              ))}
+              <button 
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === totalPages}
+              >
+                <NextIcon fontSize="small" />
+              </button>
             </div>
           </div>
         </div>

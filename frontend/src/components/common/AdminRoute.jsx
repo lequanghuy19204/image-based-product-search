@@ -4,10 +4,8 @@ import PropTypes from 'prop-types';
 
 function AdminRoute({ children }) {
   const user = authService.getCurrentUser();
-  const isAdmin = user && user.role === 'Admin';
-  
-  if (!isAdmin) {
-    // Chuyển hướng về trang chính nếu không phải admin
+  // Kiểm tra cả user và role
+  if (!user || user.role !== 'Admin') {
     return <Navigate to="/search" replace />;
   }
   

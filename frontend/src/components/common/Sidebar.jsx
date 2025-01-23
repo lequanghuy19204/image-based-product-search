@@ -34,7 +34,15 @@ function Sidebar({ open, onToggle }) {
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
-    fetchUserDetails();
+    
+    // Kiểm tra xem có thông tin userDetails trong localStorage không
+    const cachedUserDetails = localStorage.getItem('userDetails');
+    if (cachedUserDetails) {
+      setUserDetails(JSON.parse(cachedUserDetails));
+    } else {
+      // Nếu không có, gọi API để lấy thông tin
+      fetchUserDetails();
+    }
   }, []);
 
   useEffect(() => {
@@ -68,7 +76,8 @@ function Sidebar({ open, onToggle }) {
       }
 
       const data = await response.json();
-      // console.log('User details:', data);
+      // Lưu thông tin vào localStorage
+      localStorage.setItem('userDetails', JSON.stringify(data));
       setUserDetails(data);
     } catch (error) {
       console.error('Lỗi khi lấy thông tin user:', error);
@@ -84,14 +93,15 @@ function Sidebar({ open, onToggle }) {
   };
 
   const handleLogout = () => {
-    // Xóa token
+    // Xóa token và thông tin người dùng từ cả localStorage và sessionStorage
     localStorage.removeItem('token');
-    // Xóa thông tin user
-    localStorage.removeItem('user');
-    // Reset state
+    localStorage.removeItem('userDetails');
+    localStorage.removeItem('rememberedLogin');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userDetails');
+    
     setUser(null);
     setUserDetails(null);
-    // Chuyển hướng về trang login
     navigate('/login');
   };
 
