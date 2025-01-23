@@ -58,27 +58,6 @@ function UserManagement() {
     setPage(1);
   };
 
-  const handleToggleStatus = async (user) => {
-    try {
-      const newStatus = user.status === 'active' ? 'inactive' : 'active';
-      await apiService.updateUserStatus(user.id, newStatus);
-      
-      // Cập nhật state local
-      setUsers(users.map(u => {
-        if (u.id === user.id) {
-          return { ...u, status: newStatus };
-        }
-        return u;
-      }));
-
-      // Hiển thị thông báo thành công
-      setSuccessMessage(`Đã ${newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa'} tài khoản thành công`);
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error) {
-      setError('Không thể cập nhật trạng thái người dùng');
-      console.error('Error updating user status:', error);
-    }
-  };
 
   // Hàm kiểm tra xem có cần fetch lại data không
   const shouldFetchData = () => {
