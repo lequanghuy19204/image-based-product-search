@@ -23,6 +23,13 @@ async def login(user_data: UserLogin):
         user = users[0]
         user_dict = user.to_dict()
         
+        # Kiểm tra status của tài khoản
+        if user_dict.get('status') != 'active':
+            raise HTTPException(
+                status_code=401,
+                detail="Tài khoản đã bị vô hiệu hóa"
+            )
+            
         # Kiểm tra mật khẩu
         if not verify_password(user_data.password, user_dict['password_hash']):
             raise HTTPException(
@@ -114,6 +121,7 @@ async def register(user_data: UserCreate):
             'password_hash': password_hash,
             'role': user_data.role,
             'company_id': company_id,
+            'status': "active",
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }

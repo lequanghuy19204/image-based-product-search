@@ -27,3 +27,4 @@ firebase_admin.initialize_app(cred)
 
 # Khởi tạo Firestore client
 db = firestore.client()
+

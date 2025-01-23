@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import {
@@ -10,6 +10,7 @@ import {
   VpnKey,
   Menu as MenuIcon,
   ChevronLeft,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 import { authService } from '../../services/auth.service';
@@ -21,41 +22,41 @@ function Sidebar({ open, onToggle }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [userDetails, setUserDetails] = useState(null);
   const [user, setUser] = useState(null);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
+  const [isDataStale, setIsDataStale] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(null);
+  const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
+  // Kiểm tra xem có cần fetch lại data không
+  const shouldFetchData = useCallback(() => {
+    if (!lastFetchTime) return true;
+    const timeElapsed = Date.now() - lastFetchTime;
+    return timeElapsed > CACHE_DURATION;
+  }, [lastFetchTime]);
+
+  // Xử lý resize window
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-    
-    // Kiểm tra xem có thông tin userDetails trong localStorage không
-    const cachedUserDetails = localStorage.getItem('userDetails');
-    if (cachedUserDetails) {
-      setUserDetails(JSON.parse(cachedUserDetails));
-    } else {
-      // Nếu không có, gọi API để lấy thông tin
-      fetchUserDetails();
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchUserDetails();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
-  const fetchUserDetails = async () => {
+  // Fetch và cache user details
+  const fetchUserDetails = useCallback(async (forceFetch = false) => {
     try {
+      // Kiểm tra cache
+      const cachedData = localStorage.getItem('userDetails');
+      const cachedTime = localStorage.getItem('userDetailsTime');
+
+      // Sử dụng cache nếu có và chưa hết hạn
+      if (!forceFetch && cachedData && cachedTime) {
+        const timeElapsed = Date.now() - parseInt(cachedTime);
+        if (timeElapsed < CACHE_DURATION) {
+          setUserDetails(JSON.parse(cachedData));
+          setLastFetchTime(parseInt(cachedTime));
+          return;
+        }
+      }
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.error('Không tìm thấy token');
@@ -70,42 +71,40 @@ function Sidebar({ open, onToggle }) {
         }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to fetch user details');
-      }
+      if (!response.ok) throw new Error('Failed to fetch user details');
 
       const data = await response.json();
-      // Lưu thông tin vào localStorage
+      
+      // Cập nhật cache và state
       localStorage.setItem('userDetails', JSON.stringify(data));
+      localStorage.setItem('userDetailsTime', Date.now().toString());
       setUserDetails(data);
+      setLastFetchTime(Date.now());
+      setIsDataStale(false);
+
     } catch (error) {
       console.error('Lỗi khi lấy thông tin user:', error);
     }
-  };
+  }, []);
 
-  const handleNavigation = (path) => {
-    navigate(path);
-    if (isMobile) {
-      onToggle(false);
-    }
-    setShowProfileMenu(false);
-  };
+  // Khởi tạo dữ liệu
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser);
+    fetchUserDetails();
 
-  const handleLogout = () => {
-    // Xóa token và thông tin người dùng từ cả localStorage và sessionStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('userDetails');
-    localStorage.removeItem('rememberedLogin');
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('userDetails');
-    
-    setUser(null);
-    setUserDetails(null);
-    navigate('/login');
-  };
+    // Kiểm tra data cũ mỗi phút
+    const interval = setInterval(() => {
+      if (shouldFetchData()) {
+        setIsDataStale(true);
+      }
+    }, 60000);
 
-  const menuItems = [
+    return () => clearInterval(interval);
+  }, [fetchUserDetails, shouldFetchData]);
+
+  // Menu items được memoized
+  const menuItems = useMemo(() => [
     {
       title: 'Tìm kiếm Sản phẩm',
       path: '/search',
@@ -124,29 +123,59 @@ function Sidebar({ open, onToggle }) {
       icon: <People />,
       showFor: ['Admin']
     }
-  ];
+  ], []);
+
+  // Xử lý navigation
+  const handleNavigation = useCallback((path) => {
+    navigate(path);
+    if (isMobile) {
+      onToggle(false);
+    }
+    setShowProfileMenu(false);
+  }, [navigate, isMobile, onToggle]);
+
+  // Xử lý logout - cập nhật mới
+  const handleLogout = useCallback(() => {
+    // Xóa toàn bộ dữ liệu trong localStorage
+    localStorage.clear();
+    
+    // Xóa toàn bộ dữ liệu trong sessionStorage
+    sessionStorage.clear();
+    
+    // Reset các states
+    setUser(null);
+    setUserDetails(null);
+    setLastFetchTime(null);
+    setIsDataStale(false);
+    
+    // Chuyển hướng về trang login
+    navigate('/login');
+  }, [navigate]);
 
   return (
     <>
       {isMobile && (
-        <button 
-          className="mobile-toggle-btn"
-          onClick={() => onToggle(!open)}
-        >
+        <button className="mobile-toggle-btn" onClick={() => onToggle(!open)}>
           <MenuIcon/>
         </button>
       )}
 
       <div className={`sidebar ${!open ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''} ${isMobile && open ? 'expanded' : ''}`}>
         <div className="sidebar-header">
-          <div className="d-flex align-items-center">
+          <div className="d-flex align-items-center justify-content-between w-100">
             {open && <h5 className="mb-0 ms-2">Admin Portal</h5>}
+            {isDataStale && open && (
+              <button 
+                className="btn btn-link btn-sm text-warning"
+                onClick={() => fetchUserDetails(true)}
+                title="Cập nhật thông tin"
+              >
+                <RefreshIcon />
+              </button>
+            )}
           </div>
           {!isMobile && (
-            <button 
-              className="btn btn-icon"
-              onClick={() => onToggle(!open)}
-            >
+            <button className="btn btn-icon" onClick={() => onToggle(!open)}>
               {open ? <ChevronLeft/> : <MenuIcon/>}
             </button>
           )}

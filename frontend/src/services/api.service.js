@@ -69,6 +69,10 @@ class ApiService {
     });
     return this.handleResponse(response);
   }
+
+  async updateUserStatus(userId, status) {
+    return await this.put(`/api/admin/users/${userId}/status?status=${status}`);
+  }
 }
 
 export const apiService = new ApiService();

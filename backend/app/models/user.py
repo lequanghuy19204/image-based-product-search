@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
 
@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     company_id: Optional[str] = None
     company_name: Optional[str] = None
     company_code: Optional[str] = None
+    status: str = "active"
     
 class UserLogin(BaseModel):
     email: EmailStr
@@ -21,6 +22,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     company_id: Optional[str]
+    status: str
     created_at: datetime
     updated_at: datetime 
     
@@ -32,3 +34,12 @@ class ChangePasswordRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     username: str
     email: EmailStr
+
+class UserStatusUpdate(BaseModel):
+    status: str
+
+    @validator('status')
+    def validate_status(cls, v):
+        if v not in ['active', 'inactive']:
+            raise ValueError('Status must be either "active" or "inactive"')
+        return v
