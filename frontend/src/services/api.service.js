@@ -22,13 +22,12 @@ class ApiService {
       throw new Error('Phiên đăng nhập đã hết hạn');
     }
     
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(data.detail || 'Có lỗi xảy ra');
+        return response.json().then(err => {
+            throw err;
+        });
     }
-    
-    return data;
+    return response.json();
   }
 
   async get(endpoint) {
@@ -44,13 +43,41 @@ class ApiService {
     }
   }
 
-  async post(endpoint, body) {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(body),
-    });
-    return this.handleResponse(response);
+  async post(endpoint, data, requiresAuth = true) {
+    try {
+      const headers = {};
+
+      // Chỉ kiểm tra token nếu endpoint yêu cầu xác thực
+      if (requiresAuth) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Chưa đăng nhập');
+        }
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Nếu data không phải là FormData, thêm Content-Type
+      if (!(data instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+        data = JSON.stringify(data);
+      }
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: headers,
+        body: data
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Có lỗi xảy ra');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
   }
 
   async put(endpoint, body) {

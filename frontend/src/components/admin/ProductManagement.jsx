@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -10,6 +11,7 @@ import {
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
 import { apiService } from '../../services/api.service';
+import ProductDialog from './ProductDialog';
 
 function ProductManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -23,42 +25,25 @@ function ProductManagement() {
     localStorage.setItem('sidebarOpen', JSON.stringify(newState));
   };
 
-  const [openDialog, setOpenDialog] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showDialog, setShowDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [search, setSearch] = useState('');
 
-  // Mock data
-  const [products] = useState([
-    {
-      id: 'CP_x3945',
-      code: 'DHT287-TRT1523',
-      brand: 'Nike',
-      images: [
-        'https://picsum.photos/300/300?random=1',
-        'https://picsum.photos/300/300?random=2',
-        'https://picsum.photos/300/300?random=3',
-        'https://picsum.photos/300/300?random=3',
-        'https://picsum.photos/300/300?random=3'
-      ],
-      notes: 'Áo thun cotton 100%, form regular fit',
-      creator: 'Mkt trưởng',
-    },
-    // Thêm nhiều sản phẩm mẫu...
-  ]);
 
-  const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const totalPages = Math.ceil(products.length / rowsPerPage);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
+      setCurrentPage(newPage);
     }
   };
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(1); // Reset về trang 1 khi thay đổi số lượng items/trang
+    setCurrentPage(1); // Reset về trang 1 khi thay đổi số lượng items/trang
   };
 
   const [user, setUser] = useState(null);
@@ -93,6 +78,74 @@ function ProductManagement() {
     }
   };
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await apiService.get('/api/products');
+      setProducts(response.data);
+      setTotalPages(Math.ceil(response.data.length / rowsPerPage));
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Không thể tải danh sách sản phẩm');
+    }
+  };
+
+  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // Thêm useEffect để xóa thông báo sau 3 giây
+  useEffect(() => {
+    if (successMessage || error) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+        setError('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, error]);
+
+  const handleAddProduct = async (formData) => {
+    try {
+      const response = await apiService.post('/api/products', formData);
+      
+      if (response.data) {
+        setSuccessMessage('Thêm sản phẩm thành công');
+        fetchProducts();
+        setShowDialog(false);
+      }
+    } catch (error) {
+      console.error('Error adding product:', error.response?.data);
+      let errorMessage = 'Không thể thêm sản phẩm';
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail
+            .map(err => `${err.loc[1]}: ${err.msg}`)
+            .join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
+      setError(errorMessage);
+    }
+  };
+
+  const handleEditProduct = async (formData) => {
+    try {
+      await apiService.put(`/api/products/${selectedProduct.id}`, formData);
+      toast.success('Cập nhật sản phẩm thành công');
+      fetchProducts();
+      setShowDialog(false);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast.error('Không thể cập nhật sản phẩm');
+    }
+  };
+
   return (
     <div className="layout-container">
       <Sidebar 
@@ -102,6 +155,19 @@ function ProductManagement() {
       
       <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
         <div className="product-management">
+          {/* Thêm thông báo thành công/lỗi */}
+          {successMessage && (
+            <div className="alert alert-success" role="alert">
+              {successMessage}
+            </div>
+          )}
+          
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
+
           {/* Toolbar */}
           <div className="toolbar">
             <div className="d-flex align-items-center gap-3">
@@ -111,15 +177,21 @@ function ProductManagement() {
                   type="text"
                   className="form-control"
                   placeholder="Tìm kiếm sản phẩm..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <button className="btn btn-outline-secondary">
                   <SearchIcon fontSize="small" />
                 </button>
               </div>
             </div>
-            <button className="btn btn-primary" onClick={() => setOpenDialog(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setSelectedProduct(null);
+                setShowDialog(true);
+              }}
+            >
               <AddIcon className="me-2" />
               Thêm sản phẩm
             </button>
@@ -130,17 +202,17 @@ function ProductManagement() {
             <table className="table table-bordered table-hover align-middle">
               <thead>
                 <tr className="bg-primary text-white">
-                  <th className="text-uppercase image-column">Hình ảnh</th>
-                  <th className="text-uppercase code-column">Mã sản phẩm</th>
-                  <th className="text-uppercase brand-column">Thương hiệu</th>
-                  <th className="text-uppercase notes-column">Ghi chú</th>
-                  <th className="text-uppercase creator-column">Người tạo</th>
-                  <th className="text-uppercase actions-column text-center">Thao tác</th>
+                  <th className="image-column">Hình ảnh</th>
+                  <th className="code-column">Mã sản phẩm</th>
+                  <th className="brand-column">Thương hiệu</th>
+                  <th className="notes-column">Ghi chú</th>
+                  <th className="creator-column">Người tạo</th>
+                  <th className="actions-column text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {products
-                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
+                  .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
                   .map((product) => (
                     <tr key={product.id}>
                       <td style={{minWidth: '400px'}}>
@@ -171,7 +243,10 @@ function ProductManagement() {
                         <div className="table-actions">
                           <button 
                             className="btn btn-sm btn-icon"
-                            onClick={() => setOpenDialog(true)}
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setShowDialog(true);
+                            }}
                             title="Chỉnh sửa"
                           >
                             <EditIcon fontSize="small" />
@@ -211,22 +286,22 @@ function ProductManagement() {
                 </div>
                 
                 <div className="pagination-info">
-                  Hiển thị {((page - 1) * rowsPerPage) + 1} - {Math.min(page * rowsPerPage, products.length)} trong số {products.length} sản phẩm
+                  Hiển thị {((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, products.length)} trong số {products.length} sản phẩm
                 </div>
               </div>
 
               <div className="pagination-controls">
                 <button 
                   className="btn btn-outline-primary btn-sm"
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                 >
                   <PrevIcon fontSize="small" />
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
                   <button
                     key={pageNum}
-                    className={`btn btn-sm ${pageNum === page ? 'btn-primary' : 'btn-outline-primary'}`}
+                    className={`btn btn-sm ${pageNum === currentPage ? 'btn-primary' : 'btn-outline-primary'}`}
                     onClick={() => handlePageChange(pageNum)}
                   >
                     {pageNum}
@@ -234,8 +309,8 @@ function ProductManagement() {
                 ))}
                 <button 
                   className="btn btn-outline-primary btn-sm"
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
                 >
                   <NextIcon fontSize="small" />
                 </button>
@@ -244,6 +319,17 @@ function ProductManagement() {
           </div>
         </div>
       </main>
+
+      {/* Add ProductDialog */}
+      <ProductDialog
+        show={showDialog}
+        onHide={() => {
+          setShowDialog(false);
+          setSelectedProduct(null);
+        }}
+        onSubmit={selectedProduct ? handleEditProduct : handleAddProduct}
+        initialData={selectedProduct}
+      />
     </div>
   );
 }

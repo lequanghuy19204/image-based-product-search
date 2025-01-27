@@ -1,0 +1,31 @@
+.upload__image-wrapper {
+  padding: 1rem;
+  border: 2px dashed #dee2e6;
+  border-radius: 0.5rem;
+}
+
+.upload__image-wrapper:hover {
+  border-color: #0d6efd;
+}
+
+.image-item {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.image-item button {
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.image-item button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.invalid-feedback {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: #dc3545;
+} 

@@ -4,20 +4,23 @@ import { API_ENDPOINTS } from '../config/api.config';
 class AuthService {
   // Hàm đăng nhập
   async login(email, password) {
-    // Gửi yêu cầu đăng nhập đến API
-    const data = await apiService.post(API_ENDPOINTS.AUTH.LOGIN, {
-      email,
-      password,
-    });
-    
-    // Nếu có token trả về, lưu trữ token và thông tin người dùng vào localStorage
-    if (data.access_token) {
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+    try {
+      // Gọi API đăng nhập không yêu cầu token
+      const data = await apiService.post(API_ENDPOINTS.AUTH.LOGIN, {
+        email,
+        password
+      }, false); // false = không yêu cầu token
+      
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-    
-    // Trả về dữ liệu nhận được
-    return data;
   }
 
   // Hàm đăng ký
