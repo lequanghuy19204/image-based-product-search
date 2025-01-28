@@ -6,8 +6,8 @@ from app.routers.admin import admin_router
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
 from app.config.cloudinary_config import initialize_cloudinary
-from app.routers.test import test_router
 from app.routers.product import product_router
+# from app.routers.test import test_router
 
 app = FastAPI(title="Search Images API")
 
@@ -60,12 +60,12 @@ app.include_router(
     tags=["Admin"]
 )
 
-# Thêm test router
-app.include_router(
-    test_router,
-    prefix="/api/test",
-    tags=["Test"]
-)
+# # Thêm test router
+# app.include_router(
+#     test_router,
+#     prefix="/api/test",
+#     tags=["Test"]
+# )
 
 # Thêm product router với middleware xác thực
 app.include_router(

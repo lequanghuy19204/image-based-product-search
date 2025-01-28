@@ -30,9 +30,22 @@ class ApiService {
     return response.json();
   }
 
-  async get(endpoint) {
+  async get(endpoint, options = {}) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
+      let url = `${this.baseURL}${endpoint}`;
+      
+      // Thêm query params nếu có
+      if (options.params) {
+        const params = new URLSearchParams();
+        Object.entries(options.params).forEach(([key, value]) => {
+          if (value !== null && value !== undefined && value !== '') {
+            params.append(key, value);
+          }
+        });
+        url += `?${params.toString()}`;
+      }
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -43,24 +56,36 @@ class ApiService {
     }
   }
 
-  async post(endpoint, data, requiresAuth = true) {
+  async post(endpoint, body, requiresAuth = true) {
     try {
-      const headers = {};
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
+      };
 
-      // Chỉ kiểm tra token nếu endpoint yêu cầu xác thực
-      if (requiresAuth) {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('Chưa đăng nhập');
-        }
-        headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Có lỗi xảy ra');
       }
 
-      // Nếu data không phải là FormData, thêm Content-Type
-      if (!(data instanceof FormData)) {
-        headers['Content-Type'] = 'application/json';
-        data = JSON.stringify(data);
-      }
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  async postFormData(endpoint, data, requiresAuth = true) {
+    try {
+      const headers = {
+        ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
+      };
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
@@ -99,6 +124,30 @@ class ApiService {
 
   async updateUserStatus(userId, status) {
     return await this.put(`/api/admin/users/${userId}/status?status=${status}`);
+  }
+
+  async putFormData(endpoint, data) {
+    try {
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      };
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PUT',
+        headers: headers,
+        body: data
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Có lỗi xảy ra');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
   }
 }
 

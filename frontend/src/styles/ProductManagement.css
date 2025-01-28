@@ -300,3 +300,13 @@
 .main-content:not(.sidebar-collapsed) .table {
   width: 100%;
 }
+
+.creator-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.creator-info .text-muted {
+    font-size: 0.875rem;
+}

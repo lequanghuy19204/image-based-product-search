@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -12,6 +11,7 @@ import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
 import { apiService } from '../../services/api.service';
 import ProductDialog from './ProductDialog';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 
 function ProductManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -48,10 +48,42 @@ function ProductManagement() {
 
   const [user, setUser] = useState(null);
   
+  const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+  const [isDataStale, setIsDataStale] = useState(false);
+
+  // Thêm phương thức updateProductCache
+  const updateProductCache = (updatedProducts) => {
+    setProducts(updatedProducts);
+    localStorage.setItem('cachedProducts', JSON.stringify(updatedProducts));
+    localStorage.setItem('cachedProductsTime', Date.now().toString());
+  };
+
+  // Hàm kiểm tra xem có cần fetch lại data không
+  const shouldFetchData = () => {
+    const cachedTime = localStorage.getItem('cachedProductsTime');
+    if (!cachedTime) return true;
+    
+    const timeElapsed = Date.now() - parseInt(cachedTime);
+    const isExpired = timeElapsed > CACHE_DURATION;
+    
+    if (isExpired) setIsDataStale(true);
+    return isExpired;
+  };
+
+  // Thêm useEffect để kiểm tra data cũ
   useEffect(() => {
-    // Lấy thông tin user từ localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    setUser(currentUser);
+    const user = JSON.parse(localStorage.getItem('user'));
+    setUser(user);
+    fetchProducts();
+
+    // Thiết lập interval để kiểm tra data cũ
+    const interval = setInterval(() => {
+      if (shouldFetchData()) {
+        setIsDataStale(true);
+      }
+    }, 60000); // Kiểm tra mỗi phút
+
+    return () => clearInterval(interval);
   }, []);
 
   // Hàm kiểm tra quyền xóa
@@ -59,39 +91,86 @@ function ProductManagement() {
     return user?.role === 'Admin';
   };
 
-  // Hàm xử lý xóa sản phẩm
-  const handleDelete = async (productId) => {
-    if (!canDelete()) {
-      alert('Bạn không có quyền xóa sản phẩm');
-      return;
-    }
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      try {
-        await apiService.delete(`/api/admin/products/${productId}`);
-        // Cập nhật lại danh sách sản phẩm
-        fetchProducts();
-      } catch (error) {
-        console.error('Lỗi khi xóa sản phẩm:', error);
-        alert('Không thể xóa sản phẩm. Vui lòng thử lại sau.');
-      }
+  // Thay thế hàm handleDelete cũ bằng 2 hàm mới
+  const handleDeleteClick = (product) => {
+    setSelectedProduct(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      await apiService.delete(`/api/products/${selectedProduct.id}`);
+      const updatedProducts = products.filter(p => p.id !== selectedProduct.id);
+      updateProductCache(updatedProducts);
+      setSuccessMessage('Xóa sản phẩm thành công');
+      setDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setError('Không thể xóa sản phẩm. Vui lòng thử lại.');
     }
   };
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const [loading, setLoading] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const fetchProducts = async () => {
+  // Cập nhật lại fetchProducts để sử dụng cache
+  const fetchProducts = async (forceFetch = false) => {
     try {
-      const response = await apiService.get('/api/products');
-      setProducts(response.data);
-      setTotalPages(Math.ceil(response.data.length / rowsPerPage));
+      // Kiểm tra cache trước
+      const cachedData = localStorage.getItem('cachedProducts');
+      
+      // Nếu có cache và không bắt buộc fetch mới
+      if (cachedData && !forceFetch && !shouldFetchData()) {
+        const parsedData = JSON.parse(cachedData);
+        updateProductCache(parsedData);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const response = await apiService.get('/api/products', {
+        params: {
+          search: searchTerm,
+          page: currentPage,
+          limit: rowsPerPage
+        }
+      });
+
+      if (response && response.data) {
+        updateProductCache(response.data);
+        setTotalItems(response.total);
+        setTotalPages(response.total_pages);
+        setIsDataStale(false);
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error('Không thể tải danh sách sản phẩm');
+      setError('Không thể tải danh sách sản phẩm');
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Thêm useEffect để fetch lại khi các params thay đổi
+  useEffect(() => {
+    fetchProducts();
+  }, [currentPage, rowsPerPage, searchTerm]);
+
+  // Thêm debounce cho search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== '') {
+        setCurrentPage(1);
+        fetchProducts();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
@@ -107,42 +186,32 @@ function ProductManagement() {
     }
   }, [successMessage, error]);
 
+  // Cập nhật các hàm xử lý thêm/sửa/xóa
   const handleAddProduct = async (formData) => {
     try {
       const response = await apiService.post('/api/products', formData);
-      
-      if (response.data) {
+      if (response) {
+        const updatedProducts = [...products, response];
+        updateProductCache(updatedProducts);
         setSuccessMessage('Thêm sản phẩm thành công');
-        fetchProducts();
         setShowDialog(false);
       }
     } catch (error) {
-      console.error('Error adding product:', error.response?.data);
-      let errorMessage = 'Không thể thêm sản phẩm';
-      
-      if (error.response?.data?.detail) {
-        if (Array.isArray(error.response.data.detail)) {
-          errorMessage = error.response.data.detail
-            .map(err => `${err.loc[1]}: ${err.msg}`)
-            .join(', ');
-        } else {
-          errorMessage = error.response.data.detail;
-        }
-      }
-      
-      setError(errorMessage);
+      console.error('Error adding product:', error);
+      setError(error.message || 'Không thể thêm sản phẩm');
     }
   };
 
   const handleEditProduct = async (formData) => {
     try {
-      await apiService.put(`/api/products/${selectedProduct.id}`, formData);
-      toast.success('Cập nhật sản phẩm thành công');
-      fetchProducts();
+      const response = await apiService.putFormData(`/api/products/${selectedProduct.id}`, formData);
+      const updatedProducts = products.map(p => p.id === selectedProduct.id ? response : p);
+      updateProductCache(updatedProducts);
+      setSuccessMessage('Cập nhật sản phẩm thành công');
       setShowDialog(false);
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error('Không thể cập nhật sản phẩm');
+      setError(error.message || 'Không thể cập nhật sản phẩm');
     }
   };
 
@@ -165,6 +234,19 @@ function ProductManagement() {
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
+            </div>
+          )}
+
+          {/* Thêm thông báo data cũ */}
+          {isDataStale && (
+            <div className="alert alert-warning" role="alert">
+              Dữ liệu có thể đã cũ. 
+              <button 
+                className="btn btn-link"
+                onClick={() => fetchProducts(true)}
+              >
+                Cập nhật ngay
+              </button>
             </div>
           )}
 
@@ -199,73 +281,95 @@ function ProductManagement() {
 
           {/* Table */}
           <div className="table-container">
-            <table className="table table-bordered table-hover align-middle">
-              <thead>
-                <tr className="bg-primary text-white">
-                  <th className="image-column">Hình ảnh</th>
-                  <th className="code-column">Mã sản phẩm</th>
-                  <th className="brand-column">Thương hiệu</th>
-                  <th className="notes-column">Ghi chú</th>
-                  <th className="creator-column">Người tạo</th>
-                  <th className="actions-column text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products
-                  .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-                  .map((product) => (
-                    <tr key={product.id}>
-                      <td style={{minWidth: '400px'}}>
-                        <div className="product-images-container">
-                          {product.images.map((img, index) => (
-                            <div key={index} className="product-table-image">
-                              <img
-                                src={img}
-                                alt={`Product ${index + 1}`}
-                                className="img-fluid"
-                              />
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border" role="status">
+                  <span className="visually-hidden">Đang tải...</span>
+                </div>
+              </div>
+            ) : (
+              <table className="table table-bordered table-hover align-middle">
+                <thead>
+                  <tr className="bg-primary text-white">
+                    <th className="image-column">Hình ảnh</th>
+                    <th className="code-column">Mã sản phẩm</th>
+                    <th className="brand-column">Thương hiệu</th>
+                    <th className="price-column">Giá</th>
+                    <th className="notes-column">Ghi chú</th>
+                    <th className="creator-column">Người tạo</th>
+                    <th className="actions-column text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products
+                    .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+                    .map((product) => (
+                      <tr key={product.id}>
+                        <td style={{minWidth: '400px'}}>
+                          <div className="product-images-container">
+                            {product.image_urls && product.image_urls.map((img, index) => (
+                              <div key={index} className="product-table-image">
+                                <img
+                                  src={img}
+                                  alt={`Product ${index + 1}`}
+                                  className="img-fluid"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="product-code">
+                            <div>{product.product_code}</div>
+                            <div className="text-muted">{product.product_name}</div>
+                          </div>
+                        </td>
+                        <td>{product.brand || '-'}</td>
+                        <td>
+                          {new Intl.NumberFormat('vi-VN', {
+                            style: 'currency',
+                            currency: 'VND'
+                          }).format(product.price)}
+                        </td>
+                        <td>
+                          <p className="notes-column">{product.description || '-'}</p>
+                        </td>
+                        <td>
+                          <div className="creator-info">
+                            <div>{product.created_by_name}</div>
+                            <div className="text-muted small">
+                              {new Date(product.created_at).toLocaleDateString('vi-VN')}
                             </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="product-code">
-                          <div>{product.id}</div>
-                          <div className="text-muted">{product.code}</div>
-                        </div>
-                      </td>
-                      <td>{product.brand}</td>
-                      <td>
-                        <p className="notes-column">{product.notes}</p>
-                      </td>
-                      <td>{product.creator}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button 
-                            className="btn btn-sm btn-icon"
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setShowDialog(true);
-                            }}
-                            title="Chỉnh sửa"
-                          >
-                            <EditIcon fontSize="small" />
-                          </button>
-                          {canDelete() && (
+                          </div>
+                        </td>
+                        <td>
+                          <div className="table-actions">
                             <button 
-                              className="btn btn-sm btn-icon text-danger"
-                              onClick={() => handleDelete(product.id)}
-                              title="Xóa"
+                              className="btn btn-sm btn-icon"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setShowDialog(true);
+                              }}
+                              title="Chỉnh sửa"
                             >
-                              <DeleteIcon fontSize="small" />
+                              <EditIcon fontSize="small" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+                            {canDelete() && (
+                              <button 
+                                className="btn btn-sm btn-icon text-danger"
+                                onClick={() => handleDeleteClick(product)}
+                                title="Xóa"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
 
             {/* Pagination */}
             <div className="pagination-container">
@@ -330,6 +434,20 @@ function ProductManagement() {
         onSubmit={selectedProduct ? handleEditProduct : handleAddProduct}
         initialData={selectedProduct}
       />
+
+      {/* Thêm Dialog xác nhận xóa */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Xác nhận xóa</DialogTitle>
+        <DialogContent>
+          Bạn có chắc chắn muốn xóa sản phẩm này?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Hủy</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Xóa
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

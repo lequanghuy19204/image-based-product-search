@@ -1,21 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from 'react-bootstrap';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload as CloudUploadIcon, Close as CloseIcon } from '@mui/icons-material';
 import PropTypes from 'prop-types';
 
 function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
-  const [formData, setFormData] = useState(initialData || {
+  const initialFormState = {
     product_name: '',
     product_code: '',
     brand: '',
     description: '',
     price: '',
-  });
-  
+  };
+
+  const [formData, setFormData] = useState(initialData || initialFormState);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Thêm useEffect để xử lý initialData khi dialog mở
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        product_name: initialData.product_name || '',
+        product_code: initialData.product_code || '',
+        brand: initialData.brand || '',
+        description: initialData.description || '',
+        price: initialData.price || '',
+      });
+
+      // Chuyển đổi URLs thành đối tượng ảnh
+      const initialImages = initialData.image_urls?.map((url, index) => ({
+        data_url: url,
+        file: null,
+        isExisting: true // Đánh dấu ảnh đã tồn tại
+      })) || [];
+      
+      setImages(initialImages);
+    } else {
+      setFormData(initialFormState);
+      setImages([]);
+    }
+    setErrors({});
+  }, [initialData, show]);
+
+  const handleClose = () => {
+    setFormData(initialFormState);
+    setImages([]);
+    setErrors({});
+    onHide();
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -47,17 +81,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
       // Lấy thông tin user từ localStorage
       const user = JSON.parse(localStorage.getItem('user'));
       
-      // Log để debug
-      console.log("Form Data before sending:", {
-        product_name: formData.product_name,
-        product_code: formData.product_code,
-        brand: formData.brand,
-        description: formData.description,
-        price: formData.price,
-        company_id: user.company_id
-      });
-
-      // Append các trường dữ liệu - đảm bảo không có undefined
+      // Append các trường dữ liệu
       formDataToSend.append('product_name', formData.product_name.trim());
       formDataToSend.append('product_code', formData.product_code.trim());
       formDataToSend.append('brand', formData.brand || '');
@@ -65,30 +89,31 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
       formDataToSend.append('price', formData.price.toString());
       formDataToSend.append('company_id', user.company_id);
       
-      // Append files
+      // Append chỉ những ảnh mới (không phải ảnh đã tồn tại)
       images.forEach((image) => {
-        if (image.file) {
+        if (image.file && !image.isExisting) {
           formDataToSend.append('files', image.file);
         }
       });
 
-      // Log FormData entries để debug
-      for (let pair of formDataToSend.entries()) {
-        console.log('FormData Entry:', pair[0], pair[1]);
-      }
+      // Thêm danh sách URLs của ảnh đã tồn tại
+      const existingImageUrls = images
+        .filter(img => img.isExisting)
+        .map(img => img.data_url);
+      formDataToSend.append('existing_image_urls', JSON.stringify(existingImageUrls));
 
       await onSubmit(formDataToSend);
-      onHide();
+      handleClose();
     } catch (error) {
       console.error('Error:', error);
-      setErrors({ submit: 'Có lỗi xảy ra khi lưu sản phẩm' });
+      setErrors({ submit: error.message || 'Có lỗi xảy ra khi lưu sản phẩm' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg">
+    <Modal show={show} onHide={handleClose} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
           {initialData ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
@@ -225,7 +250,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={onHide}
+            onClick={handleClose}
             disabled={loading}
           >
             Hủy

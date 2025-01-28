@@ -132,10 +132,7 @@ function UserManagement() {
   const handleUserSubmit = async (userData) => {
     try {
       if (dialogMode === 'add') {
-        // Lấy thông tin user hiện tại
         const currentUser = JSON.parse(localStorage.getItem('userDetails'));
-        
-        // Thêm thông tin công ty vào userData
         const userDataWithCompany = {
           ...userData,
           company_id: currentUser.company_id,
@@ -144,22 +141,16 @@ function UserManagement() {
         };
 
         const response = await apiService.post('/api/admin/users', userDataWithCompany);
-        
-        // Cập nhật cache và state
         const updatedUsers = [...users, response];
-        setUsers(updatedUsers);
-        localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
+        updateUserCache(updatedUsers);
         setSuccessMessage('Thêm người dùng thành công');
       } else {
         const response = await apiService.put(`/api/admin/users/${selectedUser.id}`, userData);
-        // Cập nhật cache và state
         const updatedUsers = users.map(u => u.id === selectedUser.id ? response : u);
-        setUsers(updatedUsers);
-        localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
+        updateUserCache(updatedUsers);
         setSuccessMessage('Cập nhật người dùng thành công');
       }
       setOpenDialog(false);
-      processAndUpdateUsers(users);
     } catch (error) {
       setError('Không thể thực hiện thao tác. Vui lòng thử lại.');
       console.error('Error submitting user:', error);
@@ -172,15 +163,10 @@ function UserManagement() {
 
     try {
       await apiService.delete(`/api/admin/users/${selectedUser.id}`);
-      
-      // Cập nhật cache và state
       const updatedUsers = users.filter(u => u.id !== selectedUser.id);
-      setUsers(updatedUsers);
-      localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
-      
+      updateUserCache(updatedUsers);
       setSuccessMessage('Xóa người dùng thành công');
       setDeleteDialogOpen(false);
-      processAndUpdateUsers(updatedUsers);
     } catch (error) {
       setError('Không thể xóa người dùng. Vui lòng thử lại.');
       console.error('Error deleting user:', error);
@@ -275,6 +261,11 @@ function UserManagement() {
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
+
+  const updateUserCache = (updatedUsers) => {
+    setUsers(updatedUsers);
+    localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
+  };
 
   return (
     <div className="layout-container">

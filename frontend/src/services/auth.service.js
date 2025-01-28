@@ -5,7 +5,6 @@ class AuthService {
   // Hàm đăng nhập
   async login(email, password) {
     try {
-      // Gọi API đăng nhập không yêu cầu token
       const data = await apiService.post(API_ENDPOINTS.AUTH.LOGIN, {
         email,
         password
@@ -25,27 +24,28 @@ class AuthService {
 
   // Hàm đăng ký
   async register(userData) {
-    // Xử lý dữ liệu trước khi gửi
-    const registerData = {
-      username: userData.username,
-      email: userData.email,
-      password: userData.password,
-      role: userData.role,
-      company_code: userData.company_code,
-      company_name: userData.company_name
-    };
+    try {
+      const registerData = {
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        role: userData.role,
+        company_code: userData.company_code,
+        company_name: userData.company_name
+      };
 
-    // Gửi yêu cầu đăng ký đến API
-    const data = await apiService.post(API_ENDPOINTS.AUTH.REGISTER, registerData);
-    
-    // Nếu có token trả về, lưu trữ token và thông tin người dùng vào localStorage
-    if (data.access_token) {
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      const data = await apiService.post(API_ENDPOINTS.AUTH.REGISTER, registerData, false); // false = không yêu cầu token
+      
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
     }
-    
-    // Trả về dữ liệu nhận được
-    return data;
   }
 
   // Hàm đăng xuất
