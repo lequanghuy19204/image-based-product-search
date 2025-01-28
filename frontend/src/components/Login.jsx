@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import viteLogo from '/vite.svg';
 import '../styles/Login.css';
 import { authService } from '../services/auth.service';
+import { Form, Button } from 'react-bootstrap';
 
 function Login() {
   const navigate = useNavigate();
@@ -80,17 +81,11 @@ function Login() {
     try {
       setIsLoading(true);
       if (isLogin) {
-        const response = await authService.login(formData.email, formData.password);
-        
-        if (rememberMe) {
-          localStorage.setItem('token', response.access_token);
-          localStorage.setItem('rememberedLogin', 'true');
-          localStorage.setItem('userDetails', JSON.stringify(response.user));
-        } else {
-          sessionStorage.setItem('token', response.access_token);
-          localStorage.setItem('rememberedLogin', 'false');
-          sessionStorage.setItem('userDetails', JSON.stringify(response.user));
-        }
+        const response = await authService.login(
+          formData.email, 
+          formData.password,
+          rememberMe
+        );
         
         navigate('/search');
       } else {
@@ -110,7 +105,7 @@ function Login() {
       }
     } catch (error) {
       console.error('Lỗi:', error);
-      setLoginError(error.message || 'Có lỗi xảy ra khi xử lý yêu cầu');
+      setLoginError(error.response?.data?.detail || 'Có lỗi xảy ra');
     } finally {
       setIsLoading(false);
     }
@@ -173,7 +168,7 @@ function Login() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit}>
+              <Form onSubmit={handleSubmit}>
                 {!isLogin && (
                   <div className="mb-3">
                     <label className="form-label">Tên người dùng</label>
@@ -338,37 +333,23 @@ function Login() {
                   </div>
                 )}
 
-                {isLogin && (
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="form-check">
-                      <input 
-                        type="checkbox" 
-                        className="form-check-input" 
-                        id="remember"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                      />
-                      <label className="form-check-label" htmlFor="remember">
-                        Ghi nhớ đăng nhập
-                      </label>
-                    </div>
-                  </div>
-                )}
+                <Form.Group className="mb-3">
+                  <Form.Check
+                    type="checkbox"
+                    label="Ghi nhớ đăng nhập"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                </Form.Group>
 
-                <button 
+                <Button 
                   type="submit" 
-                  className={`btn btn-primary w-100 py-2 mb-3 ${isLoading ? 'loading' : ''}`}
+                  variant="primary" 
+                  className="w-100"
                   disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <span className="d-flex align-items-center justify-content-center gap-2">
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      {isLogin ? 'Đang đăng nhập...' : 'Đang đăng ký...'}
-                    </span>
-                  ) : (
-                    isLogin ? 'Đăng Nhập' : 'Đăng Ký'
-                  )}
-                </button>
+                  {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
+                </Button>
 
                 <div className="text-center">
                   <p className="mb-0">
@@ -392,7 +373,7 @@ function Login() {
                     </a>
                   </p>
                 </div>
-              </form>
+              </Form>
             </div>
           </div>
         </div>

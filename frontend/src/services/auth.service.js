@@ -3,16 +3,25 @@ import { API_ENDPOINTS } from '../config/api.config';
 
 class AuthService {
   // Hàm đăng nhập
-  async login(email, password) {
+  async login(email, password, remember = false) {
     try {
       const data = await apiService.post(API_ENDPOINTS.AUTH.LOGIN, {
         email,
-        password
-      }, false); // false = không yêu cầu token
+        password,
+        remember
+      }, false);
       
       if (data.access_token) {
+        // Lưu token và user vào localStorage
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Nếu remember = true, lưu thêm thời gian hết hạn
+        if (remember) {
+          const expireDate = new Date();
+          expireDate.setDate(expireDate.getDate() + 30);
+          localStorage.setItem('tokenExpires', expireDate.getTime().toString());
+        }
       }
       
       return data;
@@ -53,6 +62,7 @@ class AuthService {
     // Xóa token và thông tin người dùng khỏi localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('tokenExpires');
   }
 
   // Hàm lấy người dùng hiện tại
@@ -75,7 +85,7 @@ class AuthService {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const exp = payload.exp * 1000; // Chuyển sang milliseconds
       
-      // Kiểm tra xem token có hết hạn không
+      // Kiểm tra xem token có còn hiệu lực không
       if (Date.now() >= exp) {
         // Token hết hạn, xóa khỏi localStorage
         this.logout();
@@ -84,7 +94,8 @@ class AuthService {
       
       // Nếu token chưa hết hạn, trả về true
       return true;
-    } catch {
+    } catch (e) {
+      console.error('Token verification error:', e);
       // Nếu có lỗi trong quá trình decode token, trả về false
       return false;
     }

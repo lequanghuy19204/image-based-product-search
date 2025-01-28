@@ -138,19 +138,7 @@ function ProductManagement() {
   // Cập nhật lại fetchProducts để sử dụng cache
   const fetchProducts = async (forceFetch = false) => {
     try {
-      // Nếu chưa có companyId, không fetch
       if (!companyId) return;
-
-      // Kiểm tra cache trước
-      const cacheKey = `cachedProducts_${companyId}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      
-      if (cachedData && !forceFetch && !shouldFetchData()) {
-        const parsedData = JSON.parse(cachedData);
-        updateProductCache(parsedData);
-        setLoading(false);
-        return;
-      }
 
       setLoading(true);
       const response = await apiService.get('/api/products', {
@@ -162,11 +150,7 @@ function ProductManagement() {
         }
       });
 
-      if (response && response.data) {
-        // Cập nhật cache với company_id
-        localStorage.setItem(cacheKey, JSON.stringify(response.data));
-        localStorage.setItem(`cachedProductsTime_${companyId}`, Date.now().toString());
-        
+      if (response) {
         setProducts(response.data);
         setTotalItems(response.total);
         setTotalPages(response.total_pages);
@@ -174,7 +158,7 @@ function ProductManagement() {
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      setError('Không thể tải danh sách sản phẩm');
+      setError('Không thể tải dữ liệu sản phẩm');
     } finally {
       setLoading(false);
     }
@@ -183,7 +167,7 @@ function ProductManagement() {
   // Thêm useEffect để fetch lại khi các params thay đổi
   useEffect(() => {
     if (companyId) {
-      fetchProducts();
+      fetchProducts(true);
     }
   }, [currentPage, rowsPerPage, searchTerm, companyId]);
 
@@ -350,17 +334,25 @@ function ProductManagement() {
                 </thead>
                 <tbody>
                   {products
-                    .slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
                     .map((product) => (
                       <tr key={product.id}>
                         <td style={{minWidth: '400px'}}>
                           <div className="product-images-container">
                             {product.image_urls && product.image_urls.map((img, index) => (
                               <div key={index} className="product-table-image">
+                                <div className="image-placeholder">
+                                  <div className="spinner-border spinner-border-sm" role="status">
+                                    <span className="visually-hidden">Đang tải...</span>
+                                  </div>
+                                </div>
                                 <img
                                   src={img}
                                   alt={`Product ${index + 1}`}
                                   className="img-fluid"
+                                  loading="lazy"
+                                  onLoad={(e) => {
+                                    e.target.previousSibling.style.display = 'none';
+                                  }}
                                 />
                               </div>
                             ))}
@@ -438,7 +430,7 @@ function ProductManagement() {
                 </div>
                 
                 <div className="pagination-info">
-                  Hiển thị {((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, products.length)} trong số {products.length} sản phẩm
+                  Hiển thị {products.length > 0 ? ((currentPage - 1) * rowsPerPage) + 1 : 0} - {Math.min(currentPage * rowsPerPage, totalItems)} trong số {totalItems} sản phẩm
                 </div>
               </div>
 

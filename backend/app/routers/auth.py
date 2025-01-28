@@ -37,10 +37,10 @@ async def login(user_data: UserLogin):
                 detail="Email hoặc mật khẩu không đúng"
             )
             
-        # Tạo token
+        # Tạo token với thời hạn dựa vào remember
         access_token = create_access_token(
-            data={"sub": user.id},
-            expires_delta=timedelta(minutes=30)
+            data={"sub": user.id, "role": user_dict['role']},
+            remember=user_data.remember
         )
         
         # Loại bỏ password_hash khỏi response
