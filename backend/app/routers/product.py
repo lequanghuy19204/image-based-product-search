@@ -8,6 +8,7 @@ from datetime import datetime
 from google.cloud import firestore
 import math
 import json
+import asyncio
 
 product_router = APIRouter()
 
@@ -23,75 +24,89 @@ async def create_product(
     current_user: dict = Depends(verify_token)
 ):
     try:
-        # Lấy thông tin user
-        user_doc = db.collection('users').document(current_user["sub"]).get()
-        if not user_doc.exists:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Kiểm tra quyền và upload ảnh song song
+        user_check_task = asyncio.create_task(check_user_permission(current_user, company_id))
+        upload_task = asyncio.create_task(upload_multiple_images(files, company_id))
         
-        user_data = user_doc.to_dict()
+        # Đợi kết quả kiểm tra quyền
+        await user_check_task
         
-        # Kiểm tra company_id
-        if user_data["company_id"] != company_id and user_data["role"] != "Admin":
-            raise HTTPException(
-                status_code=403, 
-                detail="You don't have permission to create product for this company"
-            )
-
-        # Upload ảnh lên Cloudinary
-        image_urls = await upload_multiple_images(files, company_id)
+        # Đợi kết quả upload ảnh
+        image_urls = await upload_task
         
-        # Tạo document sản phẩm
-        product_data = {
-            "product_name": product_name,
-            "product_code": product_code,
-            "brand": brand,
-            "description": description,
-            "price": float(price),
-            "company_id": company_id,
-            "created_by": current_user["sub"],
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "image_urls": image_urls
-        }
-
-        # Tạo batch để thực hiện nhiều thao tác cùng lúc
-        batch = db.batch()
-
-        # Tạo document sản phẩm
-        product_ref = db.collection('products').document()
-        batch.set(product_ref, product_data)
-
-        # Tạo documents cho từng ảnh trong collection images
-        for image_url in image_urls:
-            image_ref = db.collection('images').document()
-            image_data = {
-                "image_url": image_url,
+        # Tạo transaction để đảm bảo tính nhất quán của dữ liệu
+        transaction = db.transaction()
+        
+        @firestore.transactional
+        def create_product_in_transaction(transaction, image_urls):
+            # 1. Tạo document sản phẩm
+            product_ref = db.collection('products').document()
+            product_id = product_ref.id
+            
+            now = datetime.utcnow()
+            product_data = {
+                "product_name": product_name,
+                "product_code": product_code,
+                "brand": brand,
+                "description": description,
+                "price": float(price),
                 "company_id": company_id,
-                "product_id": product_ref.id,
-                "uploaded_by": current_user["sub"],
-                "created_at": datetime.utcnow()
+                "created_by": current_user["sub"],
+                "created_at": now,
+                "updated_at": now,
+                "image_urls": image_urls
             }
-            batch.set(image_ref, image_data)
-
-        # Thực hiện tất cả các thao tác trong batch
-        batch.commit()
-
-        # Trả về response
-        return {
-            "id": product_ref.id,
-            **product_data
-        }
+            
+            # 2. Tạo các documents ảnh
+            image_refs = []
+            for url in image_urls:
+                image_ref = db.collection('images').document()
+                image_data = {
+                    "image_url": url,
+                    "company_id": company_id,
+                    "product_id": product_id,
+                    "uploaded_by": current_user["sub"],
+                    "created_at": now
+                }
+                image_refs.append((image_ref, image_data))
+            
+            # 3. Thực hiện ghi dữ liệu trong transaction
+            transaction.set(product_ref, product_data)
+            for image_ref, image_data in image_refs:
+                transaction.set(image_ref, image_data)
+            
+            return {
+                "id": product_id,
+                **product_data
+            }
+        
+        # Thực hiện transaction
+        result = create_product_in_transaction(transaction, image_urls)
+        return result
 
     except Exception as e:
         print(f"Error in create_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def check_user_permission(current_user: dict, company_id: str):
+    """Kiểm tra quyền của user"""
+    user_doc = db.collection('users').document(current_user["sub"]).get()
+    if not user_doc.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_data = user_doc.to_dict()
+    if user_data["company_id"] != company_id and user_data["role"] != "Admin":
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    return user_data
 
 @product_router.get("/", response_model=dict)
 async def get_products(
     current_user: dict = Depends(verify_token),
     search: str = None,
     page: int = 1,
-    limit: int = 10
+    limit: int = 10,
+    company_id: str = None
 ):
     try:
         # Lấy thông tin user
@@ -101,53 +116,61 @@ async def get_products(
         # Tạo query cơ bản
         products_ref = db.collection('products')
         
-        # Nếu không phải admin, chỉ lấy sản phẩm của company
-        if user_data["role"] != "Admin":
-            products_ref = products_ref.where("company_id", "==", user_data["company_id"])
+        # Filter theo company_id từ request hoặc từ user data
+        company_id = company_id or user_data.get("company_id")
+        if not company_id:
+            raise HTTPException(status_code=400, detail="Company ID is required")
+            
+        products_ref = products_ref.where("company_id", "==", company_id)
 
-        # Thêm điều kiện tìm kiếm nếu có
+        # Tối ưu query bằng cách thêm composite index
         if search:
             products_ref = products_ref.where("product_name", ">=", search)\
                                     .where("product_name", "<=", search + '\uf8ff')
 
-        # Sắp xếp theo thời gian tạo mới nhất
-        products_ref = products_ref.order_by("created_at", direction=firestore.Query.DESCENDING)
+        # Đếm tổng số sản phẩm
+        total_query = products_ref.count()
+        total_docs = total_query.get()[0][0].value
 
-        # Đếm tổng số sản phẩm để phân trang
-        total_docs = len(products_ref.get())
-        total_pages = math.ceil(total_docs / limit)
+        # Sắp xếp và giới hạn kết quả
+        products_ref = products_ref.order_by("created_at", direction=firestore.Query.DESCENDING)\
+                                 .offset((page - 1) * limit)\
+                                 .limit(limit)
 
-        # Tính toán phân trang
-        start = (page - 1) * limit
-        products_ref = products_ref.limit(limit).offset(start)
-
-        # Lấy danh sách sản phẩm
+        # Thực hiện query và xử lý kết quả
         products = []
-        docs = products_ref.get()
+        user_refs = {}
         
+        # Lấy documents
+        docs = list(products_ref.stream())  # Convert to list để có thể dùng nhiều lần
+        
+        # Thu thập user references
+        for doc in docs:
+            product_data = doc.to_dict()
+            created_by = product_data.get("created_by")
+            if created_by and created_by not in user_refs:
+                user_refs[created_by] = db.collection('users').document(created_by)
+
+        # Lấy thông tin users trong một lần gọi
+        if user_refs:
+            user_docs = db.get_all(list(user_refs.values()))
+            user_data_map = {
+                doc.id: doc.to_dict() 
+                for doc in user_docs 
+                if doc.exists
+            }
+
+        # Xử lý products
         for doc in docs:
             product_data = doc.to_dict()
             product_data["id"] = doc.id
-
-            # Lấy thông tin người tạo
-            creator_doc = db.collection('users').document(product_data["created_by"]).get()
-            if creator_doc.exists:
-                creator_data = creator_doc.to_dict()
-                product_data["created_by_name"] = creator_data.get("username", "Unknown")
-            else:
-                product_data["created_by_name"] = "Unknown"
-
-            # Lấy thông tin ảnh của sản phẩm
-            images_ref = db.collection('images')\
-                          .where("product_id", "==", doc.id)\
-                          .order_by("created_at", direction=firestore.Query.DESCENDING)
             
-            images = []
-            image_docs = images_ref.get()
-            for img_doc in image_docs:
-                images.append(img_doc.to_dict()["image_url"])
+            # Thêm thông tin người tạo
+            created_by = product_data.get("created_by")
+            if created_by:
+                creator = user_data_map.get(created_by, {})
+                product_data["created_by_name"] = creator.get("username", "Unknown")
             
-            product_data["image_urls"] = images
             products.append(product_data)
 
         return {
@@ -155,7 +178,7 @@ async def get_products(
             "total": total_docs,
             "page": page,
             "limit": limit,
-            "total_pages": total_pages
+            "total_pages": math.ceil(total_docs / limit)
         }
 
     except Exception as e:

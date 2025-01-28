@@ -52,6 +52,16 @@ function ProductManagement() {
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
   const [isDataStale, setIsDataStale] = useState(false);
 
+  const [companyId, setCompanyId] = useState(null);
+
+  // Thêm useEffect để lấy company_id từ localStorage
+  useEffect(() => {
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (userDetails?.company_id) {
+      setCompanyId(userDetails.company_id);
+    }
+  }, []);
+
   // Thêm phương thức updateProductCache
   const updateProductCache = (updatedProducts) => {
     setProducts(updatedProducts);
@@ -61,7 +71,9 @@ function ProductManagement() {
 
   // Hàm kiểm tra xem có cần fetch lại data không
   const shouldFetchData = () => {
-    const cachedTime = localStorage.getItem('cachedProductsTime');
+    if (!companyId) return false;
+    
+    const cachedTime = localStorage.getItem(`cachedProductsTime_${companyId}`);
     if (!cachedTime) return true;
     
     const timeElapsed = Date.now() - parseInt(cachedTime);
@@ -93,6 +105,7 @@ function ProductManagement() {
   };
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Thay thế hàm handleDelete cũ bằng 2 hàm mới
   const handleDeleteClick = (product) => {
@@ -104,6 +117,7 @@ function ProductManagement() {
     if (!selectedProduct) return;
 
     try {
+      setDeleteLoading(true); // Bắt đầu loading
       await apiService.delete(`/api/products/${selectedProduct.id}`);
       const updatedProducts = products.filter(p => p.id !== selectedProduct.id);
       updateProductCache(updatedProducts);
@@ -113,6 +127,8 @@ function ProductManagement() {
     } catch (error) {
       console.error('Error deleting product:', error);
       setError('Không thể xóa sản phẩm. Vui lòng thử lại.');
+    } finally {
+      setDeleteLoading(false); // Kết thúc loading
     }
   };
 
@@ -122,10 +138,13 @@ function ProductManagement() {
   // Cập nhật lại fetchProducts để sử dụng cache
   const fetchProducts = async (forceFetch = false) => {
     try {
+      // Nếu chưa có companyId, không fetch
+      if (!companyId) return;
+
       // Kiểm tra cache trước
-      const cachedData = localStorage.getItem('cachedProducts');
+      const cacheKey = `cachedProducts_${companyId}`;
+      const cachedData = localStorage.getItem(cacheKey);
       
-      // Nếu có cache và không bắt buộc fetch mới
       if (cachedData && !forceFetch && !shouldFetchData()) {
         const parsedData = JSON.parse(cachedData);
         updateProductCache(parsedData);
@@ -138,12 +157,17 @@ function ProductManagement() {
         params: {
           search: searchTerm,
           page: currentPage,
-          limit: rowsPerPage
+          limit: rowsPerPage,
+          company_id: companyId
         }
       });
 
       if (response && response.data) {
-        updateProductCache(response.data);
+        // Cập nhật cache với company_id
+        localStorage.setItem(cacheKey, JSON.stringify(response.data));
+        localStorage.setItem(`cachedProductsTime_${companyId}`, Date.now().toString());
+        
+        setProducts(response.data);
         setTotalItems(response.total);
         setTotalPages(response.total_pages);
         setIsDataStale(false);
@@ -158,8 +182,10 @@ function ProductManagement() {
 
   // Thêm useEffect để fetch lại khi các params thay đổi
   useEffect(() => {
-    fetchProducts();
-  }, [currentPage, rowsPerPage, searchTerm]);
+    if (companyId) {
+      fetchProducts();
+    }
+  }, [currentPage, rowsPerPage, searchTerm, companyId]);
 
   // Thêm debounce cho search
   useEffect(() => {
@@ -190,26 +216,40 @@ function ProductManagement() {
   // Cập nhật các hàm xử lý thêm/sửa/xóa
   const handleAddProduct = async (formData) => {
     try {
-      const response = await apiService.post('/api/products', formData);
+      formData.append('company_id', companyId);
+      const response = await apiService.postFormData('/api/products', formData);
+      
       if (response) {
         const updatedProducts = [...products, response];
         updateProductCache(updatedProducts);
         setSuccessMessage('Thêm sản phẩm thành công');
         setShowDialog(false);
+        fetchProducts(true);
       }
     } catch (error) {
       console.error('Error adding product:', error);
-      setError(error.message || 'Không thể thêm sản phẩm');
+      setError(error.message || 'Không thể thêm sản phẩm. Vui lòng thử lại.');
     }
   };
 
   const handleEditProduct = async (formData) => {
     try {
-      const response = await apiService.putFormData(`/api/products/${selectedProduct.id}`, formData);
-      const updatedProducts = products.map(p => p.id === selectedProduct.id ? response : p);
-      updateProductCache(updatedProducts);
-      setSuccessMessage('Cập nhật sản phẩm thành công');
-      setShowDialog(false);
+      if (!selectedProduct) return;
+      
+      formData.append('company_id', companyId);
+      const response = await apiService.putFormData(
+        `/api/products/${selectedProduct.id}`, 
+        formData
+      );
+      
+      if (response) {
+        const updatedProducts = products.map(p => 
+          p.id === selectedProduct.id ? response : p
+        );
+        updateProductCache(updatedProducts);
+        setSuccessMessage('Cập nhật sản phẩm thành công');
+        setShowDialog(false);
+      }
     } catch (error) {
       console.error('Error updating product:', error);
       setError(error.message || 'Không thể cập nhật sản phẩm');
@@ -435,10 +475,7 @@ function ProductManagement() {
       {/* Add ProductDialog */}
       <ProductDialog
         show={showDialog}
-        onHide={() => {
-          setShowDialog(false);
-          setSelectedProduct(null);
-        }}
+        onHide={() => setShowDialog(false)}
         onSubmit={selectedProduct ? handleEditProduct : handleAddProduct}
         initialData={selectedProduct}
       />
@@ -450,9 +487,26 @@ function ProductManagement() {
           Bạn có chắc chắn muốn xóa sản phẩm này?
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Hủy</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Xóa
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleteLoading}
+          >
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Đang xóa...
+              </>
+            ) : (
+              'Xóa'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

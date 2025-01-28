@@ -69,12 +69,22 @@ class ApiService {
         body: JSON.stringify(body)
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Có lỗi xảy ra');
+        // Xử lý lỗi chi tiết hơn
+        if (typeof data === 'object' && data.detail) {
+          throw new Error(data.detail);
+        } else if (Array.isArray(data)) {
+          // Nếu là array của lỗi validation
+          const errorMessages = data.map(err => err.msg || err.message).join(', ');
+          throw new Error(errorMessages);
+        } else {
+          throw new Error('Có lỗi xảy ra khi thêm sản phẩm');
+        }
       }
 
-      return await response.json();
+      return data;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -93,12 +103,21 @@ class ApiService {
         body: data
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Có lỗi xảy ra');
+        // Xử lý chi tiết lỗi validation
+        if (Array.isArray(responseData)) {
+          const errorMessages = responseData.map(err => err.msg || err.message).join(', ');
+          throw new Error(errorMessages);
+        } else if (responseData.detail) {
+          throw new Error(responseData.detail);
+        } else {
+          throw new Error('Có lỗi xảy ra khi thêm sản phẩm');
+        }
       }
 
-      return await response.json();
+      return responseData;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -138,12 +157,20 @@ class ApiService {
         body: data
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Có lỗi xảy ra');
+        if (Array.isArray(responseData)) {
+          const errorMessages = responseData.map(err => err.msg || err.message).join(', ');
+          throw new Error(errorMessages);
+        } else if (responseData.detail) {
+          throw new Error(responseData.detail);
+        } else {
+          throw new Error('Có lỗi xảy ra khi cập nhật sản phẩm');
+        }
       }
 
-      return await response.json();
+      return responseData;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;

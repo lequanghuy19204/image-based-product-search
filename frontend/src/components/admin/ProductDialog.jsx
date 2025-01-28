@@ -18,6 +18,18 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const suggestedPrices = [
+    { label: '50,000đ', value: 50000 },
+    { label: '100,000đ', value: 100000 },
+    { label: '200,000đ', value: 200000 },
+    { label: '500,000đ', value: 500000 },
+    { label: '1,000,000đ', value: 1000000 }
+  ];
+
+  const handlePriceSuggestionClick = (price) => {
+    setFormData({ ...formData, price: price });
+  };
+
   // Thêm useEffect để xử lý initialData khi dialog mở
   useEffect(() => {
     if (initialData) {
@@ -72,41 +84,48 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
     
-    setLoading(true);
     try {
-      const formDataToSend = new FormData();
+      setLoading(true);
       
-      // Lấy thông tin user từ localStorage
-      const user = JSON.parse(localStorage.getItem('user'));
-      
-      // Append các trường dữ liệu
-      formDataToSend.append('product_name', formData.product_name.trim());
-      formDataToSend.append('product_code', formData.product_code.trim());
-      formDataToSend.append('brand', formData.brand || '');
-      formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('price', formData.price.toString());
-      formDataToSend.append('company_id', user.company_id);
-      
-      // Append chỉ những ảnh mới (không phải ảnh đã tồn tại)
-      images.forEach((image) => {
-        if (image.file && !image.isExisting) {
-          formDataToSend.append('files', image.file);
-        }
-      });
+      if (!validateForm()) {
+        return;
+      }
 
-      // Thêm danh sách URLs của ảnh đã tồn tại
-      const existingImageUrls = images
-        .filter(img => img.isExisting)
-        .map(img => img.data_url);
-      formDataToSend.append('existing_image_urls', JSON.stringify(existingImageUrls));
+      // Chuẩn bị FormData
+      const productData = new FormData();
+      
+      // Thêm các trường cơ bản
+      productData.append('product_name', formData.product_name);
+      productData.append('product_code', formData.product_code);
+      productData.append('price', formData.price);
+      productData.append('brand', formData.brand || '');
+      productData.append('description', formData.description || '');
+      
+      // Xử lý ảnh khác nhau cho thêm mới và chỉnh sửa
+      if (initialData) {
+        // Chỉnh sửa: Gửi cả ảnh cũ và mới
+        const existingImages = images.filter(img => img.isExisting).map(img => img.data_url);
+        productData.append('existing_image_urls', JSON.stringify(existingImages));
+        
+        // Thêm các file ảnh mới
+        const newImages = images.filter(img => !img.isExisting && img.file);
+        newImages.forEach(img => {
+          productData.append('files', img.file);
+        });
+      } else {
+        // Thêm mới: Chỉ gửi ảnh mới
+        images.forEach(img => {
+          if (img.file) {
+            productData.append('files', img.file);
+          }
+        });
+      }
 
-      await onSubmit(formDataToSend);
-      handleClose();
+      await onSubmit(productData);
     } catch (error) {
-      console.error('Error:', error);
-      setErrors({ submit: error.message || 'Có lỗi xảy ra khi lưu sản phẩm' });
+      console.error('Error submitting form:', error);
+      setErrors({ submit: error.message || 'Có lỗi xảy ra khi xử lý sản phẩm' });
     } finally {
       setLoading(false);
     }
@@ -170,6 +189,18 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
               value={formData.price}
               onChange={(e) => setFormData({...formData, price: e.target.value})}
             />
+            <div className="mt-2 d-flex gap-2 flex-wrap">
+              {suggestedPrices.map((price) => (
+                <button
+                  key={price.value}
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handlePriceSuggestionClick(price.value)}
+                >
+                  {price.label}
+                </button>
+              ))}
+            </div>
             {errors.price && (
               <div className="invalid-feedback">{errors.price}</div>
             )}
@@ -192,8 +223,9 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
               multiple
               value={images}
               onChange={setImages}
-              maxNumber={5}
+              maxNumber={20}
               dataURLKey="data_url"
+              acceptType={['jpg', 'jpeg', 'png', 'webp']}
             >
               {({
                 imageList,
