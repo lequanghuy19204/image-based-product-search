@@ -5,6 +5,7 @@ import {
   Add as AddIcon,
   NavigateNext as NextIcon,
   NavigateBefore as PrevIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import { apiService } from '../../services/api.service';
@@ -295,6 +296,13 @@ function UserManagement() {
                   <option value="user">Người dùng</option>
                 </select>
               </div>
+              <button 
+                className="btn btn-outline-secondary"
+                onClick={() => fetchUsers(true)}
+                title="Tải lại dữ liệu"
+              >
+                <RefreshIcon fontSize="small" />
+              </button>
             </div>
             <button 
               className="btn btn-primary" 

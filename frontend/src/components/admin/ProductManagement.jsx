@@ -6,6 +6,7 @@ import {
   Search as SearchIcon,
   NavigateNext as NextIcon,
   NavigateBefore as PrevIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
@@ -266,6 +267,13 @@ function ProductManagement() {
                   <SearchIcon fontSize="small" />
                 </button>
               </div>
+              <button 
+                className="btn btn-outline-secondary"
+                onClick={() => fetchProducts(true)}
+                title="Tải lại dữ liệu"
+              >
+                <RefreshIcon fontSize="small" />
+              </button>
             </div>
             <button
               className="btn btn-primary"
