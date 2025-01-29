@@ -184,6 +184,7 @@
   
   .table-container {
     min-width: 800px;
+    overflow-x: hidden;
   }
 }
 
@@ -203,6 +204,7 @@
 
   .table-container {
     min-width: 700px;
+    overflow-x: hidden;
   }
 }
 

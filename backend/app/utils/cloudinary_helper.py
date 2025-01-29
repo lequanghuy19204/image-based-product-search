@@ -7,17 +7,21 @@ from fastapi import UploadFile
 
 async def upload_image(file: UploadFile, company_id: str) -> str:
     try:
-        # Đọc file
+        # Đọc nội dung file
         contents = await file.read()
         
-        # Upload lên Cloudinary với folder structure
+        # Upload lên Cloudinary
         upload_result = cloudinary.uploader.upload(
             contents,
-            folder=f"products/{company_id}",  # Thêm company_id vào folder path
-            resource_type="auto"
+            folder=f"products/{company_id}",
+            resource_type="auto",
+            quality="auto:good",
+            fetch_format="auto",
+            transformation=[
+                {'width': 2000, 'height': 2000, 'crop': 'limit'}
+            ]
         )
         
-        # Trả về URL
         return upload_result['secure_url']
     except Exception as e:
         print(f"Error uploading to Cloudinary: {str(e)}")

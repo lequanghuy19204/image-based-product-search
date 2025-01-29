@@ -3,6 +3,7 @@ import { Modal } from 'react-bootstrap';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload as CloudUploadIcon, Close as CloseIcon } from '@mui/icons-material';
 import PropTypes from 'prop-types';
+import { apiService } from '../../services/api.service';
 
 function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const initialFormState = {
@@ -17,6 +18,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const suggestedPrices = [
     { label: '50,000đ', value: 50000 },
@@ -85,49 +88,39 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!validateForm()) {
+      return;
+    }
+
+    setSubmitting(true);
+    
     try {
-      setLoading(true);
-      
-      if (!validateForm()) {
-        return;
-      }
+      const productFormData = new FormData();
+      productFormData.append('product_name', formData.product_name);
+      productFormData.append('product_code', formData.product_code);
+      productFormData.append('brand', formData.brand || '');
+      productFormData.append('description', formData.description || '');
+      productFormData.append('price', formData.price);
+      productFormData.append('company_id', 'company_id');
 
-      // Chuẩn bị FormData
-      const productData = new FormData();
-      
-      // Thêm các trường cơ bản
-      productData.append('product_name', formData.product_name);
-      productData.append('product_code', formData.product_code);
-      productData.append('price', formData.price);
-      productData.append('brand', formData.brand || '');
-      productData.append('description', formData.description || '');
-      
-      // Xử lý ảnh khác nhau cho thêm mới và chỉnh sửa
-      if (initialData) {
-        // Chỉnh sửa: Gửi cả ảnh cũ và mới
-        const existingImages = images.filter(img => img.isExisting).map(img => img.data_url);
-        productData.append('existing_image_urls', JSON.stringify(existingImages));
-        
-        // Thêm các file ảnh mới
-        const newImages = images.filter(img => !img.isExisting && img.file);
-        newImages.forEach(img => {
-          productData.append('files', img.file);
-        });
-      } else {
-        // Thêm mới: Chỉ gửi ảnh mới
-        images.forEach(img => {
-          if (img.file) {
-            productData.append('files', img.file);
-          }
-        });
-      }
+      // Thêm tất cả files vào formData
+      images.forEach((img, index) => {
+        if (img.file) {
+          productFormData.append(`images`, img.file);
+        }
+      });
 
-      await onSubmit(productData);
+      await onSubmit(productFormData);
+      setSuccessMessage('Thêm sản phẩm thành công');
+      handleClose();
     } catch (error) {
       console.error('Error submitting form:', error);
-      setErrors({ submit: error.message || 'Có lỗi xảy ra khi xử lý sản phẩm' });
+      setErrors(prev => ({
+        ...prev,
+        submit: error.message || 'Có lỗi xảy ra khi lưu sản phẩm'
+      }));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 

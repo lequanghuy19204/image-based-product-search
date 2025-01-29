@@ -15,44 +15,66 @@ import ProductDialog from './ProductDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 
 function ProductManagement() {
+  // Khai báo tất cả state ở đầu component
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved ? JSON.parse(saved) : false;
   });
-
-  const handleToggleSidebar = () => {
-    const newState = !sidebarOpen;
-    setSidebarOpen(newState);
-    localStorage.setItem('sidebarOpen', JSON.stringify(newState));
-  };
-
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-
-
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [user, setUser] = useState(null);
+  const [isDataStale, setIsDataStale] = useState(false);
+  const [companyId, setCompanyId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // Sau đó là các hàm xử lý
+  const handleToggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebarOpen', JSON.stringify(newState));
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
+      const params = {
+        search: searchTerm,
+        page: newPage,
+        limit: rowsPerPage,
+        company_id: companyId
+      };
+      
+      // Kiểm tra xem có cache cho trang mới không
+      const cacheKey = apiService.getProductsCacheKey(params);
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+        const { data, metadata } = JSON.parse(cachedData);
+        setProducts(data);
+        setTotalItems(metadata.total);
+        setTotalPages(metadata.total_pages);
+      }
+      
       setCurrentPage(newPage);
     }
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setCurrentPage(1); // Reset về trang 1 khi thay đổi số lượng items/trang
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
+    setCurrentPage(1);
+    // Force fetch khi thay đổi số lượng items/trang
+    fetchProducts(true);
   };
-
-  const [user, setUser] = useState(null);
-  
-  const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
-  const [isDataStale, setIsDataStale] = useState(false);
-
-  const [companyId, setCompanyId] = useState(null);
 
   // Thêm useEffect để lấy company_id từ localStorage
   useEffect(() => {
@@ -62,92 +84,53 @@ function ProductManagement() {
     }
   }, []);
 
-  // Thêm phương thức updateProductCache
-  const updateProductCache = (updatedProducts) => {
-    setProducts(updatedProducts);
-    localStorage.setItem('cachedProducts', JSON.stringify(updatedProducts));
-    localStorage.setItem('cachedProductsTime', Date.now().toString());
-  };
-
-  // Hàm kiểm tra xem có cần fetch lại data không
-  const shouldFetchData = () => {
-    if (!companyId) return false;
+  // Thêm hàm kiểm tra data cũ
+  const checkDataFreshness = () => {
+    const cacheKey = apiService.getCacheKey('/api/products', {
+      search: searchTerm,
+      page: currentPage,
+      limit: rowsPerPage,
+      company_id: companyId
+    });
     
-    const cachedTime = localStorage.getItem(`cachedProductsTime_${companyId}`);
-    if (!cachedTime) return true;
-    
-    const timeElapsed = Date.now() - parseInt(cachedTime);
-    const isExpired = timeElapsed > CACHE_DURATION;
-    
-    if (isExpired) setIsDataStale(true);
-    return isExpired;
-  };
-
-  // Thêm useEffect để kiểm tra data cũ
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    setUser(user);
-    fetchProducts();
-
-    // Thiết lập interval để kiểm tra data cũ
-    const interval = setInterval(() => {
-      if (shouldFetchData()) {
-        setIsDataStale(true);
-      }
-    }, 60000); // Kiểm tra mỗi phút
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Hàm kiểm tra quyền xóa
-  const canDelete = () => {
-    return user?.role === 'Admin';
-  };
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Thay thế hàm handleDelete cũ bằng 2 hàm mới
-  const handleDeleteClick = (product) => {
-    setSelectedProduct(product);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedProduct) return;
-
-    try {
-      setDeleteLoading(true); // Bắt đầu loading
-      await apiService.delete(`/api/products/${selectedProduct.id}`);
-      const updatedProducts = products.filter(p => p.id !== selectedProduct.id);
-      updateProductCache(updatedProducts);
-      setSuccessMessage('Xóa sản phẩm thành công');
-      setDeleteDialogOpen(false);
-      setSelectedProduct(null);
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      setError('Không thể xóa sản phẩm. Vui lòng thử lại.');
-    } finally {
-      setDeleteLoading(false); // Kết thúc loading
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+      const { timestamp } = JSON.parse(cachedData);
+      const isStale = Date.now() - timestamp > apiService.CACHE_DURATION;
+      setIsDataStale(isStale);
     }
   };
 
-  const [loading, setLoading] = useState(false);
-  const [totalItems, setTotalItems] = useState(0);
-
-  // Cập nhật lại fetchProducts để sử dụng cache
+  // Cập nhật fetchProducts để ưu tiên dùng cache
   const fetchProducts = async (forceFetch = false) => {
     try {
       if (!companyId) return;
-
       setLoading(true);
+      
+      const params = {
+        search: searchTerm,
+        page: currentPage,
+        limit: rowsPerPage,
+        company_id: companyId
+      };
+
+      // Kiểm tra cache trước khi gọi API
+      const cacheKey = apiService.getProductsCacheKey(params);
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData && !forceFetch) {
+        const { data, metadata } = JSON.parse(cachedData);
+        setProducts(data);
+        setTotalItems(metadata.total);
+        setTotalPages(metadata.total_pages);
+        setLoading(false);
+        return;
+      }
+
       const response = await apiService.get('/api/products', {
-        params: {
-          search: searchTerm,
-          page: currentPage,
-          limit: rowsPerPage,
-          company_id: companyId
-        }
+        params,
+        useCache: true,
+        forceFetch
       });
 
       if (response) {
@@ -164,27 +147,83 @@ function ProductManagement() {
     }
   };
 
-  // Thêm useEffect để fetch lại khi các params thay đổi
+  // Sửa lại useEffect để kiểm tra cache trước
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    setUser(user);
+    
+    // Chỉ gọi API nếu không có cache hoặc cache đã hết hạn
+    const cacheKey = apiService.getCacheKey('/api/products', {
+      search: searchTerm,
+      page: currentPage,
+      limit: rowsPerPage,
+      company_id: companyId
+    });
+
+    const cachedData = apiService.getCacheData(cacheKey);
+    if (cachedData) {
+      setProducts(cachedData.data);
+      setTotalItems(cachedData.total);
+      setTotalPages(cachedData.total_pages);
+      checkDataFreshness();
+    } else {
+      fetchProducts();
+    }
+
+    // Thiết lập interval để kiểm tra data cũ
+    const interval = setInterval(() => {
+      checkDataFreshness();
+    }, 5*60000); // Kiểm tra mỗi 5 phút
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Thêm useEffect mới để theo dõi thay đổi params
   useEffect(() => {
     if (companyId) {
-      fetchProducts(true);
+      const cacheKey = apiService.getCacheKey('/api/products', {
+        search: searchTerm,
+        page: currentPage,
+        limit: rowsPerPage,
+        company_id: companyId
+      });
+
+      const cachedData = apiService.getCacheData(cacheKey);
+      if (!cachedData) {
+        fetchProducts(true);
+      }
     }
   }, [currentPage, rowsPerPage, searchTerm, companyId]);
 
-  // Thêm debounce cho search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchTerm !== '') {
-        setCurrentPage(1);
-        fetchProducts();
-      }
-    }, 500);
+  // Hàm kiểm tra quyền xóa
+  const canDelete = () => {
+    return user?.role === 'Admin';
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // Thay thế hàm handleDelete cũ bằng 2 hàm mới
+  const handleDeleteClick = (product) => {
+    setSelectedProduct(product);
+    setDeleteDialogOpen(true);
+  };
 
-  const [successMessage, setSuccessMessage] = useState('');
-  const [error, setError] = useState('');
+  const handleDeleteConfirm = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      setDeleteLoading(true);
+      await apiService.delete(`/api/products/${selectedProduct.id}`);
+      clearProductCache(); // Xóa cache khi có thay đổi
+      setSuccessMessage('Xóa sản phẩm thành công');
+      setDeleteDialogOpen(false);
+      setSelectedProduct(null);
+      fetchProducts(true);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setError('Không thể xóa sản phẩm. Vui lòng thử lại.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Thêm useEffect để xóa thông báo sau 3 giây
   useEffect(() => {
@@ -204,15 +243,13 @@ function ProductManagement() {
       const response = await apiService.postFormData('/api/products', formData);
       
       if (response) {
-        const updatedProducts = [...products, response];
-        updateProductCache(updatedProducts);
+        clearProductCache();
         setSuccessMessage('Thêm sản phẩm thành công');
         setShowDialog(false);
         fetchProducts(true);
       }
     } catch (error) {
-      console.error('Error adding product:', error);
-      setError(error.message || 'Không thể thêm sản phẩm. Vui lòng thử lại.');
+      setError(error.message || 'Không thể thêm sản phẩm');
     }
   };
 
@@ -227,16 +264,21 @@ function ProductManagement() {
       );
       
       if (response) {
-        const updatedProducts = products.map(p => 
-          p.id === selectedProduct.id ? response : p
-        );
-        updateProductCache(updatedProducts);
+        clearProductCache(); // Xóa cache khi có thay đổi
         setSuccessMessage('Cập nhật sản phẩm thành công');
         setShowDialog(false);
+        fetchProducts(true);
       }
     } catch (error) {
       console.error('Error updating product:', error);
       setError(error.message || 'Không thể cập nhật sản phẩm');
+    } 
+  };
+
+  // Thêm phương thức clearProductCache
+  const clearProductCache = () => {
+    if (companyId) {
+      apiService.clearProductsCache(companyId);
     }
   };
 
@@ -324,12 +366,12 @@ function ProductManagement() {
                 <thead>
                   <tr className="bg-primary text-white">
                     <th className="image-column">Hình ảnh</th>
-                    <th className="code-column">Mã sản phẩm</th>
-                    <th className="brand-column">Thương hiệu</th>
-                    <th className="price-column">Giá</th>
+                    <th className="code-column" style={{minWidth: '120px'}}>Mã sản phẩm</th>
+                    <th className="brand-column" style={{minWidth: '115px'}}>Thương hiệu</th>
+                    <th className="price-column" style={{minWidth: '100px'}}>Giá</th>
                     <th className="notes-column">Ghi chú</th>
-                    <th className="creator-column">Người tạo</th>
-                    <th className="actions-column text-center">Thao tác</th>
+                    <th className="creator-column" style={{minWidth: '100px'}}>Người tạo</th>
+                    <th className="actions-column text-center" style={{minWidth: '100px'}}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -358,15 +400,15 @@ function ProductManagement() {
                             ))}
                           </div>
                         </td>
-                        <td>
+                        <td style={{minWidth: '120px'}}>
                           <div className="product-code">
                             <div>{product.product_code}</div>
                             <div className="text-muted">{product.product_name}</div>
                           </div>
                         </td>
-                        <td>{product.brand || '-'}</td>
-                        <td>
-                          {new Intl.NumberFormat('vi-VN', {
+                        <td style={{minWidth: '115px'}}>{product.brand || '-'}</td>
+                        <td style={{minWidth: '100px'}}>
+                          {new Intl.NumberFormat('vi-VN', { 
                             style: 'currency',
                             currency: 'VND'
                           }).format(product.price)}

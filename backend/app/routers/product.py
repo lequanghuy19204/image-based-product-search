@@ -3,7 +3,7 @@ from typing import List
 from app.models.product import ProductResponse
 from app.middleware.auth_middleware import verify_token
 from app.config.firebase_config import db
-from app.utils.cloudinary_helper import upload_multiple_images
+from app.utils.cloudinary_helper import upload_image, upload_multiple_images
 from datetime import datetime
 from google.cloud import firestore
 import math
@@ -20,25 +20,21 @@ async def create_product(
     description: str = Form(None),
     price: float = Form(...),
     company_id: str = Form(...),
-    files: List[UploadFile] = File(...),
+    image_urls: str = Form("[]"),  # JSON string của các URL đã upload
     current_user: dict = Depends(verify_token)
 ):
     try:
-        # Kiểm tra quyền và upload ảnh song song
-        user_check_task = asyncio.create_task(check_user_permission(current_user, company_id))
-        upload_task = asyncio.create_task(upload_multiple_images(files, company_id))
+        # Parse image_urls từ JSON string
+        image_urls_list = json.loads(image_urls)
         
-        # Đợi kết quả kiểm tra quyền
-        await user_check_task
-        
-        # Đợi kết quả upload ảnh
-        image_urls = await upload_task
+        # Kiểm tra quyền
+        await check_user_permission(current_user, company_id)
         
         # Tạo transaction để đảm bảo tính nhất quán của dữ liệu
         transaction = db.transaction()
         
         @firestore.transactional
-        def create_product_in_transaction(transaction, image_urls):
+        def create_product_in_transaction(transaction):
             # 1. Tạo document sản phẩm
             product_ref = db.collection('products').document()
             product_id = product_ref.id
@@ -54,12 +50,12 @@ async def create_product(
                 "created_by": current_user["sub"],
                 "created_at": now,
                 "updated_at": now,
-                "image_urls": image_urls
+                "image_urls": image_urls_list
             }
             
             # 2. Tạo các documents ảnh
             image_refs = []
-            for url in image_urls:
+            for url in image_urls_list:
                 image_ref = db.collection('images').document()
                 image_data = {
                     "image_url": url,
@@ -81,7 +77,7 @@ async def create_product(
             }
         
         # Thực hiện transaction
-        result = create_product_in_transaction(transaction, image_urls)
+        result = create_product_in_transaction(transaction)
         return result
 
     except Exception as e:
@@ -293,4 +289,29 @@ async def delete_product(
 
     except Exception as e:
         print(f"Error in delete_product: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@product_router.post("/upload", response_model=dict)
+async def upload_product_image(
+    file: UploadFile = File(...),
+    company_id: str = Form(...),
+    current_user: dict = Depends(verify_token)
+):
+    try:
+        # Sử dụng hàm upload_image từ cloudinary_helper
+        url = await upload_image(file, company_id)
+        
+        # Lưu thông tin ảnh vào collection images
+        image_ref = db.collection('images').document()
+        image_data = {
+            'image_url': url,
+            'company_id': company_id,
+            'uploaded_by': current_user['sub'],
+            'created_at': datetime.utcnow()
+        }
+        image_ref.set(image_data)
+        
+        return {'url': url}
+    except Exception as e:
+        print(f"Error uploading image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi upload ảnh: {str(e)}") 

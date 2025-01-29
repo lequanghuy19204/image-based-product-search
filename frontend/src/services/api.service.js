@@ -4,6 +4,7 @@ import { authService } from './auth.service';
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.CACHE_DURATION = 30 * 60 * 1000; // 30 phút
   }
 
   getHeaders() {
@@ -30,11 +31,150 @@ class ApiService {
     return response.json();
   }
 
+  // Thêm các phương thức quản lý cache
+  getCacheKey(endpoint, params) {
+    const queryString = params ? new URLSearchParams(params).toString() : '';
+    return `api_cache_${endpoint}_${queryString}`;
+  }
+
+  setCacheData(key, data, metadata = null) {
+    const cacheData = {
+      data,
+      metadata,
+      timestamp: Date.now()
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(cacheData));
+    } catch (error) {
+      console.error('Error setting cache:', error);
+      // Xóa bớt cache cũ nếu localStorage đầy
+      this.clearOldCache();
+    }
+  }
+
+  getCacheData(key) {
+    const cachedData = localStorage.getItem(key);
+    if (!cachedData) return null;
+
+    try {
+      const { data, timestamp } = JSON.parse(cachedData);
+      const isExpired = Date.now() - timestamp > this.CACHE_DURATION;
+      
+      if (isExpired) {
+        localStorage.removeItem(key);
+        return null;
+      }
+
+      // Thêm thông tin về thời gian cache còn lại
+      const remainingTime = this.CACHE_DURATION - (Date.now() - timestamp);
+      console.log(`Cache còn hiệu lực trong ${Math.round(remainingTime/1000)} giây`);
+      
+      return data;
+    } catch (error) {
+      console.error('Error getting cache:', error);
+      localStorage.removeItem(key);
+      return null;
+    }
+  }
+
+  clearCacheByPrefix(prefix) {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(prefix)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  // Thêm phương thức để lấy cache key cho từng trang
+  getProductsCacheKey(params) {
+    const { page = 1, limit = 10, search = '', company_id = '' } = params || {};
+    return `products_${company_id}_page${page}_limit${limit}_search${search}`;
+  }
+
+  // Thêm phương thức để lưu metadata của danh sách sản phẩm
+  setProductsMetadata(params, metadata) {
+    const key = `products_metadata_${params.company_id}`;
+    const data = {
+      total: metadata.total,
+      total_pages: metadata.total_pages,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  // Thêm phương thức để lấy metadata
+  getProductsMetadata(company_id) {
+    const key = `products_metadata_${company_id}`;
+    const data = localStorage.getItem(key);
+    if (!data) return null;
+
+    try {
+      const metadata = JSON.parse(data);
+      if (Date.now() - metadata.timestamp > this.CACHE_DURATION) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return metadata;
+    } catch {
+      localStorage.removeItem(key);
+      return null;
+    }
+  }
+
+  // Thêm phương thức để xóa cache cũ
+  clearOldCache() {
+    const keys = Object.keys(localStorage);
+    const productCacheKeys = keys.filter(key => key.startsWith('products_'));
+    
+    // Sắp xếp theo thời gian và xóa 50% cache cũ nhất
+    const cacheItems = productCacheKeys.map(key => {
+      try {
+        const item = JSON.parse(localStorage.getItem(key));
+        return { key, timestamp: item.timestamp };
+      } catch {
+        return { key, timestamp: 0 };
+      }
+    }).sort((a, b) => a.timestamp - b.timestamp);
+
+    const itemsToRemove = Math.floor(cacheItems.length / 2);
+    cacheItems.slice(0, itemsToRemove).forEach(item => {
+      localStorage.removeItem(item.key);
+    });
+  }
+
+  // Thêm phương thức để lấy cache hiệu quả hơn
   async get(endpoint, options = {}) {
     try {
-      let url = `${this.baseURL}${endpoint}`;
+      const { useCache = true, forceFetch = false } = options;
       
-      // Thêm query params nếu có
+      // Đặc biệt xử lý cho endpoint products
+      if (endpoint === '/api/products' && useCache && !forceFetch) {
+        const cacheKey = this.getProductsCacheKey(options.params);
+        const cachedData = localStorage.getItem(cacheKey);
+
+        if (cachedData) {
+          try {
+            const { data, metadata, timestamp } = JSON.parse(cachedData);
+            const isExpired = Date.now() - timestamp > this.CACHE_DURATION;
+
+            if (!isExpired) {
+              console.log('Đọc dữ liệu từ cache:', cacheKey);
+              return {
+                data,
+                ...metadata,
+                fromCache: true
+              };
+            } else {
+              localStorage.removeItem(cacheKey);
+            }
+          } catch (error) {
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      }
+
+      // Nếu không có cache hoặc cache hết hạn, gọi API
+      let url = `${this.baseURL}${endpoint}`;
       if (options.params) {
         const params = new URLSearchParams();
         Object.entries(options.params).forEach(([key, value]) => {
@@ -49,7 +189,21 @@ class ApiService {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      return this.handleResponse(response);
+      const data = await this.handleResponse(response);
+
+      // Cache kết quả mới cho endpoint products
+      if (endpoint === '/api/products' && useCache) {
+        const cacheKey = this.getProductsCacheKey(options.params);
+        const metadata = {
+          total: data.total,
+          total_pages: data.total_pages,
+          page: data.page,
+          limit: data.limit
+        };
+        this.setCacheData(cacheKey, data.data, metadata);
+      }
+
+      return data;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -91,36 +245,82 @@ class ApiService {
     }
   }
 
+  // Sửa lại phương thức clearProductsCache
+  clearProductsCache(company_id) {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(`products_${company_id}`)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  // Cập nhật các phương thức mutation để xóa cache
   async postFormData(endpoint, data, requiresAuth = true) {
     try {
-      const headers = {
-        ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
-      };
+        const headers = {
+            ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
+        };
 
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'POST',
-        headers: headers,
-        body: data
-      });
+        // Upload ảnh trước
+        const imageUrls = [];
+        const imageFiles = data.getAll('images');
+        if (imageFiles.length > 0) {
+            for (let file of imageFiles) {
+                const imageFormData = new FormData();
+                imageFormData.append('file', file);
+                imageFormData.append('company_id', data.get('company_id'));
+                
+                const uploadResponse = await fetch(`${this.baseURL}/api/products/upload`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: imageFormData
+                });
 
-      const responseData = await response.json();
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json();
+                    throw new Error(errorData.detail || 'Lỗi khi upload ảnh');
+                }
 
-      if (!response.ok) {
-        // Xử lý chi tiết lỗi validation
-        if (Array.isArray(responseData)) {
-          const errorMessages = responseData.map(err => err.msg || err.message).join(', ');
-          throw new Error(errorMessages);
-        } else if (responseData.detail) {
-          throw new Error(responseData.detail);
-        } else {
-          throw new Error('Có lỗi xảy ra khi thêm sản phẩm');
+                const uploadResult = await uploadResponse.json();
+                imageUrls.push(uploadResult.url);
+            }
         }
-      }
 
-      return responseData;
+        // Tạo FormData mới cho sản phẩm
+        const productFormData = new FormData();
+        for (let [key, value] of data.entries()) {
+            if (key !== 'images') {
+                productFormData.append(key, value);
+            }
+        }
+        // Thêm image_urls vào form data
+        if (imageUrls.length > 0) {
+            productFormData.append('image_urls', JSON.stringify(imageUrls));
+        }
+
+        const response = await fetch(`${this.baseURL}${endpoint}`, {
+            method: 'POST',
+            headers: headers,
+            body: productFormData
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            if (typeof responseData === 'object' && responseData.detail) {
+                throw new Error(responseData.detail);
+            } else if (Array.isArray(responseData)) {
+                const errorMessages = responseData.map(err => err.msg).join(', ');
+                throw new Error(errorMessages);
+            } else {
+                throw new Error('Có lỗi xảy ra khi xử lý yêu cầu');
+            }
+        }
+
+        return responseData;
     } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+        console.error('API request failed:', error);
+        throw error;
     }
   }
 
@@ -178,4 +378,5 @@ class ApiService {
   }
 }
 
+// Export apiService instance
 export const apiService = new ApiService();
