@@ -7,6 +7,10 @@ import {
   NavigateNext as NextIcon,
   NavigateBefore as PrevIcon,
   Refresh as RefreshIcon,
+  Close as CloseIcon,
+  ZoomOut as ZoomOutIcon,
+  ZoomIn as ZoomInIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
@@ -36,6 +40,12 @@ function ProductManagement() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState(null);
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -282,6 +292,65 @@ function ProductManagement() {
     }
   };
 
+  // Hàm xử lý click vào ảnh
+  const handleImageClick = (imageUrl, product, index) => {
+    setSelectedImage(imageUrl);
+    setCurrentProduct(product);
+    setCurrentImageIndex(index);
+    setZoomLevel(1);
+    setImageModalOpen(true);
+  };
+
+  // Hàm xử lý zoom bằng scroll chuột
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.01;
+    const newZoom = Math.min(Math.max(zoomLevel + delta, 1), 3);
+    setZoomLevel(newZoom);
+  };
+
+  // Hàm xử lý zoom bằng nút
+  const handleZoom = (direction) => {
+    setZoomLevel(prev => {
+      if (direction === 'in' && prev < 3) return prev + 0.5;
+      if (direction === 'out' && prev > 1) return prev - 0.5;
+      return prev;
+    });
+  };
+
+  // Hàm xử lý copy URL
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(selectedImage);
+      setShowCopyNotification(true);
+      setTimeout(() => setShowCopyNotification(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+    }
+  };
+
+  // Hàm điều hướng ảnh
+  const handleNavigate = (direction) => {
+    if (!currentProduct?.image_urls) return;
+    
+    setZoomLevel(1); // Reset zoom khi chuyển ảnh
+    if (direction === 'next') {
+      setCurrentImageIndex(prev => 
+        prev < currentProduct.image_urls.length - 1 ? prev + 1 : 0
+      );
+      setSelectedImage(currentProduct.image_urls[
+        currentImageIndex < currentProduct.image_urls.length - 1 ? currentImageIndex + 1 : 0
+      ]);
+    } else {
+      setCurrentImageIndex(prev => 
+        prev > 0 ? prev - 1 : currentProduct.image_urls.length - 1
+      );
+      setSelectedImage(currentProduct.image_urls[
+        currentImageIndex > 0 ? currentImageIndex - 1 : currentProduct.image_urls.length - 1
+      ]);
+    }
+  };
+
   return (
     <div className="layout-container">
       <Sidebar 
@@ -395,6 +464,10 @@ function ProductManagement() {
                                   onLoad={(e) => {
                                     e.target.previousSibling.style.display = 'none';
                                   }}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleImageClick(img, product, index);
+                                  }}
                                 />
                               </div>
                             ))}
@@ -452,9 +525,10 @@ function ProductManagement() {
                 </tbody>
               </table>
             )}
-
-            {/* Pagination */}
-            <div className="pagination-container">
+          </div>
+        </div>
+        {/* Pagination */}
+        <div className="pagination-container">
               <div className="pagination-controls-container">
                 <div className="rows-per-page">
                   <span>Hiển thị</span>
@@ -502,8 +576,6 @@ function ProductManagement() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
       </main>
 
       {/* Add ProductDialog */}
@@ -544,6 +616,95 @@ function ProductManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Image Modal */}
+      {imageModalOpen && (
+        <div 
+          className="image-modal"
+          onClick={() => {
+            setImageModalOpen(false);
+            setZoomLevel(1);
+          }}
+        >
+          <button 
+            className="modal-close-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setImageModalOpen(false);
+              setZoomLevel(1);
+            }}
+          >
+            <CloseIcon />
+          </button>
+
+          {currentProduct?.image_urls?.length > 1 && (
+            <>
+              <button 
+                className="modal-nav-button prev" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNavigate('prev');
+                }}
+              >
+                <PrevIcon />
+              </button>
+              <button 
+                className="modal-nav-button next"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNavigate('next');
+                }}
+              >
+                <NextIcon />
+              </button>
+            </>
+          )}
+
+          <div 
+            className="image-modal-content"
+            onClick={e => e.stopPropagation()}
+            onWheel={handleWheel}
+          >
+            <img
+              src={selectedImage}
+              alt="Selected product"
+              style={{ transform: `scale(${zoomLevel})` }}
+            />
+          </div>
+
+          <div className="image-modal-controls">
+            <div className="modal-zoom-controls">
+              <button 
+                onClick={() => handleZoom('out')}
+                disabled={zoomLevel <= 1}
+              >
+                <ZoomOutIcon />
+              </button>
+              <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
+              <button 
+                onClick={() => handleZoom('in')}
+                disabled={zoomLevel >= 3}
+              >
+                <ZoomInIcon />
+              </button>
+            </div>
+            <button 
+              className="copy-url-button"
+              onClick={handleCopyUrl}
+            >
+              <ContentCopyIcon className="me-2" />
+              Sao chép URL
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Notification */}
+      {showCopyNotification && (
+        <div className="copy-notification">
+          Đã sao chép URL ảnh vào clipboard
+        </div>
+      )}
     </div>
   );
 }
