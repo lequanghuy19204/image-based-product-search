@@ -271,11 +271,22 @@ class ApiService {
 
   // Sửa lại phương thức clearProductsCache
   clearProductsCache(company_id) {
-    const cacheKeys = Object.keys(localStorage).filter(key => 
-      key.startsWith(`products_${company_id}`)
-    );
-    
-    cacheKeys.forEach(key => localStorage.removeItem(key));
+    try {
+      // Xóa tất cả cache liên quan đến sản phẩm của company
+      const keys = Object.keys(localStorage);
+      const productCacheKeys = keys.filter(key => 
+        key.startsWith('products_') && key.includes(company_id)
+      );
+      
+      productCacheKeys.forEach(key => localStorage.removeItem(key));
+      
+      // Xóa metadata cache
+      localStorage.removeItem(`products_metadata_${company_id}`);
+      
+      console.log('Đã xóa cache sản phẩm của company:', company_id);
+    } catch (error) {
+      console.error('Error clearing product cache:', error);
+    }
   }
 
   // Cập nhật các phương thức mutation để xóa cache
@@ -348,13 +359,19 @@ class ApiService {
     }
   }
 
-  async put(endpoint, body) {
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(body),
-    });
-    return this.handleResponse(response);
+  async put(endpoint, data) {
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      });
+
+      return this.handleResponse(response);
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
   }
 
   async delete(endpoint) {

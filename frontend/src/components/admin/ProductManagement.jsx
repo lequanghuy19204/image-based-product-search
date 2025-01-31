@@ -254,26 +254,33 @@ function ProductManagement() {
     }
   };
 
-  const handleEditProduct = async (formData) => {
+  const handleEditProduct = async (productData) => {
     try {
       if (!selectedProduct) return;
       
-      formData.append('company_id', companyId);
-      const response = await apiService.putFormData(
+      // Tạo object chứa dữ liệu cập nhật
+      const updateData = {
+        ...productData,
+        company_id: companyId
+      };
+      
+      const response = await apiService.put(
         `/api/products/${selectedProduct.id}`, 
-        formData
+        updateData
       );
       
       if (response) {
-        clearProductCache(); // Xóa cache khi có thay đổi
+        // Xóa cache và fetch lại dữ liệu
+        apiService.clearProductsCache(companyId);
+        await fetchProducts(true);
+        
         setSuccessMessage('Cập nhật sản phẩm thành công');
         setShowDialog(false);
-        fetchProducts(true);
       }
     } catch (error) {
       console.error('Error updating product:', error);
       setError(error.message || 'Không thể cập nhật sản phẩm');
-    } 
+    }
   };
 
   // Thêm phương thức clearProductCache
@@ -387,17 +394,16 @@ function ProductManagement() {
       
       await apiService.delete(`/api/products/${productId}`);
       
-      // Cập nhật state
-      setProducts(prev => prev.filter(p => p.id !== productId));
-      setTotalItems(prev => prev - 1);
-      setTotalPages(prev => Math.ceil((prev - 1) / rowsPerPage));
-      
-      // Xóa cache
-      if (productToDelete) {
+      // Xóa cache trước
+      if (productToDelete?.company_id) {
         apiService.clearProductsCache(productToDelete.company_id);
       }
       
+      // Fetch lại dữ liệu mới từ server
+      await fetchProducts(true);
+      
       setSuccessMessage('Xóa sản phẩm thành công');
+      setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting product:', error);
       setError('Không thể xóa sản phẩm');
