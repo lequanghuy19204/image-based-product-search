@@ -401,7 +401,16 @@ class ApiService {
     }
   }
 
+  // Thêm phương thức kiểm tra quyền
+  isAdmin() {
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    return userDetails?.role === 'Admin';
+  }
+
   async createProduct(productData) {
+    if (!this.isAdmin()) {
+      throw new Error('Bạn không có quyền thêm sản phẩm mới');
+    }
     try {
       // Thêm thông tin người tạo nếu chưa có
       if (!productData.created_by_name) {
@@ -422,6 +431,9 @@ class ApiService {
   }
 
   async updateProduct(productId, productData) {
+    if (!this.isAdmin()) {
+      throw new Error('Bạn không có quyền cập nhật sản phẩm');
+    }
     try {
       const response = await this.put(`/api/products/${productId}`, {
         product_name: productData.get('product_name'),
@@ -464,6 +476,9 @@ class ApiService {
 
   // Thêm phương thức xóa sản phẩm
   async deleteProduct(productId) {
+    if (!this.isAdmin()) {
+      throw new Error('Bạn không có quyền xóa sản phẩm');
+    }
     try {
       const response = await this.delete(`/api/products/${productId}`);
       this.clearCacheByPrefix('products_');

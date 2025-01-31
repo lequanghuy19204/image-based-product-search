@@ -49,6 +49,7 @@ function ProductManagement() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [sortField, setSortField] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [userRole, setUserRole] = useState('');
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -163,7 +164,16 @@ function ProductManagement() {
     }
   }, [currentPage, rowsPerPage, searchTerm, companyId]);
 
-  // Hàm kiểm tra quyền xóa
+  // Thêm useEffect để lấy role của user từ localStorage
+  useEffect(() => {
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    setUserRole(userDetails?.role || '');
+  }, []);
+
+  // Hàm kiểm tra quyền admin
+  const isAdmin = () => userRole === 'Admin';
+
+  // Thêm hàm kiểm tra quyền xóa
   const canDelete = () => {
     return user?.role === 'Admin';
   };
@@ -396,6 +406,16 @@ function ProductManagement() {
     }
   };
 
+  // Hàm xử lý khi click vào nút thêm sản phẩm
+  const handleAddProductClick = () => {
+    if (!isAdmin()) {
+      setError('Bạn không có quyền thêm sản phẩm mới');
+      return;
+    }
+    setSelectedProduct(null);
+    setShowDialog(true);
+  };
+
   return (
     <div className="layout-container">
       <Sidebar 
@@ -455,16 +475,16 @@ function ProductManagement() {
                 <RefreshIcon fontSize="small" />
               </button>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setSelectedProduct(null);
-                setShowDialog(true);
-              }}
-            >
-              <AddIcon className="me-2" />
-              Thêm sản phẩm
-            </button>
+            {/* Chỉ hiển thị nút thêm sản phẩm cho admin */}
+            {isAdmin() && (
+              <button
+                className="btn btn-primary"
+                onClick={handleAddProductClick}
+              >
+                <AddIcon className="me-2" />
+                Thêm sản phẩm
+              </button>
+            )}
           </div>
 
           {/* Table */}
@@ -485,7 +505,10 @@ function ProductManagement() {
                     <th className="price-column" style={{minWidth: '100px'}}>Giá</th>
                     <th className="notes-column">Ghi chú</th>
                     <th className="creator-column" style={{minWidth: '100px'}}>Người tạo</th>
-                    <th className="actions-column text-center" style={{minWidth: '100px'}}>Thao tác</th>
+                    {/* Chỉ hiển thị cột thao tác cho admin */}
+                    {isAdmin() && (
+                      <th className="actions-column text-center" style={{minWidth: '100px'}}>Thao tác</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -541,34 +564,31 @@ function ProductManagement() {
                           </div>
                         </div>
                       </td>
-                      <td>
-                        <div className="table-actions">
-                          <button 
-                            className="btn btn-sm btn-icon"
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setShowDialog(true);
-                            }}
-                            title="Chỉnh sửa"
-                          >
-                            <EditIcon fontSize="small" />
-                          </button>
-                          {canDelete() && (
+                      {/* Chỉ hiển thị cột thao tác cho admin */}
+                      {isAdmin() && (
+                        <td>
+                          <div className="table-actions">
+                            <button 
+                              className="btn btn-sm btn-icon"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setShowDialog(true);
+                              }}
+                              title="Chỉnh sửa"
+                            >
+                              <EditIcon fontSize="small" />
+                            </button>
                             <button 
                               className="btn btn-sm btn-icon text-danger"
                               onClick={() => handleDeleteProduct(product.id)}
-                              title="Xóa"
                               disabled={deleteLoading}
+                              title="Xóa"
                             >
-                              {deleteLoading ? (
-                                <span className="spinner-border spinner-border-sm" role="status" />
-                              ) : (
-                                <DeleteIcon fontSize="small" />
-                              )}
+                              <DeleteIcon fontSize="small" />
                             </button>
-                          )}
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
