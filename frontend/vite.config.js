@@ -10,5 +10,13 @@ export default defineConfig({
   },
   define: {
     'process.env': {}
+  },
+  optimizeDeps: {
+    include: ['@cloudinary/url-gen', '@cloudinary/react']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/@cloudinary\/url-gen/, /@cloudinary\/react/]
+    }
   }
 });

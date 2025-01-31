@@ -10,39 +10,6 @@ router = APIRouter(
     tags=["api"]
 )
 
-@router.get("/images")
-async def get_images():
-    try:
-        # Lấy collection 'images' từ Firestore
-        images_ref = db.collection('images')
-        docs = images_ref.stream()
-        
-        images = []
-        for doc in docs:
-            images.append({
-                "id": doc.id,
-                **doc.to_dict()
-            })
-        
-        return images
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/images")
-async def create_image(image_data: dict):
-    try:
-        # Thêm document mới vào collection 'images'
-        doc_ref = db.collection('images').document()
-        doc_ref.set(image_data)
-        
-        return {
-            "message": "Image created successfully",
-            "id": doc_ref.id
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/users/profile", tags=["users"])
 async def get_user_profile(token: str = Depends(verify_token)):
     try:
@@ -78,4 +45,3 @@ async def get_user_profile(token: str = Depends(verify_token)):
         print(f"Error in get_user_profile: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    

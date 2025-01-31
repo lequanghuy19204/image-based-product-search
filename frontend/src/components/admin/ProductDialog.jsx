@@ -4,6 +4,7 @@ import ImageUploading from 'react-images-uploading';
 import { CloudUpload as CloudUploadIcon, Close as CloseIcon } from '@mui/icons-material';
 import PropTypes from 'prop-types';
 import { apiService } from '../../services/api.service';
+import { cloudinaryService } from '../../services/cloudinary.service';
 
 function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const initialFormState = {
@@ -20,6 +21,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [uploadProgress, setUploadProgress] = useState({});
 
   const suggestedPrices = [
     { label: '50,000đ', value: 50000 },
@@ -87,40 +89,58 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setSubmitting(true);
-    
     try {
-      const productFormData = new FormData();
-      productFormData.append('product_name', formData.product_name);
-      productFormData.append('product_code', formData.product_code);
-      productFormData.append('brand', formData.brand || '');
-      productFormData.append('description', formData.description || '');
-      productFormData.append('price', formData.price);
-      productFormData.append('company_id', 'company_id');
-
-      // Thêm tất cả files vào formData
-      images.forEach((img, index) => {
-        if (img.file) {
-          productFormData.append(`images`, img.file);
+      // Upload ảnh song song
+      const imageFiles = images.filter(img => img.file).map(img => img.file);
+      const existingUrls = images.filter(img => img.isExisting).map(img => img.data_url);
+      
+      let newImageUrls = [];
+      if (imageFiles.length > 0) {
+        setLoading(true);
+        try {
+          const uploadPromises = imageFiles.map(file => cloudinaryService.uploadImage(file));
+          const uploadedImages = await Promise.all(uploadPromises);
+          newImageUrls = uploadedImages.map(img => img.secure_url);
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          setErrors(prev => ({
+            ...prev,
+            submit: 'Lỗi khi upload ảnh: ' + uploadError.message
+          }));
+          return;
         }
-      });
+      }
 
-      await onSubmit(productFormData);
-      setSuccessMessage('Thêm sản phẩm thành công');
+      // Kết hợp URLs
+      const allImageUrls = [...existingUrls, ...newImageUrls];
+
+      // Tạo product data
+      const productData = {
+        product_name: formData.product_name.trim(),
+        product_code: formData.product_code.trim(),
+        brand: formData.brand?.trim() || '',
+        description: formData.description?.trim() || '',
+        price: parseFloat(formData.price),
+        company_id: JSON.parse(localStorage.getItem('userDetails')).company_id,
+        image_urls: allImageUrls
+      };
+
+
+      await onSubmit(productData);
+      setSuccessMessage('Thao tác thành công');
       handleClose();
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('Submit error:', error);
       setErrors(prev => ({
         ...prev,
-        submit: error.message || 'Có lỗi xảy ra khi lưu sản phẩm'
+        submit: error.message || 'Có lỗi xảy ra'
       }));
     } finally {
       setSubmitting(false);
+      setLoading(false);
     }
   };
 

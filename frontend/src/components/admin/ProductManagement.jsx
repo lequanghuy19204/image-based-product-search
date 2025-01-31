@@ -247,19 +247,16 @@ function ProductManagement() {
   }, [successMessage, error]);
 
   // Cập nhật các hàm xử lý thêm/sửa/xóa
-  const handleAddProduct = async (formData) => {
+  const handleAddProduct = async (productData) => {
     try {
-      formData.append('company_id', companyId);
-      const response = await apiService.postFormData('/api/products', formData);
-      
-      if (response) {
-        clearProductCache();
-        setSuccessMessage('Thêm sản phẩm thành công');
-        setShowDialog(false);
-        fetchProducts(true);
-      }
+      setLoading(true);
+      await apiService.createProduct(productData);
+      setSuccessMessage('Thêm sản phẩm thành công');
+      fetchProducts(true);
     } catch (error) {
       setError(error.message || 'Không thể thêm sản phẩm');
+    } finally {
+      setLoading(false);
     }
   };
 

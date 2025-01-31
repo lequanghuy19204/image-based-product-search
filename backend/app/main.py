@@ -5,7 +5,6 @@ from app.routers.auth import auth_router
 from app.routers.admin import admin_router
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
-from app.config.cloudinary_config import initialize_cloudinary
 from app.routers.product import product_router
 # from app.routers.test import test_router
 
@@ -20,9 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup_event():
-    initialize_cloudinary()
 
 # Route không cần xác thực
 @app.get("/")

@@ -10,11 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cloudinary/react": "^1.12.0",
+    "@cloudinary/url-gen": "^1.16.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.3.0",
     "@mui/material": "^6.3.0",
+    "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
+    "crypto-js": "^4.2.0",
     "firebase": "^11.1.0",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",

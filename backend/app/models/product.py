@@ -9,7 +9,7 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     price: float
     company_id: str
-    image_urls: List[str] = []
+    image_urls: List[str]
 
 class ProductUpdate(BaseModel):
     product_name: Optional[str] = None

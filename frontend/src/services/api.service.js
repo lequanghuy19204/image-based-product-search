@@ -168,6 +168,7 @@ class ApiService {
               localStorage.removeItem(cacheKey);
             }
           } catch (error) {
+            console.error('Error parsing cache:', error);
             localStorage.removeItem(cacheKey);
           }
         }
@@ -226,13 +227,13 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        // Xử lý lỗi chi tiết hơn
-        if (typeof data === 'object' && data.detail) {
+        if (data.detail) {
           throw new Error(data.detail);
         } else if (Array.isArray(data)) {
-          // Nếu là array của lỗi validation
           const errorMessages = data.map(err => err.msg || err.message).join(', ');
           throw new Error(errorMessages);
+        } else if (typeof data === 'object') {
+          throw new Error(JSON.stringify(data));
         } else {
           throw new Error('Có lỗi xảy ra khi thêm sản phẩm');
         }
@@ -373,6 +374,57 @@ class ApiService {
       return responseData;
     } catch (error) {
       console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  async createProduct(productData) {
+    try {
+      // Log để debug
+      // console.log('Creating product with data:', productData);
+
+      // Kiểm tra chi tiết từng trường
+      if (!productData.product_name) {
+        throw new Error('Thiếu tên sản phẩm');
+      }
+      if (!productData.product_code) {
+        throw new Error('Thiếu mã sản phẩm');
+      }
+      if (!productData.price || isNaN(parseFloat(productData.price))) {
+        throw new Error('Giá sản phẩm không hợp lệ');
+      }
+      if (!productData.company_id) {
+        throw new Error('Thiếu company_id');
+      }
+      if (!Array.isArray(productData.image_urls) || productData.image_urls.length === 0) {
+        throw new Error('Cần ít nhất một ảnh sản phẩm');
+      }
+
+      const response = await this.post('/api/products', productData);
+      this.clearProductsCache(productData.company_id);
+      return response;
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+  }
+
+  async updateProduct(productId, productData) {
+    try {
+      const response = await this.put(`/api/products/${productId}`, {
+        product_name: productData.get('product_name'),
+        product_code: productData.get('product_code'),
+        brand: productData.get('brand'),
+        description: productData.get('description'),
+        price: parseFloat(productData.get('price')),
+        image_urls: JSON.parse(productData.get('image_urls'))
+      });
+      
+      // Clear cache sau khi cập nhật sản phẩm
+      this.clearCacheByPrefix('api_cache_products');
+      return response;
+    } catch (error) {
+      console.error('Error updating product:', error);
       throw error;
     }
   }
