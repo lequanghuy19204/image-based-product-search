@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal } from 'react-bootstrap';
+import { Modal, Button } from 'react-bootstrap';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload as CloudUploadIcon, Close as CloseIcon } from '@mui/icons-material';
 import PropTypes from 'prop-types';
@@ -93,25 +93,15 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
     setSubmitting(true);
     try {
-      // Upload ảnh song song
+      // Upload ảnh lên Cloudinary
       const imageFiles = images.filter(img => img.file).map(img => img.file);
       const existingUrls = images.filter(img => img.isExisting).map(img => img.data_url);
       
       let newImageUrls = [];
       if (imageFiles.length > 0) {
-        setLoading(true);
-        try {
-          const uploadPromises = imageFiles.map(file => cloudinaryService.uploadImage(file));
-          const uploadedImages = await Promise.all(uploadPromises);
-          newImageUrls = uploadedImages.map(img => img.secure_url);
-        } catch (uploadError) {
-          console.error('Upload error:', uploadError);
-          setErrors(prev => ({
-            ...prev,
-            submit: 'Lỗi khi upload ảnh: ' + uploadError.message
-          }));
-          return;
-        }
+        const uploadPromises = imageFiles.map(file => cloudinaryService.uploadImage(file));
+        const uploadedImages = await Promise.all(uploadPromises);
+        newImageUrls = uploadedImages.map(img => img.secure_url);
       }
 
       // Kết hợp URLs
@@ -128,9 +118,16 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
         image_urls: allImageUrls
       };
 
+      // Thêm thông tin người tạo
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      const productWithCreator = {
+        ...productData,
+        created_by: userDetails.id,
+        created_by_name: userDetails.username
+      };
 
-      await onSubmit(productData);
-      setSuccessMessage('Thao tác thành công');
+      await onSubmit(productWithCreator);
+      setSuccessMessage('Thêm sản phẩm thành công');
       handleClose();
     } catch (error) {
       console.error('Submit error:', error);
@@ -140,7 +137,6 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
       }));
     } finally {
       setSubmitting(false);
-      setLoading(false);
     }
   };
 
@@ -292,28 +288,28 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
         </Modal.Body>
 
         <Modal.Footer>
-          <button
-            type="button"
-            className="btn btn-secondary"
+          <Button 
+            variant="secondary" 
             onClick={handleClose}
-            disabled={loading}
+            disabled={submitting}
           >
             Hủy
-          </button>
-          <button
+          </Button>
+          
+          <Button 
+            variant="primary" 
             type="submit"
-            className="btn btn-primary"
-            disabled={loading}
+            disabled={submitting}
           >
-            {loading ? (
+            {submitting ? (
               <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
                 Đang xử lý...
               </>
             ) : (
               'Lưu'
             )}
-          </button>
+          </Button>
         </Modal.Footer>
       </form>
     </Modal>

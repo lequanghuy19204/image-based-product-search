@@ -147,6 +147,21 @@ class ApiService {
     try {
       const { useCache = true, forceFetch = false } = options;
       
+      // Nếu forceFetch thì bỏ qua cache
+      if (forceFetch) {
+        let url = `${this.baseURL}${endpoint}`;
+        if (options.params) {
+          const params = new URLSearchParams(options.params);
+          url += `?${params.toString()}`;
+        }
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
+        return this.handleResponse(response);
+      }
+      
       // Đặc biệt xử lý cho endpoint products
       if (endpoint === '/api/products' && useCache && !forceFetch) {
         const cacheKey = this.getProductsCacheKey(options.params);
@@ -174,6 +189,14 @@ class ApiService {
         }
       }
 
+      // Thêm company_id vào params nếu chưa có
+      if (endpoint === '/api/products' && options.params) {
+        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+        if (userDetails?.company_id && !options.params.company_id) {
+          options.params.company_id = userDetails.company_id;
+        }
+      }
+
       // Nếu không có cache hoặc cache hết hạn, gọi API
       let url = `${this.baseURL}${endpoint}`;
       if (options.params) {
@@ -197,7 +220,7 @@ class ApiService {
         const cacheKey = this.getProductsCacheKey(options.params);
         const metadata = {
           total: data.total,
-          total_pages: data.total_pages,
+          total_pages: Math.ceil(data.total / data.limit),
           page: data.page,
           limit: data.limit
         };
@@ -248,11 +271,11 @@ class ApiService {
 
   // Sửa lại phương thức clearProductsCache
   clearProductsCache(company_id) {
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith(`products_${company_id}`)) {
-        localStorage.removeItem(key);
-      }
-    });
+    const cacheKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith(`products_${company_id}`)
+    );
+    
+    cacheKeys.forEach(key => localStorage.removeItem(key));
   }
 
   // Cập nhật các phương thức mutation để xóa cache
@@ -380,28 +403,17 @@ class ApiService {
 
   async createProduct(productData) {
     try {
-      // Log để debug
-      // console.log('Creating product with data:', productData);
-
-      // Kiểm tra chi tiết từng trường
-      if (!productData.product_name) {
-        throw new Error('Thiếu tên sản phẩm');
-      }
-      if (!productData.product_code) {
-        throw new Error('Thiếu mã sản phẩm');
-      }
-      if (!productData.price || isNaN(parseFloat(productData.price))) {
-        throw new Error('Giá sản phẩm không hợp lệ');
-      }
-      if (!productData.company_id) {
-        throw new Error('Thiếu company_id');
-      }
-      if (!Array.isArray(productData.image_urls) || productData.image_urls.length === 0) {
-        throw new Error('Cần ít nhất một ảnh sản phẩm');
+      // Thêm thông tin người tạo nếu chưa có
+      if (!productData.created_by_name) {
+        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+        productData.created_by_name = userDetails.username;
       }
 
       const response = await this.post('/api/products', productData);
+      
+      // Xóa cache liên quan đến sản phẩm
       this.clearProductsCache(productData.company_id);
+      
       return response;
     } catch (error) {
       console.error('Error creating product:', error);
@@ -425,6 +437,39 @@ class ApiService {
       return response;
     } catch (error) {
       console.error('Error updating product:', error);
+      throw error;
+    }
+  }
+
+  // Thêm phương thức getProductsWithCache
+  async getProductsWithCache(params) {
+    const cacheKey = this.getProductsCacheKey(params);
+    const cachedData = this.getCacheData(cacheKey);
+
+    // Nếu có cache và chưa hết hạn
+    if (cachedData && !this.isCacheExpired(cachedData.timestamp)) {
+      return cachedData.data;
+    }
+
+    // Gọi API và lưu cache
+    const data = await this.get('/api/products', { params });
+    this.setCacheData(cacheKey, data);
+    return data;
+  }
+
+  // Thêm phương thức isCacheExpired
+  isCacheExpired(timestamp) {
+    return Date.now() - timestamp > this.CACHE_DURATION;
+  }
+
+  // Thêm phương thức xóa sản phẩm
+  async deleteProduct(productId) {
+    try {
+      const response = await this.delete(`/api/products/${productId}`);
+      this.clearCacheByPrefix('products_');
+      return response;
+    } catch (error) {
+      console.error('Error deleting product:', error);
       throw error;
     }
   }

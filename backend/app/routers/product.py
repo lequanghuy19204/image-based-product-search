@@ -6,6 +6,7 @@ from app.config.firebase_config import db
 from datetime import datetime
 from google.cloud import firestore
 import math
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 product_router = APIRouter()
 
@@ -15,11 +16,16 @@ async def create_product(
     current_user: dict = Depends(verify_token)
 ):
     try:
-        # Tạo document sản phẩm mới với URLs ảnh từ Cloudinary
+        # Lấy thông tin user
+        user_doc = db.collection('users').document(current_user["sub"]).get()
+        user_data = user_doc.to_dict()
+        
+        # Tạo document sản phẩm mới
         doc_ref = db.collection('products').document()
         product_dict = {
             **product_data.dict(),
             'created_by': current_user['sub'],
+            'created_by_name': user_data.get('username', 'Unknown'),
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
@@ -67,35 +73,43 @@ async def get_products(
     search: str = None,
     page: int = 1,
     limit: int = 10,
-    company_id: str = None
+    company_id: str = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc"
 ):
     try:
         # Lấy thông tin user
         user_doc = db.collection('users').document(current_user["sub"]).get()
         user_data = user_doc.to_dict()
 
-        # Tạo query cơ bản
-        products_ref = db.collection('products')
-        
-        # Filter theo company_id từ request hoặc từ user data
+        # Sử dụng company_id từ user nếu không có trong request
         company_id = company_id or user_data.get("company_id")
         if not company_id:
             raise HTTPException(status_code=400, detail="Company ID is required")
-            
-        products_ref = products_ref.where("company_id", "==", company_id)
+
+        # Tạo query với filter theo company_id
+        products_ref = db.collection('products').where(
+            filter=FieldFilter("company_id", "==", company_id)
+        )
 
         # Tối ưu query bằng cách thêm composite index
         if search:
-            products_ref = products_ref.where("product_name", ">=", search)\
-                                    .where("product_name", "<=", search + '\uf8ff')
+            products_ref = products_ref.where(filter=FieldFilter("product_name", ">=", search))\
+                                    .where(filter=FieldFilter("product_name", "<=", search + '\uf8ff'))
+
+        # Sắp xếp
+        if sort_by and sort_order:
+            if sort_order.lower() == "asc":
+                products_ref = products_ref.order_by(sort_by, direction=firestore.Query.ASCENDING)
+            else:
+                products_ref = products_ref.order_by(sort_by, direction=firestore.Query.DESCENDING)
 
         # Đếm tổng số sản phẩm
         total_query = products_ref.count()
         total_docs = total_query.get()[0][0].value
 
-        # Sắp xếp và giới hạn kết quả
-        products_ref = products_ref.order_by("created_at", direction=firestore.Query.DESCENDING)\
-                                 .offset((page - 1) * limit)\
+        # Phân trang
+        products_ref = products_ref.offset((page - 1) * limit)\
                                  .limit(limit)
 
         # Thực hiện query và xử lý kết quả
@@ -103,7 +117,7 @@ async def get_products(
         user_refs = {}
         
         # Lấy documents
-        docs = list(products_ref.stream())  # Convert to list để có thể dùng nhiều lần
+        docs = list(products_ref.stream())
         
         # Thu thập user references
         for doc in docs:
@@ -133,7 +147,7 @@ async def get_products(
                 product_data["created_by_name"] = creator.get("username", "Unknown")
             
             products.append(product_data)
-
+            
         return {
             "data": products,
             "total": total_docs,
