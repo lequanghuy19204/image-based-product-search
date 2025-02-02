@@ -50,6 +50,7 @@ function ProductManagement() {
   const [sortField, setSortField] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
   const [userRole, setUserRole] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -178,28 +179,33 @@ function ProductManagement() {
     return user?.role === 'Admin';
   };
 
-  // Thay thế hàm handleDelete cũ bằng 2 hàm mới
-  const handleDeleteClick = (product) => {
-    setSelectedProduct(product);
+  // Thêm hàm xử lý mở dialog xóa
+  const handleOpenDeleteDialog = (productId) => {
+    setSelectedProductId(productId);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!selectedProduct) return;
+  // Hàm xử lý xóa sản phẩm
+  const handleDeleteProduct = async () => {
+    if (!selectedProductId) return;
 
     try {
       setDeleteLoading(true);
-      await apiService.delete(`/api/products/${selectedProduct.id}`);
-      clearProductCache(); // Xóa cache khi có thay đổi
+      await apiService.deleteProduct(selectedProductId);
+      
+      // Xóa cache và fetch lại dữ liệu
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      apiService.clearProductsCache(userDetails.company_id);
+      await fetchProducts(true);
+      
       setSuccessMessage('Xóa sản phẩm thành công');
       setDeleteDialogOpen(false);
-      setSelectedProduct(null);
-      fetchProducts(true);
     } catch (error) {
       console.error('Error deleting product:', error);
-      setError('Không thể xóa sản phẩm. Vui lòng thử lại.');
+      setError(error.message || 'Không thể xóa sản phẩm');
     } finally {
       setDeleteLoading(false);
+      setSelectedProductId(null);
     }
   };
 
@@ -384,34 +390,6 @@ function ProductManagement() {
     }
   };
 
-  // Thêm hàm xóa sản phẩm
-  const handleDeleteProduct = async (productId) => {
-    try {
-      setDeleteLoading(true);
-      
-      // Lấy thông tin sản phẩm để xóa cache
-      const productToDelete = products.find(p => p.id === productId);
-      
-      await apiService.delete(`/api/products/${productId}`);
-      
-      // Xóa cache trước
-      if (productToDelete?.company_id) {
-        apiService.clearProductsCache(productToDelete.company_id);
-      }
-      
-      // Fetch lại dữ liệu mới từ server
-      await fetchProducts(true);
-      
-      setSuccessMessage('Xóa sản phẩm thành công');
-      setDeleteDialogOpen(false);
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      setError('Không thể xóa sản phẩm');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
   // Hàm xử lý khi click vào nút thêm sản phẩm
   const handleAddProductClick = () => {
     if (!isAdmin()) {
@@ -586,7 +564,7 @@ function ProductManagement() {
                             </button>
                             <button 
                               className="btn btn-sm btn-icon text-danger"
-                              onClick={() => handleDeleteProduct(product.id)}
+                              onClick={() => handleOpenDeleteDialog(product.id)}
                               disabled={deleteLoading}
                               title="Xóa"
                             >
@@ -661,8 +639,16 @@ function ProductManagement() {
         initialData={selectedProduct}
       />
 
-      {/* Thêm Dialog xác nhận xóa */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      {/* Dialog xác nhận xóa */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => {
+          if (!deleteLoading) {
+            setDeleteDialogOpen(false);
+            setSelectedProductId(null);
+          }
+        }}
+      >
         <DialogTitle>Xác nhận xóa</DialogTitle>
         <DialogContent>
           Bạn có chắc chắn muốn xóa sản phẩm này?
@@ -675,7 +661,7 @@ function ProductManagement() {
             Hủy
           </Button>
           <Button 
-            onClick={handleDeleteConfirm} 
+            onClick={handleDeleteProduct} 
             color="error" 
             variant="contained"
             disabled={deleteLoading}
