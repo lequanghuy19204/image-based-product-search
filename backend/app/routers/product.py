@@ -7,6 +7,7 @@ from datetime import datetime
 from google.cloud import firestore
 import math
 from google.cloud.firestore_v1.base_query import FieldFilter
+from app.utils.image_processing import process_image
 
 product_router = APIRouter()
 
@@ -32,16 +33,21 @@ async def create_product(
         
         doc_ref.set(product_dict)
         
-        # Tạo các documents ảnh
+        # Tạo các documents ảnh với đặc trưng và hash
         batch = db.batch()
         for url in product_data.image_urls:
+            # Trích xuất đặc trưng và tính hash
+            features, image_hash = process_image(url)
+            
             image_ref = db.collection('images').document()
             image_data = {
                 'image_url': url,
                 'company_id': product_data.company_id,
                 'product_id': doc_ref.id,
                 'uploaded_by': current_user['sub'],
-                'created_at': datetime.utcnow()
+                'created_at': datetime.utcnow(),
+                'features': features,
+                'image_hash': image_hash
             }
             batch.set(image_ref, image_data)
         

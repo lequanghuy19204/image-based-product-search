@@ -10,6 +10,8 @@ class ProductCreate(BaseModel):
     price: float
     company_id: str
     image_urls: List[str]
+    features: Optional[List[List[float]]] = None  # Vector đặc trưng cho mỗi ảnh
+    image_hashes: Optional[List[str]] = None      # Hash cho mỗi ảnh
 
 class ProductUpdate(BaseModel):
     product_name: Optional[str] = None

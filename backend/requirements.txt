@@ -6,3 +6,9 @@ passlib==1.7.4
 python-jose[cryptography]==3.3.0
 pydantic[email]==1.10.12
 bcrypt==4.0.1
+tensorflow==2.15.0
+keras==2.15.0
+numpy==1.26.0
+imagehash==4.2.1
+Pillow==10.1.0
+requests==2.31.0
