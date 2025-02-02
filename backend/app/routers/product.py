@@ -71,6 +71,7 @@ async def check_user_permission(current_user: dict, company_id: str):
 async def get_products(
     current_user: dict = Depends(verify_token),
     search: str = None,
+    search_field: str = 'all',
     page: int = 1,
     limit: int = 10,
     company_id: str = None,
@@ -92,10 +93,40 @@ async def get_products(
             filter=FieldFilter("company_id", "==", company_id)
         )
 
-        # Tối ưu query bằng cách thêm composite index
+        # Thêm điều kiện tìm kiếm
         if search:
-            products_ref = products_ref.where(filter=FieldFilter("product_name", ">=", search))\
-                                    .where(filter=FieldFilter("product_name", "<=", search + '\uf8ff'))
+            if search_field == 'code':
+                products_ref = products_ref.where(
+                    filter=FieldFilter("product_code", "==", search)
+                )
+            elif search_field == 'name':
+                products_ref = products_ref.where(
+                    filter=FieldFilter("product_name", ">=", search)
+                ).where(
+                    filter=FieldFilter("product_name", "<=", search + '\uf8ff')
+                )
+            elif search_field == 'creator':
+                # Tìm user theo username
+                users_ref = db.collection('users').where(
+                    filter=FieldFilter("username", ">=", search)
+                ).where(
+                    filter=FieldFilter("username", "<=", search + '\uf8ff')
+                )
+                users = users_ref.stream()
+                user_ids = [user.id for user in users]
+                
+                if user_ids:
+                    products_ref = products_ref.where(
+                        filter=FieldFilter("created_by", "in", user_ids)
+                    )
+            elif search_field == 'price':
+                try:
+                    price = float(search)
+                    products_ref = products_ref.where(
+                        filter=FieldFilter("price", "==", price)
+                    )
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Giá phải là số")
 
         # Sắp xếp
         if sort_by and sort_order:

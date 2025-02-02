@@ -505,6 +505,16 @@ class ApiService {
       throw error;
     }
   }
+
+  async searchProducts(params) {
+    try {
+      const response = await this.get('/api/products', { params });
+      return response;
+    } catch (error) {
+      console.error('Error searching products:', error);
+      throw error;
+    }
+  }
 }
 
 // Export apiService instance

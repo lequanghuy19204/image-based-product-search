@@ -51,6 +51,8 @@ function ProductManagement() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [userRole, setUserRole] = useState('');
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all'); // 'all', 'code', 'name', 'creator', 'price'
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -400,6 +402,30 @@ function ProductManagement() {
     setShowDialog(true);
   };
 
+  // Hàm xử lý tìm kiếm
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      
+      const params = {
+        page: 1,
+        limit: rowsPerPage,
+        search: searchQuery,
+        search_field: searchField
+      };
+
+      const data = await apiService.get('/api/products', { params });
+      setProducts(data.data);
+      setTotalItems(data.total);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Error searching products:', error);
+      setError('Không thể tìm kiếm sản phẩm');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="layout-container">
       <Sidebar 
@@ -439,18 +465,43 @@ function ProductManagement() {
           <div className="toolbar">
             <div className="d-flex align-items-center gap-3">
               <h4 className="mb-0">Quản lý Sản phẩm</h4>
-              <div className="input-group search-field">
+              
+              {/* Cập nhật giao diện tìm kiếm */}
+              <div className="input-group search-field" style={{ maxWidth: '400px' }}>
+                <select
+                  className="form-select"
+                  style={{ maxWidth: '100px' }}
+                  value={searchField}
+                  onChange={(e) => setSearchField(e.target.value)}
+                >
+                  <option value="code">Mã SP</option>
+                  <option value="name">Tên SP</option>
+                  <option value="creator">Người tạo</option>
+                  <option value="price">Giá</option>
+                </select>
+                
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nhập từ khóa tìm kiếm..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <button className="btn btn-outline-secondary">
-                  <SearchIcon fontSize="small" />
+                
+                <button 
+                  className="btn btn-outline-secondary" 
+                  onClick={handleSearch}
+                  disabled={loading}
+                >
+                  {/* {loading ? (
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  ) : ( */}
+                    <SearchIcon fontSize="small" />
+                  {/* )} */}
                 </button>
               </div>
+
               <button 
                 className="btn btn-outline-secondary"
                 onClick={() => handleRefresh(true)}
