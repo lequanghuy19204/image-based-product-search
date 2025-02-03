@@ -11,6 +11,9 @@ from app.utils.image_processing import process_image
 import logging
 import asyncio
 
+# Khai báo logger
+logger = logging.getLogger(__name__)
+
 product_router = APIRouter()
 
 @product_router.post("/", response_model=ProductResponse)
