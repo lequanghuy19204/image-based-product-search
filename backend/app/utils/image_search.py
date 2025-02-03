@@ -1,6 +1,7 @@
 from tensorflow.keras.applications import EfficientNetB0
+import efficientnet.tfkeras as efn
 from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.efficientnet import preprocess_input
+from efficientnet.tfkeras import preprocess_input
 import numpy as np
 import imagehash
 from PIL import Image
@@ -21,7 +22,7 @@ class ImageSearchEngine:
 
     def get_model(self):
         if self.model is None:
-            self.model = EfficientNetB0(
+            self.model = efn.EfficientNetLiteB0(
                 weights='imagenet', 
                 include_top=False, 
                 pooling='avg'

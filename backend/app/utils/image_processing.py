@@ -8,6 +8,7 @@ import requests
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import efficientnet.tfkeras as efn
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,11 @@ def get_model():
     """Lazy loading cho model"""
     global model
     if model is None:
-        model = EfficientNetB0(weights='imagenet', include_top=False, pooling='avg')
+        model = efn.EfficientNetLiteB0(
+            weights='imagenet', 
+            include_top=False, 
+            pooling='avg'
+        )
     return model
 
 def download_image(url):
@@ -47,7 +52,7 @@ def preprocess_image(img):
         # Chuyển thành array
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
-        return preprocess_input(img_array)
+        return efn.preprocess_input(img_array)
     except Exception as e:
         logger.error(f"Error preprocessing image: {str(e)}")
         return None
