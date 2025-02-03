@@ -192,29 +192,26 @@ function ImageSearch() {
             </div>
 
             <div className="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-3">
-              {searchResults.map((item) => (
-                <div key={item.id} className="col">
+              {searchResults.map((item, index) => (
+                <div key={`${item.id}-${index}`} className="col">
                   <div className="card h-100">
                     <img
                       src={item.imageUrl}
-                      className="card-img-top"
                       alt={item.title}
+                      className="card-img-top"
+                      style={{ height: '200px', objectFit: 'cover' }}
                     />
-                    <div className="card-body d-flex flex-column justify-content-between">
-                      <div>
-                        <h6 className="card-title" title={item.title}>{item.title}</h6>
-                        <p className="card-text text-primary fw-bold mb-2">{item.price}</p>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <small className="text-muted">
-                          <i className="bi bi-heart me-1"></i>
-                          {item.likes}
-                        </small>
-                        <small className="text-muted">
-                          <i className="bi bi-eye me-1"></i>
-                          {item.views}
-                        </small>
-                      </div>
+                    <div className="card-body">
+                      <h6 className="card-title">{item.title}</h6>
+                      <p className="card-text text-muted small mb-1">
+                        Mã SP: {item.productCode}
+                      </p>
+                      <p className="card-text text-primary fw-bold mb-1">
+                        {item.price}
+                      </p>
+                      <p className="card-text text-success small mb-0">
+                        Độ tương đồng: {item.similarity}
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -48,18 +48,24 @@ async def search_similar_images(
 
         # Lấy thông tin sản phẩm cho mỗi kết quả
         enriched_results = []
+        seen_product_ids = set()  # Thêm set để theo dõi các product_id đã xử lý
+
         for result in results:
-            product_doc = db.collection('products').document(result['product_id']).get()
-            if product_doc.exists:
-                product_data = product_doc.to_dict()
-                enriched_results.append({
-                    **result,
-                    'product_name': product_data.get('product_name'),
-                    'product_code': product_data.get('product_code'),
-                    'price': product_data.get('price'),
-                    'brand': product_data.get('brand'),
-                    'description': product_data.get('description')
-                })
+            product_id = result['product_id']
+            # Kiểm tra nếu product_id đã tồn tại
+            if product_id not in seen_product_ids:
+                seen_product_ids.add(product_id)  # Thêm product_id vào set
+                product_doc = db.collection('products').document(product_id).get()
+                if product_doc.exists:
+                    product_data = product_doc.to_dict()
+                    enriched_results.append({
+                        **result,
+                        'product_name': product_data.get('product_name'),
+                        'product_code': product_data.get('product_code'),
+                        'price': product_data.get('price'),
+                        'brand': product_data.get('brand'),
+                        'description': product_data.get('description')
+                    })
 
         return {
             "total": len(enriched_results),
