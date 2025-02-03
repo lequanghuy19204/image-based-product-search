@@ -8,6 +8,7 @@ from google.cloud import firestore
 import math
 from google.cloud.firestore_v1.base_query import FieldFilter
 from app.utils.image_processing import process_image
+import logging
 
 product_router = APIRouter()
 
@@ -33,32 +34,35 @@ async def create_product(
         
         doc_ref.set(product_dict)
         
-        # Tạo các documents ảnh với đặc trưng và hash
-        batch = db.batch()
+        # Xử lý ảnh song song
+        image_tasks = []
         for url in product_data.image_urls:
-            # Trích xuất đặc trưng và tính hash
             features, image_hash = process_image(url)
-            
-            image_ref = db.collection('images').document()
-            image_data = {
-                'image_url': url,
-                'company_id': product_data.company_id,
-                'product_id': doc_ref.id,
-                'uploaded_by': current_user['sub'],
-                'created_at': datetime.utcnow(),
-                'features': features,
-                'image_hash': image_hash
-            }
-            batch.set(image_ref, image_data)
+            if features and image_hash:
+                image_tasks.append({
+                    'image_url': url,
+                    'company_id': product_data.company_id,
+                    'product_id': doc_ref.id,
+                    'uploaded_by': current_user['sub'],
+                    'created_at': datetime.utcnow(),
+                    'features': features,
+                    'image_hash': image_hash
+                })
         
-        # Thực hiện batch write
-        batch.commit()
+        # Batch write cho images
+        if image_tasks:
+            batch = db.batch()
+            for task in image_tasks:
+                image_ref = db.collection('images').document()
+                batch.set(image_ref, task)
+            batch.commit()
         
         return {
             'id': doc_ref.id,
             **product_dict
         }
     except Exception as e:
+        logger.error(f"Error in create_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 async def check_user_permission(current_user: dict, company_id: str):
