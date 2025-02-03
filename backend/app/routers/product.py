@@ -9,6 +9,7 @@ import math
 from google.cloud.firestore_v1.base_query import FieldFilter
 from app.utils.image_processing import process_image
 import logging
+import asyncio
 
 product_router = APIRouter()
 
@@ -22,45 +23,55 @@ async def create_product(
         user_doc = db.collection('users').document(current_user["sub"]).get()
         user_data = user_doc.to_dict()
         
-        # Tạo document sản phẩm mới
+        # Tạo document sản phẩm mới trước
         doc_ref = db.collection('products').document()
         product_dict = {
-            **product_data.dict(),
+            **product_data.dict(exclude={'features', 'image_hashes'}),
             'created_by': current_user['sub'],
             'created_by_name': user_data.get('username', 'Unknown'),
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
         
+        # Lưu sản phẩm ngay lập tức
         doc_ref.set(product_dict)
         
-        # Xử lý ảnh song song
-        image_tasks = []
-        for url in product_data.image_urls:
-            features, image_hash = process_image(url)
-            if features and image_hash:
-                image_tasks.append({
-                    'image_url': url,
-                    'company_id': product_data.company_id,
-                    'product_id': doc_ref.id,
-                    'uploaded_by': current_user['sub'],
-                    'created_at': datetime.utcnow(),
-                    'features': features,
-                    'image_hash': image_hash
-                })
+        # Tạo task xử lý ảnh bất đồng bộ
+        async def process_images():
+            try:
+                image_tasks = []
+                for url in product_data.image_urls:
+                    features, image_hash = process_image(url)
+                    if features and image_hash:
+                        image_tasks.append({
+                            'image_url': url,
+                            'company_id': product_data.company_id,
+                            'product_id': doc_ref.id,
+                            'uploaded_by': current_user['sub'],
+                            'created_at': datetime.utcnow(),
+                            'features': features,
+                            'image_hash': image_hash
+                        })
+
+                # Batch write cho images nếu có
+                if image_tasks:
+                    batch = db.batch()
+                    for task in image_tasks:
+                        image_ref = db.collection('images').document()
+                        batch.set(image_ref, task)
+                    batch.commit()
+            except Exception as e:
+                logger.error(f"Error processing images: {str(e)}")
+
+        # Chạy xử lý ảnh bất đồng bộ
+        asyncio.create_task(process_images())
         
-        # Batch write cho images
-        if image_tasks:
-            batch = db.batch()
-            for task in image_tasks:
-                image_ref = db.collection('images').document()
-                batch.set(image_ref, task)
-            batch.commit()
-        
+        # Trả về response ngay
         return {
             'id': doc_ref.id,
             **product_dict
         }
+
     except Exception as e:
         logger.error(f"Error in create_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -218,23 +229,67 @@ async def update_product(
         # Kiểm tra quyền
         await check_user_permission(current_user, existing_data["company_id"])
         
-        # Cập nhật dữ liệu
+        # Tạo batch để xử lý nhiều thao tác
+        batch = db.batch()
+        
+        # Cập nhật thông tin sản phẩm
         update_data = {
             k: v for k, v in product_data.dict(exclude_unset=True).items()
             if v is not None
         }
         update_data["updated_at"] = datetime.utcnow()
         
-        # Cập nhật sản phẩm
-        db.collection('products').document(product_id).update(update_data)
+        # Nếu có cập nhật ảnh
+        if "image_urls" in update_data:
+            new_image_urls = set(update_data["image_urls"])
+            old_image_urls = set(existing_data["image_urls"])
+            
+            # Xác định ảnh thêm mới và ảnh bị xóa
+            added_images = new_image_urls - old_image_urls
+            removed_images = old_image_urls - new_image_urls
+            
+            # Xóa các ảnh cũ trong collection images
+            if removed_images:
+                images_to_delete = db.collection('images').where(
+                    filter=FieldFilter("product_id", "==", product_id)
+                ).where(
+                    filter=FieldFilter("image_url", "in", list(removed_images))
+                ).stream()
+                
+                for img_doc in images_to_delete:
+                    batch.delete(img_doc.reference)
+            
+            # Thêm các ảnh mới vào collection images
+            if added_images:
+                for url in added_images:
+                    features, image_hash = process_image(url)
+                    if features and image_hash:
+                        image_ref = db.collection('images').document()
+                        batch.set(image_ref, {
+                            'image_url': url,
+                            'company_id': existing_data["company_id"],
+                            'product_id': product_id,
+                            'uploaded_by': current_user['sub'],
+                            'created_at': datetime.utcnow(),
+                            'features': features,
+                            'image_hash': image_hash
+                        })
         
+        # Cập nhật document sản phẩm
+        product_ref = db.collection('products').document(product_id)
+        batch.update(product_ref, update_data)
+        
+        # Thực hiện tất cả các thao tác trong batch
+        batch.commit()
+        
+        # Trả về dữ liệu đã cập nhật
         return {
             "id": product_id,
             **{**existing_data, **update_data}
         }
 
     except Exception as e:
-        print(f"Error in update_product: {str(e)}")
+        logger.error(f"Error in update_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @product_router.delete("/{product_id}")

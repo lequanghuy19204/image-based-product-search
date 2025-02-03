@@ -93,50 +93,42 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
     setSubmitting(true);
     try {
-      // Upload ảnh lên Cloudinary
-      const imageFiles = images.filter(img => img.file).map(img => img.file);
-      const existingUrls = images.filter(img => img.isExisting).map(img => img.data_url);
-      
-      let newImageUrls = [];
-      if (imageFiles.length > 0) {
-        const uploadPromises = imageFiles.map(file => cloudinaryService.uploadImage(file));
+        // Tạo mảng promises cho việc upload ảnh
+        const imageFiles = images.filter(img => img.file).map(img => img.file);
+        const existingUrls = images.filter(img => img.isExisting).map(img => img.data_url);
+        
+        // Upload song song tất cả ảnh
+        const uploadPromises = imageFiles.map(file => 
+            cloudinaryService.uploadImage(file)
+        );
+        
+        // Chờ tất cả ảnh upload xong
         const uploadedImages = await Promise.all(uploadPromises);
-        newImageUrls = uploadedImages.map(img => img.secure_url);
-      }
+        const newImageUrls = uploadedImages.map(img => img.secure_url);
+        
+        // Kết hợp URLs
+        const allImageUrls = [...existingUrls, ...newImageUrls];
 
-      // Kết hợp URLs
-      const allImageUrls = [...existingUrls, ...newImageUrls];
+        // Tạo product data
+        const productData = {
+            product_name: formData.product_name.trim(),
+            product_code: formData.product_code.trim(),
+            brand: formData.brand?.trim() || '',
+            description: formData.description?.trim() || '',
+            price: parseFloat(formData.price),
+            company_id: JSON.parse(localStorage.getItem('userDetails')).company_id,
+            image_urls: allImageUrls
+        };
 
-      // Tạo product data
-      const productData = {
-        product_name: formData.product_name.trim(),
-        product_code: formData.product_code.trim(),
-        brand: formData.brand?.trim() || '',
-        description: formData.description?.trim() || '',
-        price: parseFloat(formData.price),
-        company_id: JSON.parse(localStorage.getItem('userDetails')).company_id,
-        image_urls: allImageUrls
-      };
-
-      // Thêm thông tin người tạo
-      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      const productWithCreator = {
-        ...productData,
-        created_by: userDetails.id,
-        created_by_name: userDetails.username
-      };
-
-      await onSubmit(productWithCreator);
-      setSuccessMessage('Thêm sản phẩm thành công');
-      handleClose();
+        await onSubmit(productData);
+        handleClose();
     } catch (error) {
-      console.error('Submit error:', error);
-      setErrors(prev => ({
-        ...prev,
-        submit: error.message || 'Có lỗi xảy ra'
-      }));
+        setErrors(prev => ({
+            ...prev, 
+            submit: error.message || 'Có lỗi xảy ra'
+        }));
     } finally {
-      setSubmitting(false);
+        setSubmitting(false);
     }
   };
 

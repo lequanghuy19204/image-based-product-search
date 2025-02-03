@@ -429,16 +429,20 @@ class ApiService {
       throw new Error('Bạn không có quyền thêm sản phẩm mới');
     }
     try {
-      // Thêm thông tin người tạo nếu chưa có
-      if (!productData.created_by_name) {
-        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-        productData.created_by_name = userDetails.username;
-      }
+      // Thêm timeout để tránh request quá lâu
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
 
-      const response = await this.post('/api/products', productData);
+      const response = await this.post('/api/products', productData, {
+        signal: controller.signal
+      });
       
-      // Xóa cache liên quan đến sản phẩm
-      this.clearProductsCache(productData.company_id);
+      clearTimeout(timeout);
+      
+      // Xóa cache bất đồng bộ
+      setTimeout(() => {
+        this.clearProductsCache(productData.company_id);
+      }, 0);
       
       return response;
     } catch (error) {
