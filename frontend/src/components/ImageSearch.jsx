@@ -62,7 +62,7 @@ function ImageSearch() {
       const formData = new FormData();
       formData.append('file', images[0].file);
       formData.append('company_id', company_id);
-      formData.append('top_k', 5); // Sửa thành number
+      formData.append('top_k', 8);
 
       const response = await apiService.postFormData('/api/images/search', formData);
 
@@ -191,7 +191,7 @@ function ImageSearch() {
               <span className="badge bg-primary">{searchResults.length} sản phẩm</span>
             </div>
 
-            <div className="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-3">
+            <div className="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-3">
               {searchResults.map((item, index) => (
                 <div key={`${item.id}-${index}`} className="col">
                   <div className="card h-100">

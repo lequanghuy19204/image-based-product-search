@@ -16,7 +16,7 @@ search_engine = ImageSearchEngine()
 async def search_similar_images(
     file: UploadFile = File(..., description="Ảnh cần tìm kiếm"),
     company_id: str = Form(..., min_length=1),
-    top_k: int = Form(5, ge=1, le=20),
+    top_k: int = Form(8, ge=1, le=20),
     current_user: dict = Depends(verify_token)
 ):
     try:

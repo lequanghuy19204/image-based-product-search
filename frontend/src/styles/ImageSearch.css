@@ -70,7 +70,7 @@
 .card.h-100 {
   border-radius: var(--border-radius);
   transition: transform 0.3s ease;
-  min-height: 280px;
+  min-height: 350px;
 }
 
 .card.h-100:hover {
@@ -78,8 +78,10 @@
 }
 
 .card-img-top {
-  height: 150px !important;
-  object-fit: cover;
+  height: auto !important;
+  object-fit: contain !important;
+  max-height: 300px;
+  width: 100%;
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
 }
