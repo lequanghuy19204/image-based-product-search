@@ -292,70 +292,33 @@ class ApiService {
   // Cập nhật các phương thức mutation để xóa cache
   async postFormData(endpoint, data, requiresAuth = true) {
     try {
-        const headers = {
-            ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
-        };
+      const headers = {
+        ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
+      };
 
-        // Upload ảnh trước
-        const imageUrls = [];
-        const imageFiles = data.getAll('images');
-        if (imageFiles.length > 0) {
-            for (let file of imageFiles) {
-                const imageFormData = new FormData();
-                imageFormData.append('file', file);
-                imageFormData.append('company_id', data.get('company_id'));
-                
-                const uploadResponse = await fetch(`${this.baseURL}/api/products/upload`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: imageFormData
-                });
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: headers,
+        body: data
+      });
 
-                if (!uploadResponse.ok) {
-                    const errorData = await uploadResponse.json();
-                    throw new Error(errorData.detail || 'Lỗi khi upload ảnh');
-                }
+      const responseData = await response.json();
 
-                const uploadResult = await uploadResponse.json();
-                imageUrls.push(uploadResult.url);
-            }
+      if (!response.ok) {
+        // Xử lý lỗi 422 chi tiết
+        if (response.status === 422) {
+          const validationErrors = responseData.detail.map(err => 
+            `${err.loc[1]} ${err.msg}`
+          ).join('\n');
+          throw new Error(`Lỗi validation: ${validationErrors}`);
         }
+        throw new Error(responseData.detail || 'Lỗi không xác định');
+      }
 
-        // Tạo FormData mới cho sản phẩm
-        const productFormData = new FormData();
-        for (let [key, value] of data.entries()) {
-            if (key !== 'images') {
-                productFormData.append(key, value);
-            }
-        }
-        // Thêm image_urls vào form data
-        if (imageUrls.length > 0) {
-            productFormData.append('image_urls', JSON.stringify(imageUrls));
-        }
-
-        const response = await fetch(`${this.baseURL}${endpoint}`, {
-            method: 'POST',
-            headers: headers,
-            body: productFormData
-        });
-
-        const responseData = await response.json();
-
-        if (!response.ok) {
-            if (typeof responseData === 'object' && responseData.detail) {
-                throw new Error(responseData.detail);
-            } else if (Array.isArray(responseData)) {
-                const errorMessages = responseData.map(err => err.msg).join(', ');
-                throw new Error(errorMessages);
-            } else {
-                throw new Error('Có lỗi xảy ra khi xử lý yêu cầu');
-            }
-        }
-
-        return responseData;
+      return responseData;
     } catch (error) {
-        console.error('API request failed:', error);
-        throw error;
+      console.error('API request failed:', error);
+      throw new Error(error.message || 'Lỗi kết nối server');
     }
   }
 

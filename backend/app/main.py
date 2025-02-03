@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import api
 from app.routers.auth import auth_router
 from app.routers.admin import admin_router
+from app.routers.image_search import image_search_router
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
 from app.routers.product import product_router
@@ -68,5 +69,13 @@ app.include_router(
     product_router,
     prefix="/api/products",
     tags=["Products"],
+    dependencies=[Depends(verify_token)]
+)
+
+# Thêm image search router
+app.include_router(
+    image_search_router,
+    prefix="/api/images",
+    tags=["Image Search"],
     dependencies=[Depends(verify_token)]
 )

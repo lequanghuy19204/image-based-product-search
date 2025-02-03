@@ -3,6 +3,8 @@ import ImageUploading from 'react-images-uploading';
 import { CloudUpload, Search, Delete, ImageSearch as ImageSearchIcon } from '@mui/icons-material';
 import Sidebar from './common/Sidebar';
 import '../styles/ImageSearch.css';
+import { apiService } from '../services/api.service';
+
 
 function ImageSearch() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -49,33 +51,38 @@ function ImageSearch() {
     
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Giả lập kết quả tìm kiếm với thêm thông tin
-      setSearchResults([
-        {
-          id: 1,
-          imageUrl: 'https://picsum.photos/400/300',
-          title: 'Áo thun nam',
-          price: '199.000đ',
-          similarity: '98%',
-          likes: 120,
-          views: 1500,
-          description: 'Áo thun nam chất liệu cotton 100%, thoáng mát',
-          uploadDate: '2024-03-15',
-          author: 'Shop ABC'
-        },
-        // ... thêm các kết quả khác
-      ]);
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      const company_id = userDetails?.company_id;
+
+      // Validate company_id
+      if (!company_id) {
+        throw new Error('Không tìm thấy thông tin công ty');
+      }
+
+      const formData = new FormData();
+      formData.append('file', images[0].file);
+      formData.append('company_id', company_id);
+      formData.append('top_k', 5); // Sửa thành number
+
+      const response = await apiService.postFormData('/api/images/search', formData);
+
+      setSearchResults(response.results.map(result => ({
+        id: result.product_id,
+        imageUrl: result.image_url,
+        title: result.product_name,
+        price: `${result.price.toLocaleString()}đ`,
+        similarity: `${result.similarity.toFixed(1)}%`,
+        description: result.description,
+        brand: result.brand,
+        productCode: result.product_code
+      })));
+
     } catch (error) {
       console.error('Search error:', error);
+      alert(`Lỗi tìm kiếm: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleImageClick = (image) => {
-    setSelectedImage(image);
   };
 
   const handleCommentSubmit = () => {
