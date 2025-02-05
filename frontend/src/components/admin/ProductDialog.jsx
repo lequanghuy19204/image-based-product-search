@@ -3,7 +3,6 @@ import { Modal, Button } from 'react-bootstrap';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload as CloudUploadIcon, Close as CloseIcon } from '@mui/icons-material';
 import PropTypes from 'prop-types';
-import { apiService } from '../../services/api.service';
 import { cloudinaryService } from '../../services/cloudinary.service';
 
 function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
@@ -17,11 +16,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
   const [formData, setFormData] = useState(initialData || initialFormState);
   const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [uploadProgress, setUploadProgress] = useState({});
 
   const suggestedPrices = [
     { label: '50,000đ', value: 50000 },
@@ -47,7 +43,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
       });
 
       // Chuyển đổi URLs thành đối tượng ảnh
-      const initialImages = initialData.image_urls?.map((url, index) => ({
+      const initialImages = initialData.image_urls?.map((url) => ({
         data_url: url,
         file: null,
         isExisting: true // Đánh dấu ảnh đã tồn tại
