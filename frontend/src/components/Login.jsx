@@ -81,12 +81,6 @@ function Login() {
     try {
       setIsLoading(true);
       if (isLogin) {
-        const response = await authService.login(
-          formData.email, 
-          formData.password,
-          rememberMe
-        );
-        
         navigate('/search');
       } else {
         let company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
