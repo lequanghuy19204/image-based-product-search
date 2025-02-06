@@ -25,12 +25,18 @@ class ApiService {
         throw new Error('Phiên đăng nhập đã hết hạn');
       }
       
-      // Xử lý lỗi từ server
+      // Xử lý lỗi 422 Unprocessable Entity
+      if (response.status === 422 && data?.detail) {
+        if (Array.isArray(data.detail)) {
+          const errorMessages = data.detail.map(err => `${err.loc[1]}: ${err.msg}`).join(', ');
+          throw new Error(errorMessages);
+        }
+        throw new Error(data.detail);
+      }
+      
+      // Xử lý các lỗi khác
       if (data?.detail) {
         throw new Error(data.detail);
-      } else if (Array.isArray(data)) {
-        const errorMessages = data.map(err => err.msg || err.message).join(', ');
-        throw new Error(errorMessages);
       }
       throw new Error('Có lỗi xảy ra từ server');
     }

@@ -58,18 +58,46 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.username) newErrors.username = 'Vui lòng nhập tên người dùng';
-    if (!formData.email) newErrors.email = 'Vui lòng nhập email';
-    if (mode === 'add' && !formData.password) newErrors.password = 'Vui lòng nhập mật khẩu';
-    if (!formData.role) newErrors.role = 'Vui lòng chọn vai trò';
     
+    // Validate username
+    if (!formData.username) {
+      newErrors.username = 'Vui lòng nhập tên người dùng';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'Tên người dùng phải có ít nhất 3 ký tự';
+    }
+
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = 'Vui lòng nhập email';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+
+    // Validate password for new users
+    if (mode === 'add') {
+      if (!formData.password) {
+        newErrors.password = 'Vui lòng nhập mật khẩu';
+      } else if (formData.password.length < 6) {
+        newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+      }
+    }
+
+    // Validate role
+    if (!formData.role) {
+      newErrors.role = 'Vui lòng chọn vai trò';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData);
+      const submitData = {
+        ...formData,
+        role: formData.role || 'User' // Đảm bảo role luôn có giá trị
+      };
+      onSubmit(submitData);
     }
   };
 

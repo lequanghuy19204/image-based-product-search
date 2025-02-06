@@ -21,28 +21,63 @@ async def get_users(current_user: dict = Depends(verify_admin)):
         if not company_id:
             raise HTTPException(status_code=400, detail="Người dùng chưa được gán công ty")
 
-        # Lấy danh sách users cùng company
-        users_cursor = users_collection.find({"company_id": company_id})
-        users = await users_cursor.to_list(None)
-        
-        # Format response
-        formatted_users = [
+        # Pipeline để join với companies collection
+        pipeline = [
             {
-                "id": str(user["_id"]),
-                "username": user["username"],
-                "email": user["email"],
-                "role": user["role"],
-                "status": user.get("status", "active"),
-                "company_id": user["company_id"],
-                "created_at": user.get("created_at", datetime.utcnow()).isoformat(),
-                "updated_at": user.get("updated_at", datetime.utcnow()).isoformat()
+                "$match": {
+                    "company_id": company_id
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "companies",
+                    "let": {"companyIdStr": "$company_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", { "$toObjectId": "$$companyIdStr" }]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "company"
+                }
+            },
+            {
+                "$unwind": {
+                    "path": "$company",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "id": {"$toString": "$_id"},
+                    "username": 1,
+                    "email": 1,
+                    "role": 1,
+                    "status": 1,
+                    "company_id": 1,
+                    "created_at": { "$toString": "$created_at" },
+                    "updated_at": { "$toString": "$updated_at" },
+                    "company_name": { "$ifNull": ["$company.company_name", None] },
+                    "company_code": { "$ifNull": ["$company.company_code", None] }
+                }
+            },
+            {
+                "$sort": {
+                    "created_at": -1
+                }
             }
-            for user in users
         ]
+
+        users = await users_collection.aggregate(pipeline).to_list(None)
         
-        return formatted_users
+        return users
         
     except Exception as e:
+        print(f"Error in get_users: {str(e)}")  # Thêm log để debug
         raise HTTPException(status_code=500, detail=str(e))
 
 # Route cho cả admin và user
@@ -156,23 +191,31 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(verify
         # Kiểm tra email đã tồn tại
         existing_user = await users_collection.find_one({"email": user_data.email})
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+            raise HTTPException(
+                status_code=400, 
+                detail="Email đã được sử dụng"
+            )
 
         # Lấy thông tin admin hiện tại
         admin = await users_collection.find_one({"_id": ObjectId(current_user['sub'])})
+        if not admin:
+            raise HTTPException(
+                status_code=404, 
+                detail="Không tìm thấy thông tin admin"
+            )
+
         company_id = admin.get('company_id')
-
         if not company_id:
-            raise HTTPException(status_code=400, detail="Admin chưa được gán công ty")
+            raise HTTPException(
+                status_code=400, 
+                detail="Admin chưa được gán công ty"
+            )
 
-        # Hash password
-        password_hash = get_password_hash(user_data.password)
-        
-        # Tạo user mới
+        # Tạo user mới với dữ liệu đã validate
         new_user = {
             "username": user_data.username,
             "email": user_data.email,
-            "password_hash": password_hash,
+            "password_hash": get_password_hash(user_data.password),
             "role": user_data.role,
             "company_id": company_id,
             "status": "active",
@@ -188,15 +231,21 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(verify
         # Chuẩn bị response data
         response_data = {
             "id": str(result.inserted_id),
-            **new_user,
+            "username": new_user["username"],
+            "email": new_user["email"],
+            "role": new_user["role"],
+            "status": new_user["status"],
+            "company_id": company_id,
+            "created_at": new_user["created_at"].isoformat(),
+            "updated_at": new_user["updated_at"].isoformat(),
             "company_name": company.get('company_name', ''),
             "company_code": company.get('company_code', '')
         }
-        del response_data['password_hash']
         
         return response_data
 
     except Exception as e:
+        print(f"Error creating user: {str(e)}")  # Thêm log
         raise HTTPException(status_code=500, detail=str(e))
 
 @admin_router.put("/users/{user_id}")

@@ -40,6 +40,8 @@ function UserManagement() {
 
   const [currentUser, setCurrentUser] = useState(null);
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+  const CACHE_KEY = 'cachedUsers';
+  const CACHE_TIMESTAMP_KEY = 'cachedUsersTimestamp';
 
   // Thêm state để lưu trữ dữ liệu đã được filter và phân trang
   const [processedUsers, setProcessedUsers] = useState([]);
@@ -59,35 +61,77 @@ function UserManagement() {
     setPage(1);
   };
 
-
-  // Hàm kiểm tra xem có cần fetch lại data không
-  const shouldFetchData = () => {
-    const cachedTime = localStorage.getItem('cachedUsersTime');
-    if (!cachedTime) return true;
+  // Hàm lấy dữ liệu từ cache
+  const getCachedUsers = () => {
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
     
-    const timeElapsed = Date.now() - parseInt(cachedTime);
-    const isExpired = timeElapsed > CACHE_DURATION;
-    
-    // Đánh dấu data cũ nếu đã hết hạn cache
-    if (isExpired) setIsDataStale(true);
-    return isExpired;
+    if (cachedData && cachedTimestamp) {
+      const timeElapsed = Date.now() - parseInt(cachedTimestamp);
+      if (timeElapsed < CACHE_DURATION) {
+        return JSON.parse(cachedData);
+      }
+    }
+    return null;
   };
 
-  // Hàm xử lý fetch users với cache
-  const fetchUsers = async () => {
+  // Hàm lưu dữ liệu vào cache
+  const saveUsersToCache = (users) => {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(users));
+      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+      // Xóa bớt cache cũ nếu localStorage đầy
+      clearOldCache();
+    }
+  };
+
+  // Hàm xóa cache cũ
+  const clearOldCache = () => {
+    const keys = Object.keys(localStorage);
+    const userCacheKeys = keys.filter(key => key.startsWith('cachedUsers'));
+    
+    // Sắp xếp theo thời gian và xóa 50% cache cũ nhất
+    const cacheItems = userCacheKeys.map(key => {
+      try {
+        const timestamp = localStorage.getItem(`${key}Timestamp`);
+        return { key, timestamp: parseInt(timestamp) };
+      } catch {
+        return { key, timestamp: 0 };
+      }
+    }).sort((a, b) => a.timestamp - b.timestamp);
+
+    const itemsToRemove = Math.floor(cacheItems.length / 2);
+    cacheItems.slice(0, itemsToRemove).forEach(item => {
+      localStorage.removeItem(item.key);
+      localStorage.removeItem(`${item.key}Timestamp`);
+    });
+  };
+
+  // Hàm fetch users với cache
+  const fetchUsers = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError('');
+
+      // Nếu forceRefresh = true, xóa cache cũ trước khi gọi API
+      if (forceRefresh) {
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+      }
+
+      // Gọi API để lấy dữ liệu mới nhất
       const response = await apiService.getUsers();
       if (response) {
         setUsers(response);
         processAndUpdateUsers(response);
+        saveUsersToCache(response); // Lưu vào cache
       }
     } catch (err) {
       console.error('Error fetching users:', err);
       setError(err.message || 'Không thể tải danh sách người dùng');
       if (err.message.includes('đăng nhập')) {
-        // Redirect to login if session expired
         window.location.href = '/login';
       }
     } finally {
@@ -121,26 +165,38 @@ function UserManagement() {
     try {
       if (dialogMode === 'add') {
         const currentUser = JSON.parse(localStorage.getItem('userDetails'));
-        const userDataWithCompany = {
-          ...userData,
-          company_id: currentUser.company_id,
-          company_name: currentUser.company_name,
-          company_code: currentUser.company_code
+        const userDataToSubmit = {
+          username: userData.username,
+          email: userData.email,
+          password: userData.password,
+          role: userData.role || 'User',
+          company_id: currentUser.company_id
         };
 
-        const response = await apiService.post('/api/admin/users', userDataWithCompany);
+        // Gọi API thêm người dùng
+        const response = await apiService.post('/api/admin/users', userDataToSubmit);
+        
+        // Cập nhật state và cache
         const updatedUsers = [...users, response];
-        updateUserCache(updatedUsers);
+        setUsers(updatedUsers);
+        saveUsersToCache(updatedUsers);
+        
+        // Hiển thị thông báo thành công
         setSuccessMessage('Thêm người dùng thành công');
+        
+        // Tự động làm mới dữ liệu
+        await fetchUsers(true); // forceRefresh = true để lấy dữ liệu mới nhất
       } else {
         const response = await apiService.put(`/api/admin/users/${selectedUser.id}`, userData);
         const updatedUsers = users.map(u => u.id === selectedUser.id ? response : u);
-        updateUserCache(updatedUsers);
+        setUsers(updatedUsers);
+        saveUsersToCache(updatedUsers);
         setSuccessMessage('Cập nhật người dùng thành công');
+        setTimeout(() => setSuccessMessage(''), 3000);
       }
       setOpenDialog(false);
     } catch (error) {
-      setError('Không thể thực hiện thao tác. Vui lòng thử lại.');
+      setError(error.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
       console.error('Error submitting user:', error);
     }
   };
@@ -154,6 +210,7 @@ function UserManagement() {
       const updatedUsers = users.filter(u => u.id !== selectedUser.id);
       updateUserCache(updatedUsers);
       setSuccessMessage('Xóa người dùng thành công');
+      setTimeout(() => setSuccessMessage(''), 3000);
       setDeleteDialogOpen(false);
     } catch (error) {
       setError('Không thể xóa người dùng. Vui lòng thử lại.');
@@ -237,6 +294,15 @@ function UserManagement() {
   useEffect(() => {
     processAndUpdateUsers(users);
   }, [search, roleFilter, users, rowsPerPage]);
+
+  // Thêm useEffect để tự động cập nhật sau 30 phút
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUsers();
+    }, CACHE_DURATION);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Render phần data đã được xử lý
   const currentUsers = processedUsers.slice(

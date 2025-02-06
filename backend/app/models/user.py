@@ -1,22 +1,32 @@
-from pydantic import BaseModel, EmailStr, validator, Field
+from pydantic import BaseModel, EmailStr, validator, Field, constr
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
 from .object_id import PyObjectId
 
 class UserCreate(BaseModel):
-    username: str
+    username: constr(min_length=3, max_length=50)
     email: EmailStr
-    password: str
-    role: str
-    company_code: Optional[str] = None
-    company_name: Optional[str] = None
+    password: constr(min_length=6)
+    role: constr(regex='^(Admin|User)$') = 'User'
+    company_id: str = None
 
     @validator('role')
     def validate_role(cls, v):
         if v not in ["Admin", "User"]:
             raise ValueError('Role must be either "Admin" or "User"')
         return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "johndoe",
+                "email": "john@example.com",
+                "password": "secret123",
+                "role": "User",
+                "company_id": "507f1f77bcf86cd799439011"
+            }
+        }
 
 class UserLogin(BaseModel):
     email: EmailStr
