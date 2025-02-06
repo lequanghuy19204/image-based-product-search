@@ -73,13 +73,10 @@ class UpdateProfileRequest(BaseModel):
     email: EmailStr
 
 class UserStatusUpdate(BaseModel):
-    status: str
+    status: constr(regex='^(active|inactive)$')
 
-    @validator('status')
-    def validate_status(cls, v):
-        if v not in ['active', 'inactive']:
-            raise ValueError('Status must be either "active" or "inactive"')
-        return v
+class UserRoleUpdate(BaseModel):
+    role: constr(regex='^(Admin|User)$')
 
 class UserProfileResponse(BaseModel):
     id: str

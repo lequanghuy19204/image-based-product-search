@@ -339,8 +339,13 @@ class ApiService {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'PUT',
-        headers: this.getHeaders(),
-        body: JSON.stringify(data)
+        headers: {
+          ...this.getHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+        mode: 'cors'
       });
 
       return this.handleResponse(response);
@@ -359,7 +364,13 @@ class ApiService {
   }
 
   async updateUserStatus(userId, status) {
-    return await this.put(`/api/admin/users/${userId}/status?status=${status}`);
+    try {
+      const response = await this.put(`/api/admin/users/${userId}/status`, { status });
+      return response;
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      throw error;
+    }
   }
 
   async putFormData(endpoint, data) {
@@ -527,6 +538,16 @@ class ApiService {
       }));
     }
     return data;
+  }
+
+  async updateUserRole(userId, role) {
+    try {
+      const response = await this.put(`/api/admin/users/${userId}/role`, { role });
+      return response;
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      throw error;
+    }
   }
 }
 

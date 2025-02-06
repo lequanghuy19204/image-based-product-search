@@ -144,12 +144,7 @@ async def update_user_status(
         if result.modified_count == 0:
             raise HTTPException(status_code=400, detail="Không thể cập nhật trạng thái")
         
-        # Lấy thông tin user đã cập nhật
-        updated_user = await users_collection.find_one(
-            {"_id": ObjectId(user_id)},
-            {"password_hash": 0}
-        )
-        return updated_user
+        return {"message": "Cập nhật trạng thái thành công"}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

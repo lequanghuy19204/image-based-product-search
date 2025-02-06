@@ -11,7 +11,7 @@ import Sidebar from '../common/Sidebar';
 import { apiService } from '../../services/api.service';
 import '../../styles/UserManagement.css';
 import UserDialog from './UserDialog';
-import { Dialog, DialogActions, DialogContent, DialogTitle, Button } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Button, Switch } from '@mui/material';
 
 function UserManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -38,14 +38,14 @@ function UserManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const totalPages = Math.ceil(users.length / rowsPerPage);
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser] = useState(null);
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
   const CACHE_KEY = 'cachedUsers';
   const CACHE_TIMESTAMP_KEY = 'cachedUsersTimestamp';
 
   // Thêm state để lưu trữ dữ liệu đã được filter và phân trang
   const [processedUsers, setProcessedUsers] = useState([]);
-  const [isDataStale, setIsDataStale] = useState(false);
+  const [isDataStale] = useState(false);
 
   const [dialogMode, setDialogMode] = useState('add');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -225,58 +225,39 @@ function UserManagement() {
     setOpenDialog(true);
   };
 
-  // Xử lý thay đổi role
+  // Thay đổi hàm xử lý role
   const handleRoleChange = async (userId, currentRole) => {
     try {
       const newRole = currentRole === 'Admin' ? 'User' : 'Admin';
-      await apiService.put(`/api/admin/users/${userId}/role`, { role: newRole });
+      await apiService.updateUserRole(userId, newRole);
       
-      // Cập nhật state local
-      setUsers(users.map(u => {
-        if (u.id === userId) {
-          return { ...u, role: newRole };
-        }
-        return u;
-      }));
-
-      setSuccessMessage(`Đã thay đổi quyền thành ${newRole}`);
+      const updatedUsers = users.map(user => 
+        user.id === userId ? { ...user, role: newRole } : user
+      );
+      
+      setUsers(updatedUsers);
+      setSuccessMessage('Cập nhật vai trò thành công');
       setTimeout(() => setSuccessMessage(''), 3000);
-      
-      // Fetch lại dữ liệu sau khi cập nhật
-      await fetchUsers();
     } catch (error) {
-      setError('Không thể thay đổi quyền người dùng');
-      console.error('Error updating user role:', error);
+      setError(error.message);
     }
   };
 
-  // Xử lý thay đổi trạng thái
+  // Sửa lại hàm handleStatusChange
   const handleStatusChange = async (userId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      await apiService.updateUserStatus(userId, newStatus);
       
-      const response = await apiService.put(`/api/admin/users/${userId}/status`, {
-        status: newStatus
-      });
+      const updatedUsers = users.map(user => 
+        user.id === userId ? { ...user, status: newStatus } : user
+      );
       
-      if (response) {
-        // Cập nhật state local
-        setUsers(users.map(u => {
-          if (u.id === userId) {
-            return { ...u, ...response };
-          }
-          return u;
-        }));
-
-        setSuccessMessage(`Đã ${newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa'} tài khoản thành công`);
-        setTimeout(() => setSuccessMessage(''), 3000);
-        
-        // Fetch lại dữ liệu
-        await fetchUsers();
-      }
+      setUsers(updatedUsers);
+      setSuccessMessage('Cập nhật trạng thái thành công');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
-      setError(error.message || 'Không thể cập nhật trạng thái người dùng');
-      console.error('Error updating user status:', error);
+      setError(error.message);
     }
   };
 
@@ -313,6 +294,10 @@ function UserManagement() {
   const updateUserCache = (updatedUsers) => {
     setUsers(updatedUsers);
     localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
+  };
+
+  const isCurrentUser = (userId) => {
+    return userId === currentUser?.id;
   };
 
   return (
@@ -405,18 +390,32 @@ function UserManagement() {
                 </thead>
                 <tbody>
                   {currentUsers.map(user => (
-                    <tr key={user.id}>
+                    <tr key={user.id} className={user.id === currentUser?.id ? 'current-user-row' : ''}>
                       <td>{user.username}</td>
                       <td>{user.email}</td>
                       <td>
-                        <span className={`badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}`}>
-                          {user.role}
-                        </span>
+                        <div className="role-control">
+                          <span 
+                            className={`badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}`}
+                            onClick={() => !isCurrentUser(user.id) && handleRoleChange(user.id, user.role)}
+                            style={{ cursor: isCurrentUser(user.id) ? 'not-allowed' : 'pointer' }}
+                          >
+                            {user.role}
+                          </span>
+                        </div>
                       </td>
                       <td>
-                        <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
-                          {user.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
-                        </span>
+                        <div className="status-control">
+                          <Switch
+                            checked={user.status === 'active'}
+                            onChange={() => !isCurrentUser(user.id) && handleStatusChange(user.id, user.status)}
+                            disabled={isCurrentUser(user.id)}
+                            color="success"
+                          />
+                          <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
+                            {user.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
+                          </span>
+                        </div>
                       </td>
                       <td>{user.created_at}</td>
                       <td>
