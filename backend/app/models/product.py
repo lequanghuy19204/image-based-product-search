@@ -23,6 +23,10 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     image_urls: Optional[List[str]] = None
+    deleted_images: Optional[List[str]] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class ProductResponse(BaseModel):
     id: str = Field(alias="_id")

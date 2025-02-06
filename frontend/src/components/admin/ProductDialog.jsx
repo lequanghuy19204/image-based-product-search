@@ -93,7 +93,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
         const imageFiles = images.filter(img => img.file).map(img => img.file);
         const existingUrls = images.filter(img => img.isExisting).map(img => img.data_url);
         
-        // Upload song song tất cả ảnh
+        // Upload song song tất cả ảnh mới
         const uploadPromises = imageFiles.map(file => 
             cloudinaryService.uploadImage(file)
         );
@@ -105,6 +105,11 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
         // Kết hợp URLs
         const allImageUrls = [...existingUrls, ...newImageUrls];
 
+        // Xác định ảnh đã bị xóa (nếu đang edit)
+        const deletedImages = initialData?.image_urls?.filter(
+            url => !existingUrls.includes(url)
+        ) || [];
+
         // Tạo product data
         const productData = {
             product_name: formData.product_name.trim(),
@@ -113,7 +118,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
             description: formData.description?.trim() || '',
             price: parseFloat(formData.price),
             company_id: JSON.parse(localStorage.getItem('userDetails')).company_id,
-            image_urls: allImageUrls
+            image_urls: allImageUrls,
+            deleted_images: deletedImages // Thêm thông tin về ảnh đã xóa
         };
 
         await onSubmit(productData);

@@ -9,6 +9,7 @@ from app.utils.image_processing import process_image
 import logging
 import asyncio
 import math
+from app.utils.permission import check_user_permission
 
 # Khai báo logger
 logger = logging.getLogger(__name__)
@@ -233,72 +234,67 @@ async def update_product(
         if not product_doc:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        existing_data = product_doc
-        
         # Kiểm tra quyền
-        await check_user_permission(current_user, existing_data["company_id"])
+        await check_user_permission(current_user, product_doc["company_id"])
         
-        # Tạo batch để xử lý nhiều thao tác
-        batch = []
+        # Lấy danh sách ảnh hiện tại
+        current_images = set(product_doc.get('image_urls', []))
+        new_images = set(product_data.image_urls or [])  # Thêm kiểm tra None
         
+        # Xác định ảnh bị xóa và ảnh mới
+        deleted_images = current_images - new_images
+        added_images = new_images - current_images
+
+        # Xóa ảnh khỏi collection images
+        if deleted_images:
+            await images_collection.delete_many({
+                "image_url": {"$in": list(deleted_images)},
+                "product_id": product_id
+            })
+            logger.info(f"Deleted {len(deleted_images)} images from images collection")
+
+        # Xử lý ảnh mới
+        for image_url in added_images:
+            try:
+                features, image_hash = process_image(image_url)  # Đã bỏ await vì process_image không phải async
+                if features is not None and image_hash is not None:
+                    await images_collection.insert_one({
+                        "image_url": image_url,
+                        "company_id": str(product_doc["company_id"]),
+                        "product_id": product_id,
+                        "uploaded_by": current_user["sub"],
+                        "created_at": datetime.utcnow(),
+                        "features": features.tolist() if hasattr(features, 'tolist') else features,  # Chuyển numpy array thành list
+                        "image_hash": image_hash
+                    })
+                    logger.info(f"Added new image to images collection: {image_url}")
+            except Exception as e:
+                logger.error(f"Error processing image {image_url}: {str(e)}")
+                continue
+
         # Cập nhật thông tin sản phẩm
         update_data = {
-            k: v for k, v in product_data.dict(exclude_unset=True).items()
-            if v is not None
+            k: v for k, v in product_data.dict(exclude_unset=True).items() 
+            if v is not None and k != "deleted_images"  # Loại bỏ trường deleted_images
         }
         update_data["updated_at"] = datetime.utcnow()
         
-        # Nếu có cập nhật ảnh
-        if "image_urls" in update_data:
-            new_image_urls = set(update_data["image_urls"])
-            old_image_urls = set(existing_data.get("image_urls", []))
-            
-            # Xác định ảnh thêm mới và ảnh bị xóa
-            added_images = new_image_urls - old_image_urls
-            removed_images = old_image_urls - new_image_urls
-            
-            # Xóa các ảnh cũ trong collection images
-            if removed_images:
-                batch.append({
-                    "q": {"image_url": {"$in": list(removed_images)}},
-                    "u": {"$pull": {"image_urls": {"$in": list(removed_images)}}},
-                    "p": {"$set": {"updated_at": datetime.utcnow()}}
-                })
-            
-            # Thêm các ảnh mới vào collection images
-            if added_images:
-                for url in added_images:
-                    features, image_hash = process_image(url)
-                    if features and image_hash:
-                        batch.append({
-                            "i": {
-                                "image_url": url,
-                                "company_id": existing_data["company_id"],
-                                "product_id": product_id,
-                                "uploaded_by": current_user['sub'],
-                                "created_at": datetime.utcnow(),
-                                "features": features,
-                                "image_hash": image_hash
-                            },
-                            "u": {"$push": {"image_urls": url}},
-                            "p": {"$set": {"updated_at": datetime.utcnow()}}
-                        })
+        result = await products_collection.update_one(
+            {"_id": ObjectId(product_id)},
+            {"$set": update_data}
+        )
         
-        # Cập nhật document sản phẩm
-        await products_collection.update_one({"_id": ObjectId(product_id)}, {"$set": update_data})
-        
-        # Thực hiện tất cả các thao tác trong batch
-        if batch:
-            await images_collection.bulk_write(batch)
-        
-        # Trả về dữ liệu đã cập nhật
-        return {
-            "id": product_id,
-            **{**existing_data, **update_data}
-        }
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Product update failed")
+            
+        # Lấy sản phẩm đã cập nhật
+        updated_product = await products_collection.find_one(
+            {"_id": ObjectId(product_id)}
+        )
+        return ProductResponse(**updated_product)
 
     except Exception as e:
-        logger.error(f"Error in update_product: {str(e)}")
+        logger.error(f"Error updating product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @product_router.delete("/{product_id}")
@@ -308,29 +304,21 @@ async def delete_product(
 ):
     try:
         # Kiểm tra sản phẩm tồn tại
-        product_doc = await products_collection.find_one({"_id": ObjectId(product_id)})
-        if not product_doc:
+        product = await products_collection.find_one({"_id": ObjectId(product_id)})
+        if not product:
             raise HTTPException(status_code=404, detail="Product not found")
-        
+            
         # Kiểm tra quyền
-        await check_user_permission(current_user, product_doc["company_id"])
-
-        # Tạo batch để xóa nhiều documents
-        batch = []
-
-        # Xóa tất cả ảnh liên quan
-        images_ref = images_collection.find({"product_id": product_id})
-        for image in await images_ref.to_list(None):
-            batch.append({"d": {"_id": image["_id"]}})
-
+        await check_user_permission(current_user, product["company_id"])
+        
         # Xóa sản phẩm
-        batch.append({"d": {"_id": ObjectId(product_id)}})
-
-        # Thực hiện batch
-        await images_collection.bulk_write(batch)
-
+        result = await products_collection.delete_one({"_id": ObjectId(product_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=400, detail="Product deletion failed")
+            
         return {"message": "Product deleted successfully"}
-
+        
     except Exception as e:
-        logger.error(f"Error in delete_product: {str(e)}")
+        logger.error(f"Error deleting product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 

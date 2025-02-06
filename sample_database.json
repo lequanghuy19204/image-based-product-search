@@ -1,0 +1,52 @@
+{
+    "companies": [
+      {
+        "_id": ObjectId("67a482260c544d49f037fb60"),
+        "company_name": "chapel",
+        "company_code": "ZT5C2I",
+        "created_at": ISODate("2025-02-06T09:34:30.353Z"),
+        "updated_at": ISODate("2025-02-06T09:34:30.353Z")
+      }
+    ],
+    "users": [
+      {
+        "_id": ObjectId("67a482260c544d49f037fb61"),
+        "username": "lalala",
+        "email": "lequanghuy8888@gmail.com",
+        "password_hash": "$2b$12$pzqfUl2.0KvPJ4u3CvMPeuuU4oS0enxgo8vLEDI8xllQDfkEE044y",
+        "role": "Admin",
+        "company_id": ObjectId("67a482260c544d49f037fb60"),
+        "status": "active",
+        "created_at": ISODate("2025-02-06T09:34:30.836Z"),
+        "updated_at": ISODate("2025-02-06T13:28:15.164Z")
+      }
+    ],
+    "images": [
+      {
+        "_id": ObjectId("67a4d3052f1f637f3e429203"),
+        "image_url": "https://res.cloudinary.com/dab8jre3m/image/upload/v1738855143/products/462241567_1086240933225233_6752166467388263768_n_zmhm3r.jpg",
+        "company_id": ObjectId("67a482260c544d49f037fb60"),
+        "product_id": ObjectId("67a4d2fe2f1f637f3e429202"),
+        "uploaded_by": ObjectId("67a482260c544d49f037fb61"),
+        "created_at": ISODate("2025-02-06T15:19:32.149Z"),
+        "features": [],
+        "image_hash": "0f8381c0e0c1b3ff"
+      }
+    ],
+    "products": [
+      {
+        "_id": ObjectId("67a4d40658db7c0b1fc70703"),
+        "product_name": "áo thun dài tay",
+        "product_code": "CP_x4059",
+        "brand": "",
+        "description": "",
+        "price": 500000,
+        "company_id": ObjectId("67a482260c544d49f037fb60"),
+        "image_urls": [],
+        "created_by": ObjectId("67a482260c544d49f037fb61"),
+        "created_by_name": "lalala",
+        "created_at": ISODate("2025-02-06T15:23:50.978Z"),
+        "updated_at": ISODate("2025-02-06T15:23:50.978Z")
+      }
+    ]
+  }

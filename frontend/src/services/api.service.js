@@ -34,11 +34,19 @@ class ApiService {
         throw new Error(data.detail);
       }
       
+      // Xử lý các lỗi cụ thể
+      if (response.status === 403) {
+        throw new Error('Bạn không có quyền thực hiện hành động này');
+      }
+      if (response.status === 404) {
+        throw new Error('Không tìm thấy dữ liệu');
+      }
+      
       // Xử lý các lỗi khác
       if (data?.detail) {
         throw new Error(data.detail);
       }
-      throw new Error('Có lỗi xảy ra từ server');
+      throw new Error('Có lỗi xảy ra');
     }
 
     return data;
@@ -294,12 +302,10 @@ class ApiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
-        credentials: 'include',
-        mode: 'cors'
+        credentials: 'include'
       });
 
-      const responseData = await this.handleResponse(response);
-      return this.transformMongoResponse(responseData);
+      return await this.handleResponse(response);
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
