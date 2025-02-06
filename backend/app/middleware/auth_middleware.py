@@ -39,8 +39,8 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
                 detail="Token đã hết hạn"
             )
         
-        # Chuyển ObjectId thành str trong payload
-        if 'sub' in payload:
+        # Đảm bảo sub là string
+        if 'sub' in payload and isinstance(payload['sub'], ObjectId):
             payload['sub'] = str(payload['sub'])
             
         return payload

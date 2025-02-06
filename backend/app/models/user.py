@@ -9,7 +9,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: constr(min_length=6)
     role: constr(regex='^(Admin|User)$') = 'User'
-    company_id: str = None
+    company_code: Optional[str] = None
+    company_name: Optional[str] = None
 
     @validator('role')
     def validate_role(cls, v):
@@ -24,7 +25,8 @@ class UserCreate(BaseModel):
                 "email": "john@example.com",
                 "password": "secret123",
                 "role": "User",
-                "company_id": "507f1f77bcf86cd799439011"
+                "company_code": "ABC123",
+                "company_name": "Example Corp"
             }
         }
 

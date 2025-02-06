@@ -49,7 +49,7 @@ class AuthService {
         company_name: userData.company_name
       };
 
-      const data = await apiService.post(API_ENDPOINTS.AUTH.REGISTER, registerData, false); // false = không yêu cầu token
+      const data = await apiService.post(API_ENDPOINTS.AUTH.REGISTER, registerData, false);
       
       if (data.access_token) {
         localStorage.setItem('token', data.access_token);

@@ -79,33 +79,49 @@ function Login() {
     if (!validateForm()) return;
 
     try {
-      setIsLoading(true);
-      if (isLogin) {
-        navigate('/search');
-      } else {
-        let company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
-        
-        const userData = {
-          username: formData.username || formData.email.split('@')[0],
-          email: formData.email,
-          password: formData.password,
-          role: accountType === 'admin' ? "Admin" : "User",
-          company_code: company_code,
-          company_name: accountType === 'admin' ? companyName : undefined
-        };
+        setIsLoading(true);
+        if (isLogin) {
+            // Xử lý đăng nhập
+            const response = await authService.login(
+                formData.email,
+                formData.password,
+                rememberMe
+            );
+            
+            if (response.access_token) {
+                // Lưu token và thông tin user
+                localStorage.setItem('token', response.access_token);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                if (rememberMe) {
+                    localStorage.setItem('rememberedLogin', 'true');
+                }
+                navigate('/search');
+            }
+        } else {
+            // Xử lý đăng ký
+            const company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
+            
+            const userData = {
+                username: formData.username || formData.email.split('@')[0],
+                email: formData.email,
+                password: formData.password,
+                role: accountType === 'admin' ? "Admin" : "User",
+                company_code: company_code,
+                company_name: accountType === 'admin' ? companyName : undefined
+            };
 
-        const response = await authService.register(userData);
-        if (response.access_token) {
-          localStorage.setItem('token', response.access_token);
-          localStorage.setItem('user', JSON.stringify(response.user));
-          navigate('/search');
+            const response = await authService.register(userData);
+            if (response.access_token) {
+                localStorage.setItem('token', response.access_token);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                navigate('/search');
+            }
         }
-      }
     } catch (error) {
-      console.error('Lỗi:', error);
-      setLoginError(error.message || 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.');
+        console.error('Lỗi:', error);
+        setLoginError(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 

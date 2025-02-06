@@ -170,63 +170,65 @@ class ApiService {
   // Thêm phương thức để lấy cache hiệu quả hơn
   async get(endpoint, options = {}) {
     try {
-      // Thêm company_id vào params cho endpoint products
-      if (endpoint === '/api/products') {
-        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-        if (!userDetails?.company_id) {
-          throw new Error('Không tìm thấy thông tin công ty');
+        // Tạo URL với params
+        let url = `${this.baseURL}${endpoint}`;
+        if (options.params) {
+            const params = new URLSearchParams();
+            Object.entries(options.params).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    params.append(key, value);
+                }
+            });
+            url += `?${params.toString()}`;
         }
-        
-        options.params = {
-          ...options.params,
-          company_id: userDetails.company_id
-        };
-      }
 
-      // Tạo URL với params
-      let url = `${this.baseURL}${endpoint}`;
-      if (options.params) {
-        const params = new URLSearchParams();
-        Object.entries(options.params).forEach(([key, value]) => {
-          if (value !== null && value !== undefined && value !== '') {
-            params.append(key, value);
-          }
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: this.getHeaders(),
+            credentials: 'include',
+            mode: 'cors'
         });
-        url += `?${params.toString()}`;
-      }
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
+        const data = await this.handleResponse(response);
+        
+        // Chuyển đổi các trường thời gian thành đối tượng Date
+        if (data && typeof data === 'object') {
+            if (data.created_at) {
+                data.created_at = new Date(data.created_at);
+            }
+            if (data.updated_at) {
+                data.updated_at = new Date(data.updated_at);
+            }
+        }
 
-      return await this.handleResponse(response);
+        return data;
     } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+        console.error('API request failed:', error);
+        throw error;
     }
   }
 
-  async post(endpoint, data) {
+  async post(endpoint, data, requiresAuth = true) {
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          ...this.getHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-        mode: 'cors'  // Thêm mode CORS
-      });
-      
-      return await this.handleResponse(response);
+        const response = await fetch(`${this.baseURL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(requiresAuth ? this.getHeaders() : {})
+            },
+            body: JSON.stringify(data),
+            credentials: 'include',
+            mode: 'cors'
+        });
+
+        const responseData = await this.handleResponse(response);
+        return responseData;
     } catch (error) {
-      console.error('API request failed:', error);
-      if (error.message === 'Failed to fetch') {
-        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.');
-      }
-      throw error;
+        console.error('API request failed:', error);
+        if (error.message === 'Failed to fetch') {
+            throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.');
+        }
+        throw error;
     }
   }
 

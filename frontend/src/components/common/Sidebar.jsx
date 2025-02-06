@@ -25,7 +25,7 @@ function Sidebar({ open, onToggle }) {
   const [user, setUser] = useState(null);
   const [isDataStale, setIsDataStale] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState(null);
-  const [setLoginError] = useState(null);
+  const [loginError, setLoginError] = useState(null);
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
   // Kiểm tra xem có cần fetch lại data không
@@ -69,8 +69,8 @@ function Sidebar({ open, onToggle }) {
       // Sử dụng apiService thay vì fetch trực tiếp
       const data = await apiService.get('/api/users/profile');
       
-      // Kiểm tra dữ liệu trước khi lưu
-      if (!data || !data.id) {
+      // Kiểm tra dữ liệu trước khi lưu - sửa lại cách kiểm tra
+      if (!data || typeof data !== 'object') {
         throw new Error('Dữ liệu người dùng không hợp lệ');
       }
 
@@ -84,17 +84,28 @@ function Sidebar({ open, onToggle }) {
 
     } catch (error) {
       console.error('Lỗi khi lấy thông tin user:', error);
-      setLoginError(error.message);
-      localStorage.removeItem('userDetails');
-      localStorage.removeItem('userDetailsTime');
+      if (error.response?.status === 401) {
+        // Nếu token hết hạn hoặc không hợp lệ
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+      } else {
+        setLoginError(error.message);
+        localStorage.removeItem('userDetails');
+        localStorage.removeItem('userDetailsTime');
+      }
     }
   }, [navigate]);
 
   // Khởi tạo dữ liệu
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-    fetchUserDetails();
+    if (currentUser) {
+      setUser(currentUser);
+      fetchUserDetails();
+    } else {
+      navigate('/login');
+    }
 
     // Kiểm tra data cũ mỗi phút
     const interval = setInterval(() => {
@@ -104,7 +115,7 @@ function Sidebar({ open, onToggle }) {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [fetchUserDetails, shouldFetchData]);
+  }, [fetchUserDetails, shouldFetchData, navigate]);
 
   // Menu items được memoized
   const menuItems = useMemo(() => [

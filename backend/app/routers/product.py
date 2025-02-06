@@ -91,7 +91,7 @@ async def get_products(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Sử dụng company_id từ user nếu không có trong request
+        # Sử dụng company_id từ user
         user_company_id = user.get("company_id")
         if not user_company_id:
             raise HTTPException(status_code=400, detail="User's company information not found")
@@ -103,71 +103,109 @@ async def get_products(
                 detail="Không có quyền xem sản phẩm của công ty khác"
             )
 
-        # Tạo filter với company_id của user
-        filter_query = {"company_id": str(user_company_id)}
+        # Tạo pipeline
+        pipeline = [
+            # Match stage
+            {
+                "$match": {
+                    "company_id": str(user_company_id)
+                }
+            },
+            # Lookup stage để join với users collection
+            {
+                "$lookup": {
+                    "from": "users",
+                    "let": {"creator_id": "$created_by"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", {"$toObjectId": "$$creator_id"}]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "creator"
+                }
+            },
+            # Unwind creator array
+            {
+                "$unwind": {
+                    "path": "$creator",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            # Project stage để format dữ liệu
+            {
+                "$project": {
+                    "id": {"$toString": "$_id"},
+                    "product_name": 1,
+                    "product_code": 1,
+                    "brand": 1,
+                    "description": 1,
+                    "price": 1,
+                    "image_urls": 1,
+                    "created_at": 1,
+                    "updated_at": 1,
+                    "company_id": {"$toString": "$company_id"},
+                    "created_by": {"$toString": "$created_by"},
+                    "created_by_name": "$creator.username"
+                }
+            }
+        ]
 
         # Thêm điều kiện tìm kiếm
         if search:
+            search_filter = {}
             if search_field == 'code':
-                filter_query["product_code"] = {"$regex": search, "$options": "i"}
+                search_filter["product_code"] = {"$regex": search, "$options": "i"}
             elif search_field == 'name':
-                filter_query["product_name"] = {"$regex": search, "$options": "i"}
+                search_filter["product_name"] = {"$regex": search, "$options": "i"}
             elif search_field == 'creator':
-                creator_filter = {"username": {"$regex": search, "$options": "i"}}
-                if user_company_id:
-                    creator_filter["company_id"] = str(user_company_id)
-                creators = await users_collection.find(creator_filter).to_list(None)
-                creator_ids = [str(creator["_id"]) for creator in creators]
-                if creator_ids:
-                    filter_query["created_by"] = {"$in": creator_ids}
-                else:
-                    return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
+                search_filter["creator.username"] = {"$regex": search, "$options": "i"}
             elif search_field == 'price':
                 try:
-                    filter_query["price"] = float(search)
+                    search_filter["price"] = float(search)
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Giá phải là số")
+            
+            pipeline.insert(1, {"$match": search_filter})
 
-        # Tạo sort
+        # Thêm sort
         sort_direction = -1 if sort_order.lower() == "desc" else 1
-        sort_query = [(sort_by, sort_direction)]
+        pipeline.append({"$sort": {sort_by: sort_direction}})
 
-        # Đếm tổng số sản phẩm
-        total = await products_collection.count_documents(filter_query)
+        # Thực hiện aggregation để đếm tổng số sản phẩm
+        count_pipeline = pipeline.copy()
+        count_pipeline.append({"$count": "total"})
+        count_result = await products_collection.aggregate(count_pipeline).to_list(1)
+        total = count_result[0]["total"] if count_result else 0
 
-        # Lấy sản phẩm theo phân trang
-        products = await products_collection.find(filter_query)\
-            .sort(sort_query)\
-            .skip((page - 1) * limit)\
-            .limit(limit)\
-            .to_list(None)
+        # Thêm phân trang
+        pipeline.extend([
+            {"$skip": (page - 1) * limit},
+            {"$limit": limit}
+        ])
 
-        # Lấy thông tin người tạo
-        creator_ids = list(set(str(p['created_by']) for p in products))
-        creators = await users_collection.find(
-            {
-                "_id": {"$in": [ObjectId(id) for id in creator_ids]},
-                "company_id": str(user_company_id)
-            }
-        ).to_list(None)
-        creators_map = {str(c['_id']): c['username'] for c in creators}
+        # Thực hiện aggregation chính
+        products = await products_collection.aggregate(pipeline).to_list(None)
 
         # Format response
         formatted_products = []
         for product in products:
             formatted_product = {
-                "id": str(product["_id"]),
+                "id": str(product["_id"]),  # Chuyển ObjectId thành str
                 "product_name": product["product_name"],
                 "product_code": product["product_code"],
                 "brand": product.get("brand"),
                 "description": product.get("description"),
                 "price": product["price"],
                 "image_urls": product.get("image_urls", []),
-                "created_by": str(product["created_by"]),
-                "created_by_name": creators_map.get(str(product["created_by"]), "Unknown"),
+                "created_by": str(product["created_by"]),  # Chuyển ObjectId thành str
+                "created_by_name": product["created_by_name"],
                 "created_at": product["created_at"],
                 "updated_at": product["updated_at"],
-                "company_id": str(product["company_id"])
+                "company_id": str(product["company_id"])  # Chuyển ObjectId thành str
             }
             formatted_products.append(formatted_product)
 

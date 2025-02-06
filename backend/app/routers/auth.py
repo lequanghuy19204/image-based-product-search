@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from app.models.user import UserCreate, UserLogin, UserResponse
 from app.utils.auth import get_password_hash, verify_password, create_access_token
 from datetime import datetime
@@ -9,7 +10,7 @@ from bson import ObjectId
 auth_router = APIRouter()
 
 @auth_router.post("/login")
-async def login(user_data: UserLogin):
+async def login(user_data: UserLogin, response: Response):
     try:
         # Tìm user theo email
         user = await users_collection.find_one({"email": user_data.email})
@@ -37,22 +38,27 @@ async def login(user_data: UserLogin):
         # Tạo token
         access_token = create_access_token(
             data={
-                "sub": str(user["_id"]),  # Chuyển ObjectId thành string
+                "sub": str(user["_id"]),
                 "role": user["role"]
-            }
+            },
+            remember=user_data.remember
         )
 
-        # Chuẩn bị user response (loại bỏ password_hash và chuyển đổi các trường)
+        # Chuẩn bị user response
         user_response = {
-            "id": str(user["_id"]),  # Chuyển ObjectId thành string
+            "id": str(user["_id"]),
             "username": user["username"],
             "email": user["email"],
             "role": user["role"],
-            "company_id": str(user["company_id"]) if user.get("company_id") else None,  # Chuyển ObjectId thành string
+            "company_id": str(user["company_id"]) if user.get("company_id") else None,
             "status": user["status"],
             "created_at": user["created_at"].isoformat() if isinstance(user.get("created_at"), datetime) else None,
             "updated_at": user["updated_at"].isoformat() if isinstance(user.get("updated_at"), datetime) else None
         }
+        
+        # Set CORS headers
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Origin"] = "*"  # Thay bằng domain thực tế của frontend
         
         return {
             "access_token": access_token,
@@ -63,7 +69,7 @@ async def login(user_data: UserLogin):
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"Login error: {str(e)}")  # Log lỗi để debug
+        print(f"Login error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Lỗi server: {str(e)}"
@@ -96,7 +102,7 @@ async def register(user_data: UserCreate):
                 'created_at': datetime.utcnow(),
                 'updated_at': datetime.utcnow()
             })
-            company_id = str(company_result.inserted_id)  # Chuyển ObjectId thành string
+            company_id = company_result.inserted_id
         else:
             # Kiểm tra company_code tồn tại
             existing_company = await companies_collection.find_one({"company_code": user_data.company_code})
@@ -105,7 +111,7 @@ async def register(user_data: UserCreate):
                     status_code=400,
                     detail="Mã công ty không tồn tại"
                 )
-            company_id = str(existing_company["_id"])  # Chuyển ObjectId thành string
+            company_id = existing_company["_id"]
 
         # Tạo user mới
         hashed_password = get_password_hash(user_data.password)
@@ -114,7 +120,7 @@ async def register(user_data: UserCreate):
             'email': user_data.email,
             'password_hash': hashed_password,
             'role': user_data.role,
-            'company_id': company_id,  # Đã là string
+            'company_id': company_id,
             'status': "active",
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
@@ -122,20 +128,20 @@ async def register(user_data: UserCreate):
         
         result = await users_collection.insert_one(new_user)
         
-        # Tạo token
+        # Tạo token và response
         access_token = create_access_token(
             data={"sub": str(result.inserted_id), "role": user_data.role}
         )
-        
+
         # Chuẩn bị response data
         user_response = {
-            "id": str(result.inserted_id),  # Chuyển ObjectId thành string
+            "id": str(result.inserted_id),
             "username": new_user["username"],
             "email": new_user["email"],
             "role": new_user["role"],
-            "company_id": new_user["company_id"],
+            "company_id": str(new_user["company_id"]),
             "status": new_user["status"],
-            "created_at": new_user["created_at"].isoformat(),  # Chuyển datetime thành string
+            "created_at": new_user["created_at"].isoformat(),
             "updated_at": new_user["updated_at"].isoformat()
         }
         
