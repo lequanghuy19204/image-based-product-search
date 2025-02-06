@@ -1,8 +1,6 @@
 import random
 import string
-from firebase_admin import firestore
-
-db = firestore.client()
+from app.config.mongodb_config import companies_collection
 
 def generate_company_code(length=6):
     """Tạo mã công ty ngẫu nhiên với độ dài mặc định là 6 ký tự"""
@@ -17,11 +15,12 @@ async def get_unique_company_code():
     while attempts < max_attempts:
         company_code = generate_company_code()
         
-        # Kiểm tra mã trong database
-        companies_ref = db.collection('companies')
-        existing_company = companies_ref.where('company_code', '==', company_code).get()
+        # Kiểm tra mã trong MongoDB
+        existing_company = await companies_collection.find_one(
+            {'company_code': company_code}
+        )
         
-        if not list(existing_company):
+        if not existing_company:
             return company_code
             
         attempts += 1

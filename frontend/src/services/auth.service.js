@@ -12,9 +12,15 @@ class AuthService {
       }, false);
       
       if (data.access_token) {
-        // Lưu token và user vào localStorage
+        // Chuyển đổi _id thành id nếu cần
+        const user = {
+          ...data.user,
+          id: data.user._id
+        };
+        delete user._id;
+
         localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify(user));
         
         // Nếu remember = true, lưu thêm thời gian hết hạn
         if (remember) {

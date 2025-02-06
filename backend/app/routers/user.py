@@ -2,33 +2,47 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.models.user import ChangePasswordRequest, UpdateProfileRequest, UserResponse
 from app.utils.auth import verify_password, get_password_hash
 from app.middleware.auth_middleware import verify_token
-from app.config.firebase_config import db
+from app.config.mongodb_config import users_collection, companies_collection
 from datetime import datetime
+from bson import ObjectId
 
 user_router = APIRouter()
 
 @user_router.get("/profile")
 async def get_profile(current_user: dict = Depends(verify_token)):
     try:
-        # Lấy thông tin user từ Firestore
-        user_ref = db.collection('users').document(current_user['sub'])
-        user = user_ref.get()
-        
-        if not user.exists:
+        # Lấy user từ database
+        user = await users_collection.find_one({"_id": ObjectId(current_user['sub'])})
+        if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-            
-        user_data = user.to_dict()
-        # Loại bỏ password_hash khỏi response
-        if 'password_hash' in user_data:
-            del user_data['password_hash']
-            
-        return {
-            "id": user.id,
-            **user_data
+
+        # Lấy thông tin company nếu có company_id
+        company = None
+        if user.get('company_id'):
+            company = await companies_collection.find_one({"_id": ObjectId(user['company_id'])})
+
+        # Chuẩn bị response data
+        response_data = {
+            "id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"],
+            "role": user["role"],
+            "status": user["status"],
+            "company_id": str(user["company_id"]) if user.get("company_id") else None,
+            "company_name": company["company_name"] if company else None,
+            "company_code": company["company_code"] if company else None,
+            "created_at": user["created_at"].isoformat() if isinstance(user.get("created_at"), datetime) else None,
+            "updated_at": user["updated_at"].isoformat() if isinstance(user.get("updated_at"), datetime) else None
         }
-        
+
+        return response_data
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Get profile error: {str(e)}")  # Log lỗi
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi lấy thông tin người dùng: {str(e)}"
+        )
 
 @user_router.put("/profile")
 async def update_profile(
@@ -37,36 +51,43 @@ async def update_profile(
 ):
     try:
         # Kiểm tra email đã tồn tại
-        users_ref = db.collection('users')
-        existing_users = users_ref.where('email', '==', profile_data.email).get()
-        
-        for user in existing_users:
-            if user.id != current_user['sub']:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Email đã được sử dụng"
-                )
-        
-        # Cập nhật thông tin
-        user_ref = users_ref.document(current_user['sub'])
-        user_ref.update({
-            'username': profile_data.username,
-            'email': profile_data.email,
-            'updated_at': datetime.utcnow()
+        existing_user = await users_collection.find_one({
+            "email": profile_data.email,
+            "_id": {"$ne": ObjectId(current_user['sub'])}
         })
         
-        # Lấy thông tin user sau khi cập nhật
-        updated_user = user_ref.get()
-        user_data = updated_user.to_dict()
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Email đã được sử dụng"
+            )
         
-        if 'password_hash' in user_data:
-            del user_data['password_hash']
+        # Cập nhật thông tin
+        result = await users_collection.update_one(
+            {"_id": ObjectId(current_user['sub'])},
+            {
+                "$set": {
+                    "username": profile_data.username,
+                    "email": profile_data.email,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Không thể cập nhật thông tin")
+        
+        # Lấy thông tin user sau khi cập nhật
+        updated_user = await users_collection.find_one(
+            {"_id": ObjectId(current_user['sub'])},
+            {"password_hash": 0}
+        )
             
         return {
             "message": "Cập nhật thông tin thành công",
             "user": {
-                "id": updated_user.id,
-                **user_data
+                "id": str(updated_user['_id']),
+                **updated_user
             }
         }
         
@@ -89,16 +110,13 @@ async def change_password(
             )
             
         # Lấy thông tin user
-        user_ref = db.collection('users').document(current_user['sub'])
-        user = user_ref.get()
+        user = await users_collection.find_one({"_id": ObjectId(current_user['sub'])})
         
-        if not user.exists:
+        if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
             
-        user_data = user.to_dict()
-        
         # Kiểm tra mật khẩu hiện tại
-        if not verify_password(password_data.current_password, user_data['password_hash']):
+        if not verify_password(password_data.current_password, user['password_hash']):
             raise HTTPException(
                 status_code=400,
                 detail="Mật khẩu hiện tại không đúng"
@@ -106,10 +124,18 @@ async def change_password(
             
         # Cập nhật mật khẩu mới
         new_password_hash = get_password_hash(password_data.new_password)
-        user_ref.update({
-            'password_hash': new_password_hash,
-            'updated_at': datetime.utcnow()
-        })
+        result = await users_collection.update_one(
+            {"_id": ObjectId(current_user['sub'])},
+            {
+                "$set": {
+                    "password_hash": new_password_hash,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Không thể cập nhật mật khẩu")
         
         return {"message": "Đổi mật khẩu thành công"}
         

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
 from app.middleware.auth_middleware import verify_token
-from app.config.firebase_config import db
+from app.config.mongodb_config import users_collection, products_collection, images_collection
 from app.utils.image_search import ImageSearchEngine
 from typing import List
 import logging
 from pydantic import conint
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 image_search_router = APIRouter()
@@ -24,21 +25,13 @@ async def search_similar_images(
         image_content = await file.read()
 
         # Kiểm tra quyền truy cập company
-        user_doc = db.collection('users').document(current_user["sub"]).get()
-        user_data = user_doc.to_dict()
-        if user_data.get('company_id') != company_id:
+        user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
+        if user.get('company_id') != company_id:
             raise HTTPException(status_code=403, detail="Không có quyền truy cập")
 
         # Lấy tất cả ảnh của company
-        images_ref = db.collection('images').where("company_id", "==", company_id)
-        images = images_ref.get()
-        
-        # Chuyển đổi thành list
-        images_data = []
-        for img in images:
-            img_data = img.to_dict()
-            img_data['id'] = img.id
-            images_data.append(img_data)
+        images_cursor = images_collection.find({"company_id": company_id})
+        images_data = await images_cursor.to_list(None)
 
         # Xây dựng index
         search_engine.build_index(images_data)
@@ -48,23 +41,21 @@ async def search_similar_images(
 
         # Lấy thông tin sản phẩm cho mỗi kết quả
         enriched_results = []
-        seen_product_ids = set()  # Thêm set để theo dõi các product_id đã xử lý
+        seen_product_ids = set()
 
         for result in results:
             product_id = result['product_id']
-            # Kiểm tra nếu product_id đã tồn tại
             if product_id not in seen_product_ids:
-                seen_product_ids.add(product_id)  # Thêm product_id vào set
-                product_doc = db.collection('products').document(product_id).get()
-                if product_doc.exists:
-                    product_data = product_doc.to_dict()
+                seen_product_ids.add(product_id)
+                product = await products_collection.find_one({"_id": ObjectId(product_id)})
+                if product:
                     enriched_results.append({
                         **result,
-                        'product_name': product_data.get('product_name'),
-                        'product_code': product_data.get('product_code'),
-                        'price': product_data.get('price'),
-                        'brand': product_data.get('brand'),
-                        'description': product_data.get('description')
+                        'product_name': product.get('product_name'),
+                        'product_code': product.get('product_code'),
+                        'price': product.get('price'),
+                        'brand': product.get('brand'),
+                        'description': product.get('description')
                     })
 
         return {

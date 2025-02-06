@@ -100,12 +100,16 @@ function Login() {
           company_name: accountType === 'admin' ? companyName : undefined
         };
 
-        await authService.register(userData);
-        navigate('/search');
+        const response = await authService.register(userData);
+        if (response.access_token) {
+          localStorage.setItem('token', response.access_token);
+          localStorage.setItem('user', JSON.stringify(response.user));
+          navigate('/search');
+        }
       }
     } catch (error) {
       console.error('Lỗi:', error);
-      setLoginError(error.response?.data?.detail || 'Có lỗi xảy ra');
+      setLoginError(error.message || 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }

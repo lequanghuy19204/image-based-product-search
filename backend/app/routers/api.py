@@ -1,47 +1,45 @@
 from fastapi import APIRouter, HTTPException, Depends
-from firebase_admin import firestore
-from app.config.firebase_config import db
-from app.models.user import UserCreate, UserLogin, UserResponse
-from app.utils.auth import get_password_hash, verify_password, create_access_token, verify_token
-from datetime import datetime, timedelta
-from app.utils.company_code import get_unique_company_code
+from app.middleware.auth_middleware import verify_token
+from app.config.mongodb_config import users_collection, companies_collection
+from bson import ObjectId
 
-router = APIRouter(
-    tags=["api"]
-)
+router = APIRouter(tags=["api"])
 
 @router.get("/users/profile", tags=["users"])
-async def get_user_profile(token: str = Depends(verify_token)):
+async def get_user_profile(token: dict = Depends(verify_token)):
     try:
-        user_id = token["sub"]
-        print(f"Fetching profile for user_id: {user_id}")
+        # Pipeline để join với companies collection
+        pipeline = [
+            {"$match": {"_id": ObjectId(token["sub"])}},
+            {
+                "$lookup": {
+                    "from": "companies",
+                    "localField": "company_id",
+                    "foreignField": "_id",
+                    "as": "company"
+                }
+            },
+            {
+                "$unwind": {
+                    "path": "$company",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            {
+                "$project": {
+                    "password_hash": 0,
+                    "company_name": "$company.company_name",
+                    "company_code": "$company.company_code"
+                }
+            }
+        ]
         
-        user_doc = db.collection('users').document(user_id).get()
-        
-        if not user_doc.exists:
-            raise HTTPException(status_code=404, detail="User not found")
+        user = await users_collection.aggregate(pipeline).to_list(1)
+        if not user:
+            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
             
-        user_data = user_doc.to_dict()
-        
-        company_data = {}
-        if user_data.get('company_id'):
-            company_doc = db.collection('companies').document(user_data['company_id']).get()
-            if company_doc.exists:
-                company_data = company_doc.to_dict()
-        
-        if 'password_hash' in user_data:
-            del user_data['password_hash']
-            
-        response_data = {
-            "id": user_doc.id,
-            **user_data,
-            "company_name": company_data.get('company_name'),
-            "company_code": company_data.get('company_code')
-        }
-        
-        return response_data
+        return user[0]
         
     except Exception as e:
-        print(f"Error in get_user_profile: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 

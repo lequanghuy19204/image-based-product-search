@@ -16,19 +16,38 @@ class ApiService {
   }
 
   async handleResponse(response) {
-    if (response.status === 401) {
-      // Token không hợp lệ hoặc hết hạn
-      authService.logout();
-      window.location.href = '/login';
-      throw new Error('Phiên đăng nhập đã hết hạn');
-    }
+    const data = await response.json().catch(() => null);
     
     if (!response.ok) {
-        return response.json().then(err => {
-            throw err;
-        });
+      if (response.status === 401) {
+        authService.logout();
+        window.location.href = '/login';
+        throw new Error('Phiên đăng nhập đã hết hạn');
+      }
+      
+      // Xử lý lỗi từ server
+      if (data?.detail) {
+        throw new Error(data.detail);
+      } else if (Array.isArray(data)) {
+        const errorMessages = data.map(err => err.msg || err.message).join(', ');
+        throw new Error(errorMessages);
+      }
+      throw new Error('Có lỗi xảy ra từ server');
     }
-    return response.json();
+
+    return data;
+  }
+
+  // Thêm hàm chuyển đổi response từ MongoDB
+  transformMongoResponse(item) {
+    if (item && item._id) {
+      return {
+        ...item,
+        id: item._id,
+        _id: undefined
+      };
+    }
+    return item;
   }
 
   // Thêm các phương thức quản lý cache
@@ -234,37 +253,25 @@ class ApiService {
     }
   }
 
-  async post(endpoint, body, requiresAuth = true) {
+  async post(endpoint, data, requiresAuth = true) {
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(requiresAuth && { Authorization: `Bearer ${localStorage.getItem('token')}` })
-      };
-
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body)
+        headers: {
+          ...this.getHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+        mode: 'cors'  // Thêm mode CORS
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.detail) {
-          throw new Error(data.detail);
-        } else if (Array.isArray(data)) {
-          const errorMessages = data.map(err => err.msg || err.message).join(', ');
-          throw new Error(errorMessages);
-        } else if (typeof data === 'object') {
-          throw new Error(JSON.stringify(data));
-        } else {
-          throw new Error('Có lỗi xảy ra khi thêm sản phẩm');
-        }
-      }
-
-      return data;
+      
+      return await this.handleResponse(response);
     } catch (error) {
       console.error('API request failed:', error);
+      if (error.message === 'Failed to fetch') {
+        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.');
+      }
       throw error;
     }
   }

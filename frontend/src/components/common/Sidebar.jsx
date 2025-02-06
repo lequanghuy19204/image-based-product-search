@@ -24,6 +24,7 @@ function Sidebar({ open, onToggle }) {
   const [user, setUser] = useState(null);
   const [isDataStale, setIsDataStale] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState(null);
+  const [loginError, setLoginError] = useState(null);
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
   // Kiểm tra xem có cần fetch lại data không
@@ -60,6 +61,7 @@ function Sidebar({ open, onToggle }) {
       const token = localStorage.getItem('token');
       if (!token) {
         console.error('Không tìm thấy token');
+        navigate('/login');
         return;
       }
 
@@ -71,21 +73,39 @@ function Sidebar({ open, onToggle }) {
         }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch user details');
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          localStorage.clear();
+          navigate('/login');
+          return;
+        }
+        throw new Error(errorData.detail || 'Lỗi khi lấy thông tin người dùng');
+      }
 
       const data = await response.json();
       
+      // Kiểm tra dữ liệu trước khi lưu
+      if (!data || !data.id) {
+        throw new Error('Dữ liệu người dùng không hợp lệ');
+      }
+
       // Cập nhật cache và state
       localStorage.setItem('userDetails', JSON.stringify(data));
       localStorage.setItem('userDetailsTime', Date.now().toString());
       setUserDetails(data);
       setLastFetchTime(Date.now());
       setIsDataStale(false);
+      setLoginError(null); // Reset error nếu thành công
 
     } catch (error) {
       console.error('Lỗi khi lấy thông tin user:', error);
+      setLoginError(error.message);
+      // Nếu lỗi nghiêm trọng, có thể xóa cache
+      localStorage.removeItem('userDetails');
+      localStorage.removeItem('userDetailsTime');
     }
-  }, []);
+  }, [navigate]);
 
   // Khởi tạo dữ liệu
   useEffect(() => {

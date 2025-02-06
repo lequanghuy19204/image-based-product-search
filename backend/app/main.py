@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.routers import api
 from app.routers.auth import auth_router
 from app.routers.admin import admin_router
@@ -7,17 +8,26 @@ from app.routers.image_search import image_search_router
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
 from app.routers.product import product_router
-# from app.routers.test import test_router
 
 app = FastAPI(title="Search Images API")
 
-# Cấu hình CORS
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"Global error: {str(exc)}")  # Log lỗi
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Lỗi server: {str(exc)}"}
+    )
+
+# Cấu hình CORS chi tiết hơn
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],  # Thêm domain của frontend
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Cho phép tất cả các methods
+    allow_headers=["*"],  # Cho phép tất cả các headers
+    expose_headers=["*"],  # Cho phép frontend truy cập tất cả headers
+    max_age=3600  # Thêm max age để cache preflight requests
 )
 
 
@@ -57,13 +67,6 @@ app.include_router(
     tags=["Admin"]
 )
 
-# # Thêm test router
-# app.include_router(
-#     test_router,
-#     prefix="/api/test",
-#     tags=["Test"]
-# )
-
 # Thêm product router với middleware xác thực
 app.include_router(
     product_router,
@@ -79,3 +82,4 @@ app.include_router(
     tags=["Image Search"],
     dependencies=[Depends(verify_token)]
 )
+

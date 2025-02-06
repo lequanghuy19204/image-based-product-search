@@ -2,14 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.product import ProductCreate, ProductUpdate, ProductResponse
 from app.middleware.auth_middleware import verify_token
-from app.config.firebase_config import db
+from app.config.mongodb_config import users_collection, products_collection, images_collection
 from datetime import datetime
-from google.cloud import firestore
-import math
-from google.cloud.firestore_v1.base_query import FieldFilter
+from bson import ObjectId
 from app.utils.image_processing import process_image
 import logging
 import asyncio
+import math
 
 # Khai báo logger
 logger = logging.getLogger(__name__)
@@ -23,21 +22,20 @@ async def create_product(
 ):
     try:
         # Lấy thông tin user
-        user_doc = db.collection('users').document(current_user["sub"]).get()
-        user_data = user_doc.to_dict()
+        user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
         
-        # Tạo document sản phẩm mới trước
-        doc_ref = db.collection('products').document()
+        # Tạo document sản phẩm mới
         product_dict = {
             **product_data.dict(exclude={'features', 'image_hashes'}),
             'created_by': current_user['sub'],
-            'created_by_name': user_data.get('username', 'Unknown'),
+            'created_by_name': user.get('username', 'Unknown'),
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
         
-        # Lưu sản phẩm ngay lập tức
-        doc_ref.set(product_dict)
+        # Lưu sản phẩm
+        result = await products_collection.insert_one(product_dict)
+        product_id = str(result.inserted_id)
         
         # Tạo task xử lý ảnh bất đồng bộ
         async def process_images():
@@ -49,20 +47,17 @@ async def create_product(
                         image_tasks.append({
                             'image_url': url,
                             'company_id': product_data.company_id,
-                            'product_id': doc_ref.id,
+                            'product_id': product_id,
                             'uploaded_by': current_user['sub'],
                             'created_at': datetime.utcnow(),
                             'features': features,
                             'image_hash': image_hash
                         })
 
-                # Batch write cho images nếu có
+                # Batch insert cho images nếu có
                 if image_tasks:
-                    batch = db.batch()
-                    for task in image_tasks:
-                        image_ref = db.collection('images').document()
-                        batch.set(image_ref, task)
-                    batch.commit()
+                    await images_collection.insert_many(image_tasks)
+                    
             except Exception as e:
                 logger.error(f"Error processing images: {str(e)}")
 
@@ -71,25 +66,13 @@ async def create_product(
         
         # Trả về response ngay
         return {
-            'id': doc_ref.id,
+            'id': product_id,
             **product_dict
         }
 
     except Exception as e:
         logger.error(f"Error in create_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-async def check_user_permission(current_user: dict, company_id: str):
-    """Kiểm tra quyền của user"""
-    user_doc = db.collection('users').document(current_user["sub"]).get()
-    if not user_doc.exists:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user_data = user_doc.to_dict()
-    if user_data["company_id"] != company_id and user_data["role"] != "Admin":
-        raise HTTPException(status_code=403, detail="Permission denied")
-    
-    return user_data
 
 @product_router.get("/", response_model=dict)
 async def get_products(
@@ -104,115 +87,72 @@ async def get_products(
 ):
     try:
         # Lấy thông tin user
-        user_doc = db.collection('users').document(current_user["sub"]).get()
-        user_data = user_doc.to_dict()
-
+        user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
+        
         # Sử dụng company_id từ user nếu không có trong request
-        company_id = company_id or user_data.get("company_id")
+        company_id = company_id or user.get("company_id")
         if not company_id:
             raise HTTPException(status_code=400, detail="Company ID is required")
 
-        # Tạo query với filter theo company_id
-        products_ref = db.collection('products').where(
-            filter=FieldFilter("company_id", "==", company_id)
-        )
+        # Tạo filter
+        filter_query = {"company_id": company_id}
 
         # Thêm điều kiện tìm kiếm
         if search:
             if search_field == 'code':
-                products_ref = products_ref.where(
-                    filter=FieldFilter("product_code", "==", search)
-                )
+                filter_query["product_code"] = search
             elif search_field == 'name':
-                products_ref = products_ref.where(
-                    filter=FieldFilter("product_name", ">=", search)
-                ).where(
-                    filter=FieldFilter("product_name", "<=", search + '\uf8ff')
-                )
+                filter_query["product_name"] = {"$regex": search, "$options": "i"}
             elif search_field == 'creator':
-                # Tìm user theo username
-                users_ref = db.collection('users').where(
-                    filter=FieldFilter("username", ">=", search)
-                ).where(
-                    filter=FieldFilter("username", "<=", search + '\uf8ff')
-                )
-                users = users_ref.stream()
-                user_ids = [user.id for user in users]
-                
+                users = await users_collection.find(
+                    {"username": {"$regex": search, "$options": "i"}}
+                ).to_list(None)
+                user_ids = [str(user['_id']) for user in users]
                 if user_ids:
-                    products_ref = products_ref.where(
-                        filter=FieldFilter("created_by", "in", user_ids)
-                    )
+                    filter_query["created_by"] = {"$in": user_ids}
             elif search_field == 'price':
                 try:
-                    price = float(search)
-                    products_ref = products_ref.where(
-                        filter=FieldFilter("price", "==", price)
-                    )
+                    filter_query["price"] = float(search)
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Giá phải là số")
 
-        # Sắp xếp
-        if sort_by and sort_order:
-            if sort_order.lower() == "asc":
-                products_ref = products_ref.order_by(sort_by, direction=firestore.Query.ASCENDING)
-            else:
-                products_ref = products_ref.order_by(sort_by, direction=firestore.Query.DESCENDING)
+        # Tạo sort
+        sort_direction = -1 if sort_order.lower() == "desc" else 1
+        sort_query = [(sort_by, sort_direction)]
 
         # Đếm tổng số sản phẩm
-        total_query = products_ref.count()
-        total_docs = total_query.get()[0][0].value
+        total = await products_collection.count_documents(filter_query)
 
-        # Phân trang
-        products_ref = products_ref.offset((page - 1) * limit)\
-                                 .limit(limit)
+        # Lấy sản phẩm theo phân trang
+        products_cursor = products_collection.find(filter_query)\
+            .sort(sort_query)\
+            .skip((page - 1) * limit)\
+            .limit(limit)
 
-        # Thực hiện query và xử lý kết quả
-        products = []
-        user_refs = {}
-        
-        # Lấy documents
-        docs = list(products_ref.stream())
-        
-        # Thu thập user references
-        for doc in docs:
-            product_data = doc.to_dict()
-            created_by = product_data.get("created_by")
-            if created_by and created_by not in user_refs:
-                user_refs[created_by] = db.collection('users').document(created_by)
+        products = await products_cursor.to_list(None)
 
-        # Lấy thông tin users trong một lần gọi
-        if user_refs:
-            user_docs = db.get_all(list(user_refs.values()))
-            user_data_map = {
-                doc.id: doc.to_dict() 
-                for doc in user_docs 
-                if doc.exists
-            }
+        # Lấy thông tin người tạo
+        creator_ids = list(set(str(p['created_by']) for p in products))
+        creators = await users_collection.find(
+            {"_id": {"$in": [ObjectId(id) for id in creator_ids]}}
+        ).to_list(None)
+        creators_map = {str(c['_id']): c['username'] for c in creators}
 
-        # Xử lý products
-        for doc in docs:
-            product_data = doc.to_dict()
-            product_data["id"] = doc.id
-            
-            # Thêm thông tin người tạo
-            created_by = product_data.get("created_by")
-            if created_by:
-                creator = user_data_map.get(created_by, {})
-                product_data["created_by_name"] = creator.get("username", "Unknown")
-            
-            products.append(product_data)
-            
+        # Thêm thông tin người tạo vào products
+        for product in products:
+            product['id'] = str(product['_id'])
+            product['created_by_name'] = creators_map.get(str(product['created_by']), "Unknown")
+
         return {
             "data": products,
-            "total": total_docs,
+            "total": total,
             "page": page,
             "limit": limit,
-            "total_pages": math.ceil(total_docs / limit)
+            "total_pages": math.ceil(total / limit)
         }
 
     except Exception as e:
-        print(f"Error getting products: {str(e)}")
+        logger.error(f"Error getting products: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @product_router.put("/{product_id}", response_model=ProductResponse)
@@ -223,17 +163,17 @@ async def update_product(
 ):
     try:
         # Kiểm tra sản phẩm tồn tại
-        product_doc = db.collection('products').document(product_id).get()
-        if not product_doc.exists:
+        product_doc = await products_collection.find_one({"_id": ObjectId(product_id)})
+        if not product_doc:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        existing_data = product_doc.to_dict()
+        existing_data = product_doc
         
         # Kiểm tra quyền
         await check_user_permission(current_user, existing_data["company_id"])
         
         # Tạo batch để xử lý nhiều thao tác
-        batch = db.batch()
+        batch = []
         
         # Cập nhật thông tin sản phẩm
         update_data = {
@@ -245,7 +185,7 @@ async def update_product(
         # Nếu có cập nhật ảnh
         if "image_urls" in update_data:
             new_image_urls = set(update_data["image_urls"])
-            old_image_urls = set(existing_data["image_urls"])
+            old_image_urls = set(existing_data.get("image_urls", []))
             
             # Xác định ảnh thêm mới và ảnh bị xóa
             added_images = new_image_urls - old_image_urls
@@ -253,37 +193,37 @@ async def update_product(
             
             # Xóa các ảnh cũ trong collection images
             if removed_images:
-                images_to_delete = db.collection('images').where(
-                    filter=FieldFilter("product_id", "==", product_id)
-                ).where(
-                    filter=FieldFilter("image_url", "in", list(removed_images))
-                ).stream()
-                
-                for img_doc in images_to_delete:
-                    batch.delete(img_doc.reference)
+                batch.append({
+                    "q": {"image_url": {"$in": list(removed_images)}},
+                    "u": {"$pull": {"image_urls": {"$in": list(removed_images)}}},
+                    "p": {"$set": {"updated_at": datetime.utcnow()}}
+                })
             
             # Thêm các ảnh mới vào collection images
             if added_images:
                 for url in added_images:
                     features, image_hash = process_image(url)
                     if features and image_hash:
-                        image_ref = db.collection('images').document()
-                        batch.set(image_ref, {
-                            'image_url': url,
-                            'company_id': existing_data["company_id"],
-                            'product_id': product_id,
-                            'uploaded_by': current_user['sub'],
-                            'created_at': datetime.utcnow(),
-                            'features': features,
-                            'image_hash': image_hash
+                        batch.append({
+                            "i": {
+                                "image_url": url,
+                                "company_id": existing_data["company_id"],
+                                "product_id": product_id,
+                                "uploaded_by": current_user['sub'],
+                                "created_at": datetime.utcnow(),
+                                "features": features,
+                                "image_hash": image_hash
+                            },
+                            "u": {"$push": {"image_urls": url}},
+                            "p": {"$set": {"updated_at": datetime.utcnow()}}
                         })
         
         # Cập nhật document sản phẩm
-        product_ref = db.collection('products').document(product_id)
-        batch.update(product_ref, update_data)
+        await products_collection.update_one({"_id": ObjectId(product_id)}, {"$set": update_data})
         
         # Thực hiện tất cả các thao tác trong batch
-        batch.commit()
+        if batch:
+            await images_collection.bulk_write(batch)
         
         # Trả về dữ liệu đã cập nhật
         return {
@@ -302,41 +242,29 @@ async def delete_product(
 ):
     try:
         # Kiểm tra sản phẩm tồn tại
-        product_doc = db.collection('products').document(product_id).get()
-        if not product_doc.exists:
+        product_doc = await products_collection.find_one({"_id": ObjectId(product_id)})
+        if not product_doc:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        product_data = product_doc.to_dict()
-        
         # Kiểm tra quyền
-        user_doc = db.collection('users').document(current_user["sub"]).get()
-        user_data = user_doc.to_dict()
-        
-        if product_data["company_id"] != user_data["company_id"] and user_data["role"] != "Admin":
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to delete this product"
-            )
+        await check_user_permission(current_user, product_doc["company_id"])
 
         # Tạo batch để xóa nhiều documents
-        batch = db.batch()
+        batch = []
 
         # Xóa tất cả ảnh liên quan
-        images_ref = db.collection('images').where("product_id", "==", product_id)
-        images = images_ref.get()
-        
-        for image in images:
-            batch.delete(image.reference)
+        images_ref = images_collection.find({"product_id": product_id})
+        for image in await images_ref.to_list(None):
+            batch.append({"d": {"_id": image["_id"]}})
 
         # Xóa sản phẩm
-        product_ref = db.collection('products').document(product_id)
-        batch.delete(product_ref)
+        batch.append({"d": {"_id": ObjectId(product_id)}})
 
         # Thực hiện batch
-        batch.commit()
+        await images_collection.bulk_write(batch)
 
         return {"message": "Product deleted successfully"}
 
     except Exception as e:
-        print(f"Error in delete_product: {str(e)}")
+        logger.error(f"Error in delete_product: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 

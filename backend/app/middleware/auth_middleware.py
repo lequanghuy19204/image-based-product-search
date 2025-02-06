@@ -4,7 +4,7 @@ from jose import JWTError, jwt
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-from app.config.firebase_config import db
+from app.config.mongodb_config import users_collection
 
 # Load biến môi trường
 load_dotenv()
@@ -55,15 +55,13 @@ async def verify_admin(credentials = Depends(security)):
             algorithms=["HS256"]
         )
         
-        # Lấy thông tin user từ database
-        user_doc = db.collection('users').document(payload['sub']).get()
-        if not user_doc.exists:
+        # Lấy thông tin user từ MongoDB
+        user = await users_collection.find_one({"_id": payload['sub']})
+        if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
             
-        user_data = user_doc.to_dict()
-        
         # Kiểm tra role admin
-        if user_data.get('role') != 'Admin':
+        if user.get('role') != 'Admin':
             raise HTTPException(
                 status_code=403,
                 detail="Bạn không có quyền truy cập"
