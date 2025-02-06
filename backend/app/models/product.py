@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 from .object_id import PyObjectId
 from bson import ObjectId
+from pydantic import validator
 
 class ProductCreate(BaseModel):
     product_name: str
@@ -24,7 +25,7 @@ class ProductUpdate(BaseModel):
     image_urls: Optional[List[str]] = None
 
 class ProductResponse(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: str = Field(alias="_id")
     product_name: str
     product_code: str
     brand: Optional[str]
@@ -38,5 +39,17 @@ class ProductResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str} 
+        json_encoders = {ObjectId: str}
+        
+    @validator("id", pre=True)
+    def convert_objectid_to_str(cls, v):
+        if isinstance(v, ObjectId):
+            return str(v)
+        return v
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.id = str(self.id)  # Ensure id is always a string
+
+    def __repr__(self):
+        return f"<ProductResponse id={self.id} product_name={self.product_name}>" 

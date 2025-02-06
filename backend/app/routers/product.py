@@ -88,28 +88,40 @@ async def get_products(
     try:
         # Lấy thông tin user
         user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
-        
-        # Sử dụng company_id từ user nếu không có trong request
-        company_id = company_id or user.get("company_id")
-        if not company_id:
-            raise HTTPException(status_code=400, detail="Company ID is required")
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-        # Tạo filter
-        filter_query = {"company_id": company_id}
+        # Sử dụng company_id từ user nếu không có trong request
+        user_company_id = user.get("company_id")
+        if not user_company_id:
+            raise HTTPException(status_code=400, detail="User's company information not found")
+
+        # Kiểm tra quyền truy cập
+        if company_id and company_id != str(user_company_id):
+            raise HTTPException(
+                status_code=403, 
+                detail="Không có quyền xem sản phẩm của công ty khác"
+            )
+
+        # Tạo filter với company_id của user
+        filter_query = {"company_id": str(user_company_id)}
 
         # Thêm điều kiện tìm kiếm
         if search:
             if search_field == 'code':
-                filter_query["product_code"] = search
+                filter_query["product_code"] = {"$regex": search, "$options": "i"}
             elif search_field == 'name':
                 filter_query["product_name"] = {"$regex": search, "$options": "i"}
             elif search_field == 'creator':
-                users = await users_collection.find(
-                    {"username": {"$regex": search, "$options": "i"}}
-                ).to_list(None)
-                user_ids = [str(user['_id']) for user in users]
-                if user_ids:
-                    filter_query["created_by"] = {"$in": user_ids}
+                creator_filter = {"username": {"$regex": search, "$options": "i"}}
+                if user_company_id:
+                    creator_filter["company_id"] = str(user_company_id)
+                creators = await users_collection.find(creator_filter).to_list(None)
+                creator_ids = [str(creator["_id"]) for creator in creators]
+                if creator_ids:
+                    filter_query["created_by"] = {"$in": creator_ids}
+                else:
+                    return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
             elif search_field == 'price':
                 try:
                     filter_query["price"] = float(search)
@@ -124,27 +136,43 @@ async def get_products(
         total = await products_collection.count_documents(filter_query)
 
         # Lấy sản phẩm theo phân trang
-        products_cursor = products_collection.find(filter_query)\
+        products = await products_collection.find(filter_query)\
             .sort(sort_query)\
             .skip((page - 1) * limit)\
-            .limit(limit)
-
-        products = await products_cursor.to_list(None)
+            .limit(limit)\
+            .to_list(None)
 
         # Lấy thông tin người tạo
         creator_ids = list(set(str(p['created_by']) for p in products))
         creators = await users_collection.find(
-            {"_id": {"$in": [ObjectId(id) for id in creator_ids]}}
+            {
+                "_id": {"$in": [ObjectId(id) for id in creator_ids]},
+                "company_id": str(user_company_id)
+            }
         ).to_list(None)
         creators_map = {str(c['_id']): c['username'] for c in creators}
 
-        # Thêm thông tin người tạo vào products
+        # Format response
+        formatted_products = []
         for product in products:
-            product['id'] = str(product['_id'])
-            product['created_by_name'] = creators_map.get(str(product['created_by']), "Unknown")
+            formatted_product = {
+                "id": str(product["_id"]),
+                "product_name": product["product_name"],
+                "product_code": product["product_code"],
+                "brand": product.get("brand"),
+                "description": product.get("description"),
+                "price": product["price"],
+                "image_urls": product.get("image_urls", []),
+                "created_by": str(product["created_by"]),
+                "created_by_name": creators_map.get(str(product["created_by"]), "Unknown"),
+                "created_at": product["created_at"],
+                "updated_at": product["updated_at"],
+                "company_id": str(product["company_id"])
+            }
+            formatted_products.append(formatted_product)
 
         return {
-            "data": products,
+            "data": formatted_products,
             "total": total,
             "page": page,
             "limit": limit,

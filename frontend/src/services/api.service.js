@@ -170,59 +170,20 @@ class ApiService {
   // Thêm phương thức để lấy cache hiệu quả hơn
   async get(endpoint, options = {}) {
     try {
-      const { useCache = true, forceFetch = false } = options;
-      
-      // Nếu forceFetch thì bỏ qua cache
-      if (forceFetch) {
-        let url = `${this.baseURL}${endpoint}`;
-        if (options.params) {
-          const params = new URLSearchParams(options.params);
-          url += `?${params.toString()}`;
+      // Thêm company_id vào params cho endpoint products
+      if (endpoint === '/api/products') {
+        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+        if (!userDetails?.company_id) {
+          throw new Error('Không tìm thấy thông tin công ty');
         }
         
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: this.getHeaders(),
-        });
-        return this.handleResponse(response);
-      }
-      
-      // Đặc biệt xử lý cho endpoint products
-      if (endpoint === '/api/products' && useCache && !forceFetch) {
-        const cacheKey = this.getProductsCacheKey(options.params);
-        const cachedData = localStorage.getItem(cacheKey);
-
-        if (cachedData) {
-          try {
-            const { data, metadata, timestamp } = JSON.parse(cachedData);
-            const isExpired = Date.now() - timestamp > this.CACHE_DURATION;
-
-            if (!isExpired) {
-              console.log('Đọc dữ liệu từ cache:', cacheKey);
-              return {
-                data,
-                ...metadata,
-                fromCache: true
-              };
-            } else {
-              localStorage.removeItem(cacheKey);
-            }
-          } catch (error) {
-            console.error('Error parsing cache:', error);
-            localStorage.removeItem(cacheKey);
-          }
-        }
+        options.params = {
+          ...options.params,
+          company_id: userDetails.company_id
+        };
       }
 
-      // Thêm company_id vào params nếu chưa có
-      if (endpoint === '/api/products' && options.params) {
-        const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-        if (userDetails?.company_id && !options.params.company_id) {
-          options.params.company_id = userDetails.company_id;
-        }
-      }
-
-      // Nếu không có cache hoặc cache hết hạn, gọi API
+      // Tạo URL với params
       let url = `${this.baseURL}${endpoint}`;
       if (options.params) {
         const params = new URLSearchParams();
@@ -238,21 +199,8 @@ class ApiService {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      const data = await this.handleResponse(response);
 
-      // Cache kết quả mới cho endpoint products
-      if (endpoint === '/api/products' && useCache) {
-        const cacheKey = this.getProductsCacheKey(options.params);
-        const metadata = {
-          total: data.total,
-          total_pages: Math.ceil(data.total / data.limit),
-          page: data.page,
-          limit: data.limit
-        };
-        this.setCacheData(cacheKey, data.data, metadata);
-      }
-
-      return data;
+      return await this.handleResponse(response);
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
