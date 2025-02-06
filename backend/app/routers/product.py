@@ -82,7 +82,6 @@ async def get_products(
     search_field: str = 'all',
     page: int = 1,
     limit: int = 10,
-    company_id: str = None,
     sort_by: str = "created_at",
     sort_order: str = "desc"
 ):
@@ -97,60 +96,12 @@ async def get_products(
         if not user_company_id:
             raise HTTPException(status_code=400, detail="User's company information not found")
 
-        # Kiểm tra quyền truy cập
-        if company_id and company_id != str(user_company_id):
-            raise HTTPException(
-                status_code=403, 
-                detail="Không có quyền xem sản phẩm của công ty khác"
-            )
-
         # Tạo pipeline
         pipeline = [
-            # Match stage
+            # Match stage - lọc theo company_id
             {
                 "$match": {
-                    "company_id": str(user_company_id)
-                }
-            },
-            # Lookup stage để join với users collection
-            {
-                "$lookup": {
-                    "from": "users",
-                    "let": {"creator_id": "$created_by"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$eq": ["$_id", {"$toObjectId": "$$creator_id"}]
-                                }
-                            }
-                        }
-                    ],
-                    "as": "creator"
-                }
-            },
-            # Unwind creator array
-            {
-                "$unwind": {
-                    "path": "$creator",
-                    "preserveNullAndEmptyArrays": True
-                }
-            },
-            # Project stage để format dữ liệu
-            {
-                "$project": {
-                    "id": {"$toString": "$_id"},
-                    "product_name": 1,
-                    "product_code": 1,
-                    "brand": 1,
-                    "description": 1,
-                    "price": 1,
-                    "image_urls": 1,
-                    "created_at": 1,
-                    "updated_at": 1,
-                    "company_id": {"$toString": "$company_id"},
-                    "created_by": {"$toString": "$created_by"},
-                    "created_by_name": "$creator.username"
+                    "company_id": user_company_id  # Đã là ObjectId từ database
                 }
             }
         ]
@@ -163,14 +114,15 @@ async def get_products(
             elif search_field == 'name':
                 search_filter["product_name"] = {"$regex": search, "$options": "i"}
             elif search_field == 'creator':
-                search_filter["creator.username"] = {"$regex": search, "$options": "i"}
+                search_filter["created_by_name"] = {"$regex": search, "$options": "i"}
             elif search_field == 'price':
                 try:
                     search_filter["price"] = float(search)
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Giá phải là số")
             
-            pipeline.insert(1, {"$match": search_filter})
+            if search_filter:
+                pipeline.append({"$match": search_filter})
 
         # Thêm sort
         sort_direction = -1 if sort_order.lower() == "desc" else 1
@@ -188,6 +140,24 @@ async def get_products(
             {"$limit": limit}
         ])
 
+        # Project stage để format dữ liệu
+        pipeline.append({
+            "$project": {
+                "_id": {"$toString": "$_id"},
+                "product_name": 1,
+                "product_code": 1,
+                "brand": 1,
+                "description": 1,
+                "price": 1,
+                "image_urls": 1,
+                "created_at": 1,
+                "updated_at": 1,
+                "company_id": {"$toString": "$company_id"},
+                "created_by": {"$toString": "$created_by"},
+                "created_by_name": 1
+            }
+        })
+
         # Thực hiện aggregation chính
         products = await products_collection.aggregate(pipeline).to_list(None)
 
@@ -195,18 +165,18 @@ async def get_products(
         formatted_products = []
         for product in products:
             formatted_product = {
-                "id": str(product["_id"]),  # Chuyển ObjectId thành str
+                "id": product["_id"],  # Đã được chuyển thành string từ $project
                 "product_name": product["product_name"],
                 "product_code": product["product_code"],
-                "brand": product.get("brand"),
-                "description": product.get("description"),
+                "brand": product.get("brand", ""),
+                "description": product.get("description", ""),
                 "price": product["price"],
                 "image_urls": product.get("image_urls", []),
-                "created_by": str(product["created_by"]),  # Chuyển ObjectId thành str
-                "created_by_name": product["created_by_name"],
-                "created_at": product["created_at"],
-                "updated_at": product["updated_at"],
-                "company_id": str(product["company_id"])  # Chuyển ObjectId thành str
+                "created_by": product["created_by"],  # Đã được chuyển thành string từ $project
+                "created_by_name": product.get("created_by_name", ""),
+                "created_at": product["created_at"].isoformat() if isinstance(product["created_at"], datetime) else product["created_at"],
+                "updated_at": product["updated_at"].isoformat() if isinstance(product["updated_at"], datetime) else product["updated_at"],
+                "company_id": product["company_id"]  # Đã được chuyển thành string từ $project
             }
             formatted_products.append(formatted_product)
 

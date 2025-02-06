@@ -107,7 +107,7 @@ async def delete_product(
 @admin_router.put("/users/{user_id}/status")
 async def update_user_status(
     user_id: str,
-    status_data: UserStatusUpdate,
+    status_data: dict,
     current_user: dict = Depends(verify_admin)
 ):
     try:
@@ -115,23 +115,28 @@ async def update_user_status(
         user = await users_collection.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-        
+
+        # Kiểm tra status hợp lệ
+        new_status = status_data.get("status")
+        if new_status not in ["active", "inactive"]:
+            raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ")
+
         # Cập nhật status
         result = await users_collection.update_one(
             {"_id": ObjectId(user_id)},
             {
                 "$set": {
-                    "status": status_data.status,
+                    "status": new_status,
                     "updated_at": datetime.utcnow()
                 }
             }
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=400, detail="Không thể cập nhật trạng thái")
-        
+
         return {"message": "Cập nhật trạng thái thành công"}
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -142,27 +147,32 @@ async def update_user_role(
     current_user: dict = Depends(verify_admin)
 ):
     try:
-        # Kiểm tra user cần update có tồn tại không
+        # Kiểm tra user tồn tại
         user = await users_collection.find_one({"_id": ObjectId(user_id)})
         if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-            
+
+        # Kiểm tra role hợp lệ
+        new_role = role_data.get("role")
+        if new_role not in ["Admin", "User"]:
+            raise HTTPException(status_code=400, detail="Vai trò không hợp lệ")
+
         # Cập nhật role
         result = await users_collection.update_one(
             {"_id": ObjectId(user_id)},
             {
                 "$set": {
-                    "role": role_data['role'],
+                    "role": new_role,
                     "updated_at": datetime.utcnow()
                 }
             }
         )
-        
+
         if result.modified_count == 0:
-            raise HTTPException(status_code=400, detail="Không thể cập nhật quyền")
-        
-        return {"message": "Cập nhật quyền thành công"}
-        
+            raise HTTPException(status_code=400, detail="Không thể cập nhật vai trò")
+
+        return {"message": "Cập nhật vai trò thành công"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -16,6 +16,17 @@ class ProductCreate(BaseModel):
     features: Optional[List[List[float]]] = None
     image_hashes: Optional[List[str]] = None
 
+    @validator('company_id')
+    def validate_object_id(cls, v):
+        if isinstance(v, str):
+            try:
+                return str(ObjectId(v))
+            except:
+                raise ValueError('Invalid ObjectId format')
+        elif isinstance(v, ObjectId):
+            return str(v)
+        raise ValueError('Invalid ObjectId format')
+
 class ProductUpdate(BaseModel):
     product_name: Optional[str] = None
     product_code: Optional[str] = None
@@ -47,6 +58,12 @@ class ProductResponse(BaseModel):
         
     @validator("id", pre=True)
     def convert_objectid_to_str(cls, v):
+        if isinstance(v, ObjectId):
+            return str(v)
+        return v
+
+    @validator('company_id', 'created_by', pre=True)
+    def convert_ids_to_str(cls, v):
         if isinstance(v, ObjectId):
             return str(v)
         return v

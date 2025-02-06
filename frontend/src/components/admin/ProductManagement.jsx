@@ -79,7 +79,8 @@ function ProductManagement() {
   useEffect(() => {
     const userDetails = JSON.parse(localStorage.getItem('userDetails'));
     if (userDetails?.company_id) {
-      setCompanyId(userDetails.company_id);
+      // Đảm bảo company_id là string
+      setCompanyId(userDetails.company_id.toString());
     }
   }, []);
 
@@ -105,43 +106,27 @@ function ProductManagement() {
     try {
       setLoading(true);
       
-      // Lấy company_id từ userDetails
-      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      const userCompanyId = userDetails?.company_id;
-      
-      if (!userCompanyId) {
-        throw new Error('Không tìm thấy thông tin công ty');
-      }
-
-      const response = await apiService.get('/api/products', {
-        params: {
-          page: currentPage,
-          limit: rowsPerPage,
-          search: searchTerm,
-          company_id: userCompanyId, // Chỉ lấy sản phẩm cùng công ty
-          sort_by: sortField,
-          sort_order: sortOrder
-        }
+      const response = await apiService.getProductsWithCache({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: searchQuery,
+        search_field: searchField,
+        sort_by: sortField,
+        sort_order: sortOrder
       });
 
-      if (response) {
-        setProducts(response.data || []);
+      if (response?.data) {
+        setProducts(response.data);
         setTotalItems(response.total || 0);
-        setTotalPages(Math.ceil(response.total / rowsPerPage) || 1);
-      } else {
-        setProducts([]);
-        setTotalItems(0);
-        setTotalPages(1);
+        setTotalPages(response.total_pages || 1);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      setProducts([]);
-      setTotalItems(0);
-      setTotalPages(1);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage, searchTerm, sortField, sortOrder]);
+  }, [currentPage, rowsPerPage, searchQuery, searchField, sortField, sortOrder]);
 
   // Sử dụng useEffect để fetch data khi các tham số thay đổi
   useEffect(() => {

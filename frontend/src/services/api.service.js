@@ -54,14 +54,37 @@ class ApiService {
 
   // Thêm hàm chuyển đổi response từ MongoDB
   transformMongoResponse(item) {
-    if (item && item._id) {
-      return {
-        ...item,
-        id: item._id,
-        _id: undefined
-      };
+    if (!item) return item;
+
+    const transformed = { ...item };
+    
+    // Chuyển đổi _id hoặc id thành string
+    if (transformed._id) {
+      transformed.id = typeof transformed._id === 'string' ? transformed._id : transformed._id.toString();
+      delete transformed._id;
+    } else if (transformed.id && typeof transformed.id !== 'string') {
+      transformed.id = transformed.id.toString();
     }
-    return item;
+
+    // Chuyển đổi company_id thành string nếu tồn tại và không phải string
+    if (transformed.company_id && typeof transformed.company_id !== 'string') {
+      transformed.company_id = transformed.company_id.toString();
+    }
+
+    // Chuyển đổi created_by thành string nếu tồn tại và không phải string
+    if (transformed.created_by && typeof transformed.created_by !== 'string') {
+      transformed.created_by = transformed.created_by.toString();
+    }
+
+    // Chuyển đổi ngày tháng
+    if (transformed.created_at) {
+      transformed.created_at = new Date(transformed.created_at).toLocaleString('vi-VN');
+    }
+    if (transformed.updated_at) {
+      transformed.updated_at = new Date(transformed.updated_at).toLocaleString('vi-VN');
+    }
+
+    return transformed;
   }
 
   // Thêm các phương thức quản lý cache
@@ -373,6 +396,11 @@ class ApiService {
       throw new Error('Bạn không có quyền thêm sản phẩm mới');
     }
     try {
+      // Đảm bảo company_id là string
+      if (productData.company_id) {
+        productData.company_id = productData.company_id.toString();
+      }
+
       // Thêm timeout để tránh request quá lâu
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
@@ -388,7 +416,7 @@ class ApiService {
         this.clearProductsCache(productData.company_id);
       }, 0);
       
-      return response;
+      return this.transformMongoResponse(response);
     } catch (error) {
       console.error('Error creating product:', error);
       throw error;
@@ -420,18 +448,31 @@ class ApiService {
 
   // Thêm phương thức getProductsWithCache
   async getProductsWithCache(params) {
-    const cacheKey = this.getProductsCacheKey(params);
-    const cachedData = this.getCacheData(cacheKey);
+    try {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      if (!userDetails?.company_id) {
+        throw new Error('Không tìm thấy thông tin công ty');
+      }
 
-    // Nếu có cache và chưa hết hạn
-    if (cachedData && !this.isCacheExpired(cachedData.timestamp)) {
-      return cachedData.data;
+      const response = await this.get('/api/products', { 
+        params: {
+          ...params,
+          search_field: params.search_field || 'all'
+        }
+      });
+
+      if (!response?.data) {
+        throw new Error('Không có dữ liệu trả về');
+      }
+
+      return {
+        ...response,
+        data: response.data.map(item => this.transformMongoResponse(item))
+      };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
     }
-
-    // Gọi API và lưu cache
-    const data = await this.get('/api/products', { params });
-    this.setCacheData(cacheKey, data);
-    return data;
   }
 
   // Thêm phương thức isCacheExpired

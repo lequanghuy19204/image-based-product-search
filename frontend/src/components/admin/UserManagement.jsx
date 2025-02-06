@@ -38,7 +38,10 @@ function UserManagement() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const totalPages = Math.ceil(users.length / rowsPerPage);
 
-  const [currentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const userDetails = localStorage.getItem('userDetails');
+    return userDetails ? JSON.parse(userDetails) : null;
+  });
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
   const CACHE_KEY = 'cachedUsers';
   const CACHE_TIMESTAMP_KEY = 'cachedUsersTimestamp';
@@ -261,6 +264,7 @@ function UserManagement() {
   const handleRoleChange = async (userId, currentRole) => {
     try {
       const newRole = currentRole === 'Admin' ? 'User' : 'Admin';
+      await apiService.updateUserRole(userId, newRole);
       
       // Cập nhật state và cache
       const updatedUsers = users.map(user => 
@@ -275,6 +279,7 @@ function UserManagement() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       setError(error.message);
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -282,6 +287,7 @@ function UserManagement() {
   const handleStatusChange = async (userId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      await apiService.updateUserStatus(userId, newStatus);
       
       // Cập nhật state và cache
       const updatedUsers = users.map(user => 
@@ -296,6 +302,7 @@ function UserManagement() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       setError(error.message);
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -333,7 +340,6 @@ function UserManagement() {
   );
 
   const isCurrentUser = (userId) => {
-    const currentUser = JSON.parse(localStorage.getItem('userDetails'));
     return currentUser && userId === currentUser.id;
   };
 
@@ -427,28 +433,42 @@ function UserManagement() {
                 </thead>
                 <tbody>
                   {currentUsers.map(user => (
-                    <tr key={user.id} className={isCurrentUser(user.id) ? 'current-user-row' : ''}>
-                      <td>{user.username}</td>
+                    <tr 
+                      key={user.id} 
+                      className={`${isCurrentUser(user.id) ? 'table-primary' : ''}`}
+                    >
+                      <td>
+                        <div className="d-flex align-items-center">
+                          {user.username}
+                          {isCurrentUser(user.id) && (
+                            <span className="badge bg-info ms-2">Tài khoản của bạn</span>
+                          )}
+                        </div>
+                      </td>
                       <td>{user.email}</td>
                       <td>
                         <div className="role-control">
-                          <span 
-                            className={`badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}`}
+                          <button
+                            className={`btn ${user.role === 'Admin' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
                             onClick={() => !isCurrentUser(user.id) && handleRoleChange(user.id, user.role)}
-                            style={{ cursor: isCurrentUser(user.id) ? 'not-allowed' : 'pointer' }}
+                            disabled={isCurrentUser(user.id)}
+                            title={isCurrentUser(user.id) ? "Không thể thay đổi vai trò của chính mình" : ""}
                           >
                             {user.role}
-                          </span>
+                          </button>
                         </div>
                       </td>
                       <td>
-                        <div className="status-control">
-                          <Switch
-                            checked={user.status === 'active'}
-                            onChange={() => !isCurrentUser(user.id) && handleStatusChange(user.id, user.status)}
-                            disabled={isCurrentUser(user.id)}
-                            color="success"
-                          />
+                        <div className="status-control d-flex align-items-center gap-2">
+                          <div className="form-check form-switch">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              checked={user.status === 'active'}
+                              onChange={() => !isCurrentUser(user.id) && handleStatusChange(user.id, user.status)}
+                              disabled={isCurrentUser(user.id)}
+                            />
+                          </div>
                           <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
                             {user.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
                           </span>
@@ -458,19 +478,23 @@ function UserManagement() {
                       <td>
                         <div className="btn-group">
                           <button
-                            className="btn btn-sm btn-outline-primary"
+                            className="btn btn-outline-primary btn-sm"
                             onClick={() => handleOpenUserDialog(user)}
-                            disabled={user.id === currentUser?.id}
+                            disabled={isCurrentUser(user.id)}
+                            title={isCurrentUser(user.id) ? "Không thể chỉnh sửa tài khoản của chính mình" : ""}
                           >
                             <EditIcon fontSize="small" />
                           </button>
                           <button
-                            className="btn btn-sm btn-outline-danger"
+                            className="btn btn-outline-danger btn-sm"
                             onClick={() => {
-                              setSelectedUser(user);
-                              setDeleteDialogOpen(true);
+                              if (!isCurrentUser(user.id)) {
+                                setSelectedUser(user);
+                                setDeleteDialogOpen(true);
+                              }
                             }}
-                            disabled={user.id === currentUser?.id}
+                            disabled={isCurrentUser(user.id)}
+                            title={isCurrentUser(user.id) ? "Không thể xóa tài khoản của chính mình" : ""}
                           >
                             <DeleteIcon fontSize="small" />
                           </button>
