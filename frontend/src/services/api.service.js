@@ -466,23 +466,35 @@ class ApiService {
 
   async getUsers() {
     try {
-      const currentUser = JSON.parse(localStorage.getItem('userDetails'));
-      if (!currentUser) {
-        throw new Error('Vui lòng đăng nhập lại');
-      }
+        const currentUser = JSON.parse(localStorage.getItem('userDetails'));
+        if (!currentUser) {
+            throw new Error('Vui lòng đăng nhập lại');
+        }
 
-      if (currentUser.role !== 'Admin') {
-        throw new Error('Bạn không có quyền truy cập');
-      }
+        if (currentUser.role !== 'Admin') {
+            throw new Error('Bạn không có quyền truy cập');
+        }
 
-      const response = await this.get('/api/admin/users');
-      if (!response) {
-        throw new Error('Không thể tải danh sách người dùng');
-      }
-      return this.transformResponse(response);
+        const response = await this.get('/api/admin/users', {
+            credentials: 'include',
+            mode: 'cors'
+        });
+
+        if (!response) {
+            throw new Error('Không thể tải danh sách người dùng');
+        }
+
+        // Chuyển đổi định dạng ngày tháng và đảm bảo id là string
+        return response.map(user => ({
+            ...user,
+            id: user.id.toString(), // Đảm bảo id là string
+            company_id: user.company_id ? user.company_id.toString() : null, // Đảm bảo company_id là string hoặc null
+            created_at: new Date(user.created_at).toLocaleString('vi-VN'),
+            updated_at: new Date(user.updated_at).toLocaleString('vi-VN')
+        }));
     } catch (error) {
-      console.error('Error fetching users:', error);
-      throw error;
+        console.error('Error fetching users:', error);
+        throw error;
     }
   }
 

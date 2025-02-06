@@ -25,22 +25,14 @@ async def get_users(current_user: dict = Depends(verify_admin)):
         pipeline = [
             {
                 "$match": {
-                    "company_id": company_id
+                    "company_id": ObjectId(company_id)
                 }
             },
             {
                 "$lookup": {
                     "from": "companies",
-                    "let": {"companyIdStr": "$company_id"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$eq": ["$_id", { "$toObjectId": "$$companyIdStr" }]
-                                }
-                            }
-                        }
-                    ],
+                    "localField": "company_id",
+                    "foreignField": "_id",
                     "as": "company"
                 }
             },
@@ -58,26 +50,20 @@ async def get_users(current_user: dict = Depends(verify_admin)):
                     "email": 1,
                     "role": 1,
                     "status": 1,
-                    "company_id": 1,
-                    "created_at": { "$toString": "$created_at" },
-                    "updated_at": { "$toString": "$updated_at" },
-                    "company_name": { "$ifNull": ["$company.company_name", None] },
-                    "company_code": { "$ifNull": ["$company.company_code", None] }
-                }
-            },
-            {
-                "$sort": {
-                    "created_at": -1
+                    "company_id": {"$toString": "$company_id"},
+                    "created_at": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S.%LZ", "date": "$created_at"}},
+                    "updated_at": {"$dateToString": {"format": "%Y-%m-%dT%H:%M:%S.%LZ", "date": "$updated_at"}},
+                    "company_name": "$company.company_name",
+                    "company_code": "$company.company_code"
                 }
             }
         ]
 
         users = await users_collection.aggregate(pipeline).to_list(None)
-        
         return users
-        
+
     except Exception as e:
-        print(f"Error in get_users: {str(e)}")  # Thêm log để debug
+        print(f"Error in get_users: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Route cho cả admin và user
