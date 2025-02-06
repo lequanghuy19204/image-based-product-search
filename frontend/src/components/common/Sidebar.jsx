@@ -25,7 +25,7 @@ function Sidebar({ open, onToggle }) {
   const [user, setUser] = useState(null);
   const [isDataStale, setIsDataStale] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState(null);
-  const [loginError, setLoginError] = useState(null);
+  const [setLoginError] = useState(null);
   const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
 
   // Kiểm tra xem có cần fetch lại data không

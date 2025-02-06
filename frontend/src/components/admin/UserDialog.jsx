@@ -16,7 +16,7 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
     company_id: ''
   });
   const [errors, setErrors] = useState({});
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser] = useState(null);
 
   // Lấy thông tin user hiện tại từ localStorage
   useEffect(() => {

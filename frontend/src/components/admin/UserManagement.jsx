@@ -261,7 +261,6 @@ function UserManagement() {
   const handleRoleChange = async (userId, currentRole) => {
     try {
       const newRole = currentRole === 'Admin' ? 'User' : 'Admin';
-      const response = await apiService.updateUserRole(userId, newRole);
       
       // Cập nhật state và cache
       const updatedUsers = users.map(user => 
@@ -283,7 +282,6 @@ function UserManagement() {
   const handleStatusChange = async (userId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      const response = await apiService.updateUserStatus(userId, newStatus);
       
       // Cập nhật state và cache
       const updatedUsers = users.map(user => 
@@ -333,11 +331,6 @@ function UserManagement() {
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
-
-  const updateUserCache = (updatedUsers) => {
-    setUsers(updatedUsers);
-    localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
-  };
 
   const isCurrentUser = (userId) => {
     const currentUser = JSON.parse(localStorage.getItem('userDetails'));
