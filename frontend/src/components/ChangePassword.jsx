@@ -24,14 +24,25 @@ function ChangePassword() {
       return;
     }
 
+    // Kiểm tra độ dài mật khẩu mới
+    if (passwords.new_password.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
     try {
       await apiService.post('/api/users/change-password', passwords);
       setSuccess('Đổi mật khẩu thành công');
+      // Reset form
       setPasswords({
         current_password: '',
         new_password: '',
         confirm_password: ''
       });
+      // Chuyển về trang chủ sau 2 giây
+      setTimeout(() => {
+        navigate('/search');
+      }, 2000);
     } catch (error) {
       setError(error.message || 'Không thể đổi mật khẩu');
     }
@@ -61,6 +72,8 @@ function ChangePassword() {
                 value={passwords.current_password}
                 onChange={(e) => setPasswords({...passwords, current_password: e.target.value})}
                 required
+                autoComplete="current-password"
+                placeholder="Nhập mật khẩu hiện tại"
               />
             </Form.Group>
 
@@ -71,7 +84,13 @@ function ChangePassword() {
                 value={passwords.new_password}
                 onChange={(e) => setPasswords({...passwords, new_password: e.target.value})}
                 required
+                autoComplete="new-password"
+                placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                minLength={6}
               />
+              <Form.Text className="text-muted">
+                Mật khẩu phải có ít nhất 6 ký tự
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -81,6 +100,9 @@ function ChangePassword() {
                 value={passwords.confirm_password}
                 onChange={(e) => setPasswords({...passwords, confirm_password: e.target.value})}
                 required
+                autoComplete="new-password"
+                placeholder="Nhập lại mật khẩu mới"
+                minLength={6}
               />
             </Form.Group>
 
@@ -90,7 +112,6 @@ function ChangePassword() {
               </Button>
               <Button 
                 variant="secondary" 
-                type="button"
                 onClick={() => navigate('/search')}
               >
                 Hủy

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Container, Card, Form, Button, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api.service';
+import '../styles/Profile.css';
 
 function Profile() {
   const navigate = useNavigate();
@@ -10,7 +11,10 @@ function Profile() {
     email: '',
     role: '',
     company_name: '',
-    company_code: ''
+    company_code: '',
+    status: '',
+    created_at: '',
+    updated_at: ''
   });
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
@@ -31,17 +35,28 @@ function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+    
     try {
-      const data = await apiService.put('/api/users/profile', {
+      const response = await apiService.put('/api/users/profile', {
         username: profile.username,
         email: profile.email
       });
+      
       setSuccess('Cập nhật thông tin thành công');
+      setTimeout(() => setSuccess(''), 2000);
       setIsEditing(false);
-      setProfile(data.user);
+      setProfile(response.user);
     } catch (error) {
       setError(error.message || 'Không thể cập nhật thông tin');
     }
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN');
   };
 
   return (
@@ -65,76 +80,93 @@ function Profile() {
               <Form.Label>Tên người dùng</Form.Label>
               <Form.Control
                 type="text"
-                value={profile.username}
-                disabled={!isEditing}
+                placeholder="Nhập tên người dùng mới"
+                value={profile.username || ''}
                 onChange={(e) => setProfile({...profile, username: e.target.value})}
+                required
+                maxLength={50}
+                isInvalid={!profile.username}
               />
+              <Form.Text className="text-muted">
+                Tên người dùng có thể thay đổi (tối đa 50 ký tự)
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
-                value={profile.email}
-                disabled={!isEditing}
+                placeholder="Nhập email mới"
+                value={profile.email || ''}
                 onChange={(e) => setProfile({...profile, email: e.target.value})}
+                required
+                isInvalid={!profile.email}
               />
+              <Form.Text className="text-muted">
+                Địa chỉ email hợp lệ (có thể dùng để đăng nhập)
+              </Form.Text>
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Vai trò</Form.Label>
-              <Form.Control
-                type="text"
-                value={profile.role}
-                disabled
-              />
-            </Form.Group>
+            <div className="profile-info-grid">
+              <div className="info-card">
+                <div className="info-label">Vai trò</div>
+                <div className="info-value">{profile.role}</div>
+              </div>
 
-            {profile.company_name && (
-              <Form.Group className="mb-3">
-                <Form.Label>Công ty</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={profile.company_name}
-                  disabled
-                />
-              </Form.Group>
-            )}
+              <div className="info-card">
+                <div className="info-label">Trạng thái</div>
+                <div className={`info-value status-${profile.status}`}>
+                  {profile.status === 'active' ? 'Đang hoạt động' : 'Không hoạt động'}
+                </div>
+              </div>
 
-            {profile.company_code && (
-              <Form.Group className="mb-3">
-                <Form.Label>Mã công ty</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={profile.company_code}
-                  disabled
-                />
-              </Form.Group>
-            )}
+              {profile.company_name && (
+                <div className="info-card">
+                  <div className="info-label">Công ty</div>
+                  <div className="info-value">{profile.company_name}</div>
+                </div>
+              )}
+
+              {profile.company_code && (
+                <div className="info-card">
+                  <div className="info-label">Mã công ty</div>
+                  <div className="info-value">{profile.company_code}</div>
+                </div>
+              )}
+
+              <div className="info-card">
+                <div className="info-label">Ngày tạo</div>
+                <div className="info-value">
+                  <i className="bi bi-calendar-event me-2"></i>
+                  {formatDateTime(profile.created_at)}
+                </div>
+              </div>
+
+              <div className="info-card">
+                <div className="info-label">Cập nhật lần cuối</div>
+                <div className="info-value">
+                  <i className="bi bi-clock-history me-2"></i>
+                  {formatDateTime(profile.updated_at)}
+                </div>
+              </div>
+            </div>
 
             <div className="d-flex gap-2">
               {isEditing ? (
-                <>
-                  <Button variant="primary" type="submit">
-                    Lưu thay đổi
-                  </Button>
-                  <Button variant="secondary" onClick={() => setIsEditing(false)}>
-                    Hủy
-                  </Button>
-                </>
+                <Button variant="primary" type="submit">
+                  Lưu thay đổi
+                </Button>
               ) : (
-                <>
-                  <Button variant="primary" onClick={() => setIsEditing(true)}>
-                    Chỉnh sửa
-                  </Button>
-                  <Button 
-                    variant="secondary" 
-                    onClick={() => navigate('/search')}
-                  >
-                    Quay lại
-                  </Button>
-                </>
+                <Button variant="primary" onClick={() => setIsEditing(true)}>
+                  Chỉnh sửa
+                </Button>
               )}
+              <Button 
+                variant="secondary" 
+                onClick={() => navigate('/search')}
+              >
+                Quay lại
+              </Button>
             </div>
           </Form>
         </Card.Body>

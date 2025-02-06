@@ -12,26 +12,20 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
     password: '',
     role: 'User',
     company_name: '',
-    company_code: ''
+    company_code: '',
+    company_id: ''
   });
   const [errors, setErrors] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
 
   // Lấy thông tin user hiện tại từ localStorage
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setCurrentUser(parsedUser);
-      
-      // Nếu đang ở mode thêm mới, tự động điền thông tin công ty
-      if (mode === 'add') {
-        setFormData(prev => ({
-          ...prev,
-          company_name: parsedUser.company_name || '',
-          company_code: parsedUser.company_code || ''
-        }));
-      }
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (userDetails && mode === 'add') {
+      setFormData(prev => ({
+        ...prev,
+        company_id: userDetails.company_id
+      }));
     }
   }, [mode]);
 
@@ -39,7 +33,9 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
   useEffect(() => {
     if (user && mode === 'edit') {
       setFormData({
-        ...user,
+        username: user.username,
+        email: user.email,
+        role: user.role,
         password: '' // Không hiển thị mật khẩu cũ
       });
     }
@@ -53,7 +49,8 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
       password: '',
       role: 'User',
       company_name: currentUser?.company_name || '',
-      company_code: currentUser?.company_code || ''
+      company_code: currentUser?.company_code || '',
+      company_id: ''
     });
     setErrors({});
     onClose();

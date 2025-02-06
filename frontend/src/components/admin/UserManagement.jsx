@@ -74,35 +74,22 @@ function UserManagement() {
   };
 
   // Hàm xử lý fetch users với cache
-  const fetchUsers = async (forceFetch = false) => {
+  const fetchUsers = async () => {
     try {
-      // Kiểm tra cache trước
-      const cachedData = localStorage.getItem('cachedUsers');
-      
-      // Nếu có cache và không bắt buộc fetch mới
-      if (cachedData && !forceFetch && !shouldFetchData()) {
-        const parsedData = JSON.parse(cachedData);
-        setUsers(parsedData);
-        processAndUpdateUsers(parsedData);
-        setLoading(false);
-        return;
-      }
-
-      // Nếu không có cache hoặc cache hết hạn
       setLoading(true);
-      const response = await apiService.get('/api/admin/users');
-      
-      // Cập nhật cache và state
-      localStorage.setItem('cachedUsers', JSON.stringify(response));
-      localStorage.setItem('cachedUsersTime', Date.now().toString());
-      setUsers(response);
-      processAndUpdateUsers(response);
-      setIsDataStale(false);
       setError('');
-      
+      const response = await apiService.getUsers();
+      if (response) {
+        setUsers(response);
+        processAndUpdateUsers(response);
+      }
     } catch (err) {
-      setError('Không thể tải danh sách người dùng');
       console.error('Error fetching users:', err);
+      setError(err.message || 'Không thể tải danh sách người dùng');
+      if (err.message.includes('đăng nhập')) {
+        // Redirect to login if session expired
+        window.location.href = '/login';
+      }
     } finally {
       setLoading(false);
     }
@@ -199,7 +186,7 @@ function UserManagement() {
       setTimeout(() => setSuccessMessage(''), 3000);
       
       // Fetch lại dữ liệu sau khi cập nhật
-      await fetchUsers(true);
+      await fetchUsers();
     } catch (error) {
       setError('Không thể thay đổi quyền người dùng');
       console.error('Error updating user role:', error);
@@ -228,7 +215,7 @@ function UserManagement() {
         setTimeout(() => setSuccessMessage(''), 3000);
         
         // Fetch lại dữ liệu
-        await fetchUsers(true);
+        await fetchUsers();
       }
     } catch (error) {
       setError(error.message || 'Không thể cập nhật trạng thái người dùng');
@@ -238,18 +225,12 @@ function UserManagement() {
 
   // Effect hooks
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    setCurrentUser(user);
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails || userDetails.role !== 'Admin') {
+      setError('Bạn không có quyền truy cập trang này');
+      return;
+    }
     fetchUsers();
-
-    // Thiết lập interval để kiểm tra data cũ
-    const interval = setInterval(() => {
-      if (shouldFetchData()) {
-        setIsDataStale(true);
-      }
-    }, 60000); // Kiểm tra mỗi phút
-
-    return () => clearInterval(interval);
   }, []);
 
   // Effect để xử lý filter và search
@@ -298,7 +279,7 @@ function UserManagement() {
               </div>
               <button 
                 className="btn btn-outline-secondary"
-                onClick={() => fetchUsers(true)}
+                onClick={() => fetchUsers()}
                 title="Tải lại dữ liệu"
               >
                 <RefreshIcon fontSize="small" />
@@ -318,7 +299,7 @@ function UserManagement() {
               Dữ liệu có thể đã cũ. 
               <button 
                 className="btn btn-link"
-                onClick={() => fetchUsers(true)}
+                onClick={() => fetchUsers()}
               >
                 Cập nhật ngay
               </button>
@@ -352,54 +333,44 @@ function UserManagement() {
                     <th>Email</th>
                     <th>Vai trò</th>
                     <th>Trạng thái</th>
-                    <th>Đăng nhập cuối</th>
+                    <th>Ngày tạo</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {currentUsers.map(user => (
-                    <tr key={user.id} className={user.id === currentUser?.id ? 'current-user-row' : ''}>
+                    <tr key={user.id}>
                       <td>{user.username}</td>
                       <td>{user.email}</td>
                       <td>
-                        <button
-                          className={`btn btn-sm ${user.role === 'Admin' ? 'btn-primary' : 'btn-secondary'}`}
-                          onClick={() => handleRoleChange(user.id, user.role)}
-                          disabled={user.id === currentUser?.id}
-                          style={{borderRadius:'10px'}}
-                        >
+                        <span className={`badge ${user.role === 'Admin' ? 'bg-primary' : 'bg-secondary'}`}>
                           {user.role}
-                        </button>
+                        </span>
                       </td>
                       <td>
-                        <button
-                          className={`btn btn-sm ${user.status === 'active' ? 'btn-success' : 'btn-danger'}`}
-                          onClick={() => handleStatusChange(user.id, user.status)}
-                          disabled={user.id === currentUser?.id}
-                          style={{borderRadius:'10px'}}
-                        >
+                        <span className={`badge ${user.status === 'active' ? 'bg-success' : 'bg-danger'}`}>
                           {user.status === 'active' ? 'Hoạt động' : 'Đã khóa'}
-                        </button>
+                        </span>
                       </td>
-                      <td>{user.last_login ? new Date(user.last_login).toLocaleDateString('vi-VN') : '-'}</td>
+                      <td>{user.created_at}</td>
                       <td>
-                        <div className="table-actions">
-                          <button 
-                            className="btn btn-sm btn-icon"
+                        <div className="btn-group">
+                          <button
+                            className="btn btn-sm btn-outline-primary"
                             onClick={() => handleOpenUserDialog(user)}
-                            title="Chỉnh sửa"
+                            disabled={user.id === currentUser?.id}
                           >
                             <EditIcon fontSize="small" />
                           </button>
-                          <button 
-                            className="btn btn-sm btn-icon"
+                          <button
+                            className="btn btn-sm btn-outline-danger"
                             onClick={() => {
                               setSelectedUser(user);
                               setDeleteDialogOpen(true);
                             }}
-                            title="Xóa"
+                            disabled={user.id === currentUser?.id}
                           >
-                            <DeleteIcon fontSize="small" className="text-danger" />
+                            <DeleteIcon fontSize="small" />
                           </button>
                         </div>
                       </td>

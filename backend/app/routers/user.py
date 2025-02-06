@@ -9,40 +9,63 @@ from bson import ObjectId
 user_router = APIRouter()
 
 @user_router.get("/profile")
-async def get_profile(current_user: dict = Depends(verify_token)):
+async def get_profile(token: dict = Depends(verify_token)):
     try:
-        # Lấy user từ database
-        user = await users_collection.find_one({"_id": ObjectId(current_user['sub'])})
+        # Pipeline để join với companies collection
+        pipeline = [
+            {"$match": {"_id": ObjectId(token["sub"]) }},
+            {
+                "$lookup": {
+                    "from": "companies",
+                    "let": {"companyIdStr": "$company_id"},  # Lấy company_id (string) từ user
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", { "$toObjectId": "$$companyIdStr" }]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "company"
+                }
+            },
+            {
+                "$unwind": {
+                    "path": "$company",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            {
+                "$project": {
+                    "_id": 1,
+                    "username": 1,
+                    "email": 1,
+                    "role": 1,
+                    "status": 1,
+                    # Giữ company_id dưới dạng string (đã có trong dữ liệu)
+                    "company_id": 1,
+                    "created_at": { "$toString": "$created_at" },
+                    "updated_at": { "$toString": "$updated_at" },
+                    "company_name": { "$ifNull": ["$company.company_name", None] },
+                    "company_code": { "$ifNull": ["$company.company_code", None] }
+                }
+            }
+        ]
+        
+        user = await users_collection.aggregate(pipeline).to_list(1)
         if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-
-        # Lấy thông tin company nếu có company_id
-        company = None
-        if user.get('company_id'):
-            company = await companies_collection.find_one({"_id": ObjectId(user['company_id'])})
-
-        # Chuẩn bị response data
-        response_data = {
-            "id": str(user["_id"]),
-            "username": user["username"],
-            "email": user["email"],
-            "role": user["role"],
-            "status": user["status"],
-            "company_id": str(user["company_id"]) if user.get("company_id") else None,
-            "company_name": company["company_name"] if company else None,
-            "company_code": company["company_code"] if company else None,
-            "created_at": user["created_at"].isoformat() if isinstance(user.get("created_at"), datetime) else None,
-            "updated_at": user["updated_at"].isoformat() if isinstance(user.get("updated_at"), datetime) else None
-        }
-
-        return response_data
-
+            
+        # Chuyển đổi _id thành id trong response
+        user_data = user[0]
+        user_data["id"] = str(user_data.pop("_id"))
+        
+        return user_data
+        
     except Exception as e:
-        print(f"Get profile error: {str(e)}")  # Log lỗi
-        raise HTTPException(
-            status_code=500,
-            detail=f"Lỗi khi lấy thông tin người dùng: {str(e)}"
-        )
+        print(f"Error in get_user_profile: {str(e)}")  # Thêm log để debug
+        raise HTTPException(status_code=500, detail=str(e))
 
 @user_router.put("/profile")
 async def update_profile(
@@ -63,13 +86,14 @@ async def update_profile(
             )
         
         # Cập nhật thông tin
+        update_time = datetime.utcnow()
         result = await users_collection.update_one(
             {"_id": ObjectId(current_user['sub'])},
             {
                 "$set": {
                     "username": profile_data.username,
                     "email": profile_data.email,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": update_time
                 }
             }
         )
@@ -78,22 +102,62 @@ async def update_profile(
             raise HTTPException(status_code=400, detail="Không thể cập nhật thông tin")
         
         # Lấy thông tin user sau khi cập nhật
-        updated_user = await users_collection.find_one(
-            {"_id": ObjectId(current_user['sub'])},
-            {"password_hash": 0}
-        )
+        pipeline = [
+            {"$match": {"_id": ObjectId(current_user['sub'])}},
+            {
+                "$lookup": {
+                    "from": "companies",
+                    "let": {"companyIdStr": "$company_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", {"$toObjectId": "$$companyIdStr"}]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "company"
+                }
+            },
+            {
+                "$unwind": {
+                    "path": "$company",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            {
+                "$project": {
+                    "_id": 1,
+                    "username": 1,
+                    "email": 1,
+                    "role": 1,
+                    "status": 1,
+                    "company_id": 1,
+                    "created_at": {"$toString": "$created_at"},
+                    "updated_at": {"$toString": "$updated_at"},
+                    "company_name": {"$ifNull": ["$company.company_name", None]},
+                    "company_code": {"$ifNull": ["$company.company_code", None]}
+                }
+            }
+        ]
+        
+        updated_user = await users_collection.aggregate(pipeline).to_list(1)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+            
+        user_data = updated_user[0]
+        user_data["id"] = str(user_data.pop("_id"))
             
         return {
             "message": "Cập nhật thông tin thành công",
-            "user": {
-                "id": str(updated_user['_id']),
-                **updated_user
-            }
+            "user": user_data
         }
         
     except HTTPException as he:
         raise he
     except Exception as e:
+        print(f"Error in update_profile: {str(e)}")  # Thêm log để debug
         raise HTTPException(status_code=500, detail=str(e))
 
 @user_router.post("/change-password")

@@ -253,7 +253,7 @@ class ApiService {
     }
   }
 
-  async post(endpoint, data, requiresAuth = true) {
+  async post(endpoint, data) {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
@@ -488,6 +488,39 @@ class ApiService {
       console.error('Error searching products:', error);
       throw error;
     }
+  }
+
+  async getUsers() {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('userDetails'));
+      if (!currentUser) {
+        throw new Error('Vui lòng đăng nhập lại');
+      }
+
+      if (currentUser.role !== 'Admin') {
+        throw new Error('Bạn không có quyền truy cập');
+      }
+
+      const response = await this.get('/api/admin/users');
+      if (!response) {
+        throw new Error('Không thể tải danh sách người dùng');
+      }
+      return this.transformResponse(response);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  transformResponse(data) {
+    if (Array.isArray(data)) {
+      return data.map(item => ({
+        ...item,
+        created_at: new Date(item.created_at).toLocaleString('vi-VN'),
+        updated_at: new Date(item.updated_at).toLocaleString('vi-VN')
+      }));
+    }
+    return data;
   }
 }
 

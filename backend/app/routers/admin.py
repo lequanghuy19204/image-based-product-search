@@ -14,40 +14,33 @@ async def get_users(current_user: dict = Depends(verify_admin)):
     try:
         # Lấy thông tin user hiện tại
         current_user_data = await users_collection.find_one({"_id": ObjectId(current_user['sub'])})
-        company_id = current_user_data.get('company_id')
-        
-        # Tạo pipeline cho aggregation
-        pipeline = []
-        if company_id:
-            pipeline.append({"$match": {"company_id": company_id}})
+        if not current_user_data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy thông tin người dùng")
             
-        # Join với companies collection
-        pipeline.extend([
-            {
-                "$lookup": {
-                    "from": "companies",
-                    "localField": "company_id",
-                    "foreignField": "_id",
-                    "as": "company"
-                }
-            },
-            {
-                "$unwind": {
-                    "path": "$company",
-                    "preserveNullAndEmptyArrays": True
-                }
-            },
-            {
-                "$project": {
-                    "password_hash": 0,
-                    "company_name": "$company.company_name",
-                    "company_code": "$company.company_code"
-                }
-            }
-        ])
+        company_id = current_user_data.get('company_id')
+        if not company_id:
+            raise HTTPException(status_code=400, detail="Người dùng chưa được gán công ty")
+
+        # Lấy danh sách users cùng company
+        users_cursor = users_collection.find({"company_id": company_id})
+        users = await users_cursor.to_list(None)
         
-        users = await users_collection.aggregate(pipeline).to_list(None)
-        return users
+        # Format response
+        formatted_users = [
+            {
+                "id": str(user["_id"]),
+                "username": user["username"],
+                "email": user["email"],
+                "role": user["role"],
+                "status": user.get("status", "active"),
+                "company_id": user["company_id"],
+                "created_at": user.get("created_at", datetime.utcnow()).isoformat(),
+                "updated_at": user.get("updated_at", datetime.utcnow()).isoformat()
+            }
+            for user in users
+        ]
+        
+        return formatted_users
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

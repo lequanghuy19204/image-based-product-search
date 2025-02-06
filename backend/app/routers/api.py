@@ -10,12 +10,20 @@ async def get_user_profile(token: dict = Depends(verify_token)):
     try:
         # Pipeline để join với companies collection
         pipeline = [
-            {"$match": {"_id": ObjectId(token["sub"])}},
+            {"$match": {"_id": ObjectId(token["sub"]) }},
             {
                 "$lookup": {
                     "from": "companies",
-                    "localField": "company_id",
-                    "foreignField": "_id",
+                    "let": {"companyIdStr": "$company_id"},  # Lấy company_id (string) từ user
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", { "$toObjectId": "$$companyIdStr" }]
+                                }
+                            }
+                        }
+                    ],
                     "as": "company"
                 }
             },
@@ -27,9 +35,17 @@ async def get_user_profile(token: dict = Depends(verify_token)):
             },
             {
                 "$project": {
-                    "password_hash": 0,
-                    "company_name": "$company.company_name",
-                    "company_code": "$company.company_code"
+                    "_id": 1,
+                    "username": 1,
+                    "email": 1,
+                    "role": 1,
+                    "status": 1,
+                    # Giữ company_id dưới dạng string (đã có trong dữ liệu)
+                    "company_id": 1,
+                    "created_at": { "$toString": "$created_at" },
+                    "updated_at": { "$toString": "$updated_at" },
+                    "company_name": { "$ifNull": ["$company.company_name", None] },
+                    "company_code": { "$ifNull": ["$company.company_code", None] }
                 }
             }
         ]
@@ -38,8 +54,13 @@ async def get_user_profile(token: dict = Depends(verify_token)):
         if not user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
             
-        return user[0]
+        # Chuyển đổi _id thành id trong response
+        user_data = user[0]
+        user_data["id"] = str(user_data.pop("_id"))
+        
+        return user_data
         
     except Exception as e:
+        print(f"Error in get_user_profile: {str(e)}")  # Thêm log để debug
         raise HTTPException(status_code=500, detail=str(e))
 

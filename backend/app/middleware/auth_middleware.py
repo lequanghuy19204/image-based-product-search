@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from app.config.mongodb_config import users_collection
+from bson.objectid import ObjectId
 
 # Load biến môi trường
 load_dotenv()
@@ -46,31 +47,27 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
             detail="Token không hợp lệ"
         )
 
-async def verify_admin(credentials = Depends(security)):
+async def verify_admin(token: str = Depends(verify_token)):
     try:
-        token = credentials.credentials
-        payload = jwt.decode(
-            token, 
-            os.getenv("JWT_SECRET_KEY"),
-            algorithms=["HS256"]
-        )
-        
-        # Lấy thông tin user từ MongoDB
-        user = await users_collection.find_one({"_id": payload['sub']})
+        # Lấy thông tin user từ token
+        user = await users_collection.find_one({"_id": ObjectId(token['sub'])})
         if not user:
-            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-            
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy thông tin người dùng"
+            )
+        
         # Kiểm tra role admin
-        if user.get('role') != 'Admin':
+        if user['role'] != 'Admin':
             raise HTTPException(
                 status_code=403,
                 detail="Bạn không có quyền truy cập"
             )
             
-        return payload
+        return token
         
-    except JWTError:
+    except Exception as e:
         raise HTTPException(
             status_code=401,
-            detail="Token không hợp lệ hoặc đã hết hạn"
+            detail="Không thể xác thực người dùng"
         )

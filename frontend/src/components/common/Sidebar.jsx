@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 import { authService } from '../../services/auth.service';
+import { apiService } from '../../services/api.service';
 
 function Sidebar({ open, onToggle }) {
   const navigate = useNavigate();
@@ -65,25 +66,8 @@ function Sidebar({ open, onToggle }) {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          localStorage.clear();
-          navigate('/login');
-          return;
-        }
-        throw new Error(errorData.detail || 'Lỗi khi lấy thông tin người dùng');
-      }
-
-      const data = await response.json();
+      // Sử dụng apiService thay vì fetch trực tiếp
+      const data = await apiService.get('/api/users/profile');
       
       // Kiểm tra dữ liệu trước khi lưu
       if (!data || !data.id) {
@@ -96,12 +80,11 @@ function Sidebar({ open, onToggle }) {
       setUserDetails(data);
       setLastFetchTime(Date.now());
       setIsDataStale(false);
-      setLoginError(null); // Reset error nếu thành công
+      setLoginError(null);
 
     } catch (error) {
       console.error('Lỗi khi lấy thông tin user:', error);
       setLoginError(error.message);
-      // Nếu lỗi nghiêm trọng, có thể xóa cache
       localStorage.removeItem('userDetails');
       localStorage.removeItem('userDetailsTime');
     }
