@@ -269,11 +269,69 @@
 
 /* Style cho hàng của user đang đăng nhập */
 .current-user-row {
-  background-color: rgba(102, 126, 234, 0.1);
+  background-color: rgba(102, 126, 234, 0.1) !important;
+  position: relative;
 }
 
 .current-user-row:hover {
-  background-color: rgba(102, 126, 234, 0.15);
+  background-color: rgba(102, 126, 234, 0.15) !important;
+}
+
+.current-user-row::after {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #667eea;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(102, 126, 234, 0.1);
+}
+
+/* Vô hiệu hóa các controls cho tài khoản hiện tại */
+.current-user-row .role-control .badge,
+.current-user-row .status-control .MuiSwitch-root,
+.current-user-row .btn-icon {
+  cursor: not-allowed;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Style cho các nút bị disable */
+.current-user-row .btn:disabled {
+  opacity: 0.5;
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+  color: #6c757d;
+}
+
+/* Hiệu ứng hover cho các nút bị disable */
+.current-user-row .btn:disabled:hover {
+  filter: none;
+  cursor: not-allowed;
+}
+
+/* Style cho badge role của tài khoản hiện tại */
+.current-user-row .role-control .badge {
+  background-color: #e9ecef !important;
+  color: #6c757d !important;
+  border: 1px solid #dee2e6;
+}
+
+/* Style cho switch status của tài khoản hiện tại */
+.current-user-row .status-control .MuiSwitch-root .MuiSwitch-switchBase {
+  color: #e9ecef;
+}
+
+.current-user-row .status-control .MuiSwitch-root .Mui-checked {
+  color: #e9ecef;
+}
+
+/* Thêm border để làm nổi bật hơn */
+.current-user-row {
+  border-left: 3px solid #667eea;
 }
 
 /* Style cho các nút role và status */

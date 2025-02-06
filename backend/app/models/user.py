@@ -105,3 +105,17 @@ class UserProfileResponse(BaseModel):
                 "updated_at": "2023-01-01T00:00:00.000Z"
             }
         }
+
+class UserUpdate(BaseModel):
+    username: constr(min_length=3, max_length=50)
+    email: EmailStr
+    role: constr(regex='^(Admin|User)$')
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "johndoe",
+                "email": "john@example.com",
+                "role": "User"
+            }
+        }

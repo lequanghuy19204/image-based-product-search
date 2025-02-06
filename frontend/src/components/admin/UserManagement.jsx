@@ -84,6 +84,9 @@ function UserManagement() {
       console.error('Error saving to cache:', error);
       // Xóa bớt cache cũ nếu localStorage đầy
       clearOldCache();
+      // Thử lưu lại
+      localStorage.setItem(CACHE_KEY, JSON.stringify(users));
+      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
     }
   };
 
@@ -121,6 +124,15 @@ function UserManagement() {
         localStorage.removeItem(CACHE_TIMESTAMP_KEY);
       }
 
+      // Kiểm tra cache trước
+      const cachedUsers = getCachedUsers();
+      if (cachedUsers && !forceRefresh) {
+        setUsers(cachedUsers);
+        processAndUpdateUsers(cachedUsers);
+        setLoading(false);
+        return;
+      }
+
       // Gọi API để lấy dữ liệu mới nhất
       const response = await apiService.getUsers();
       if (response) {
@@ -153,6 +165,7 @@ function UserManagement() {
     });
 
     setProcessedUsers(filtered);
+    
     // Reset về trang 1 nếu số lượng trang thay đổi
     const newTotalPages = Math.ceil(filtered.length / rowsPerPage);
     if (page > newTotalPages) {
@@ -172,6 +185,7 @@ function UserManagement() {
           role: userData.role || 'User',
           company_id: currentUser.company_id
         };
+        
 
         // Gọi API thêm người dùng
         const response = await apiService.post('/api/admin/users', userDataToSubmit);
@@ -179,18 +193,31 @@ function UserManagement() {
         // Cập nhật state và cache
         const updatedUsers = [...users, response];
         setUsers(updatedUsers);
+        processAndUpdateUsers(updatedUsers);
         saveUsersToCache(updatedUsers);
         
         // Hiển thị thông báo thành công
         setSuccessMessage('Thêm người dùng thành công');
+        setTimeout(() => setSuccessMessage(''), 3000);
         
         // Tự động làm mới dữ liệu
         await fetchUsers(true); // forceRefresh = true để lấy dữ liệu mới nhất
       } else {
-        const response = await apiService.put(`/api/admin/users/${selectedUser.id}`, userData);
+        // Chỉnh sửa user
+        const userDataToUpdate = {
+          username: userData.username,
+          email: userData.email,
+          role: userData.role || 'User'
+        };
+        
+        const response = await apiService.put(`/api/admin/users/${selectedUser.id}`, userDataToUpdate);
+        
+        // Cập nhật state và cache
         const updatedUsers = users.map(u => u.id === selectedUser.id ? response : u);
         setUsers(updatedUsers);
+        processAndUpdateUsers(updatedUsers);
         saveUsersToCache(updatedUsers);
+        
         setSuccessMessage('Cập nhật người dùng thành công');
         setTimeout(() => setSuccessMessage(''), 3000);
       }
@@ -207,8 +234,13 @@ function UserManagement() {
 
     try {
       await apiService.delete(`/api/admin/users/${selectedUser.id}`);
+      
+      // Cập nhật state và cache
       const updatedUsers = users.filter(u => u.id !== selectedUser.id);
-      updateUserCache(updatedUsers);
+      setUsers(updatedUsers);
+      processAndUpdateUsers(updatedUsers);
+      saveUsersToCache(updatedUsers);
+      
       setSuccessMessage('Xóa người dùng thành công');
       setTimeout(() => setSuccessMessage(''), 3000);
       setDeleteDialogOpen(false);
@@ -229,13 +261,17 @@ function UserManagement() {
   const handleRoleChange = async (userId, currentRole) => {
     try {
       const newRole = currentRole === 'Admin' ? 'User' : 'Admin';
-      await apiService.updateUserRole(userId, newRole);
+      const response = await apiService.updateUserRole(userId, newRole);
       
+      // Cập nhật state và cache
       const updatedUsers = users.map(user => 
         user.id === userId ? { ...user, role: newRole } : user
       );
       
       setUsers(updatedUsers);
+      processAndUpdateUsers(updatedUsers);
+      saveUsersToCache(updatedUsers);
+      
       setSuccessMessage('Cập nhật vai trò thành công');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
@@ -247,13 +283,17 @@ function UserManagement() {
   const handleStatusChange = async (userId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await apiService.updateUserStatus(userId, newStatus);
+      const response = await apiService.updateUserStatus(userId, newStatus);
       
+      // Cập nhật state và cache
       const updatedUsers = users.map(user => 
         user.id === userId ? { ...user, status: newStatus } : user
       );
       
       setUsers(updatedUsers);
+      processAndUpdateUsers(updatedUsers);
+      saveUsersToCache(updatedUsers);
+      
       setSuccessMessage('Cập nhật trạng thái thành công');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
@@ -263,11 +303,14 @@ function UserManagement() {
 
   // Effect hooks
   useEffect(() => {
-    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-    if (!userDetails || userDetails.role !== 'Admin') {
-      setError('Bạn không có quyền truy cập trang này');
-      return;
+    // Ưu tiên lấy dữ liệu từ cache trước
+    const cachedUsers = getCachedUsers();
+    if (cachedUsers) {
+      setUsers(cachedUsers);
+      processAndUpdateUsers(cachedUsers);
     }
+    
+    // Sau đó gọi API để cập nhật dữ liệu mới nhất
     fetchUsers();
   }, []);
 
@@ -297,7 +340,8 @@ function UserManagement() {
   };
 
   const isCurrentUser = (userId) => {
-    return userId === currentUser?.id;
+    const currentUser = JSON.parse(localStorage.getItem('userDetails'));
+    return currentUser && userId === currentUser.id;
   };
 
   return (
@@ -330,8 +374,8 @@ function UserManagement() {
               </div>
               <button 
                 className="btn btn-outline-secondary"
-                onClick={() => fetchUsers()}
-                title="Tải lại dữ liệu"
+                onClick={() => fetchUsers(true)} // forceRefresh = true để cập nhật cả cache
+                title="Tải lại dữ liệu và làm mới cache"
               >
                 <RefreshIcon fontSize="small" />
               </button>
@@ -390,7 +434,7 @@ function UserManagement() {
                 </thead>
                 <tbody>
                   {currentUsers.map(user => (
-                    <tr key={user.id} className={user.id === currentUser?.id ? 'current-user-row' : ''}>
+                    <tr key={user.id} className={isCurrentUser(user.id) ? 'current-user-row' : ''}>
                       <td>{user.username}</td>
                       <td>{user.email}</td>
                       <td>

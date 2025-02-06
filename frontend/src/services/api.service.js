@@ -348,7 +348,8 @@ class ApiService {
         mode: 'cors'
       });
 
-      return this.handleResponse(response);
+      const responseData = await this.handleResponse(response);
+      return this.transformMongoResponse(responseData);
     } catch (error) {
       console.error('API request failed:', error);
       throw error;

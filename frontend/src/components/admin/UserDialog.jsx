@@ -150,31 +150,6 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
           </Select>
         </FormControl>
         
-        {/* Hiển thị thông tin công ty readonly */}
-        {mode !== 'add' && (
-          <>
-            <TextField
-              margin="dense"
-              label="Tên công ty"
-              fullWidth
-              value={formData.company_name}
-              disabled
-              InputProps={{
-                readOnly: true,
-              }}
-            />
-            <TextField
-              margin="dense"
-              label="Mã công ty"
-              fullWidth
-              value={formData.company_code}
-              disabled
-              InputProps={{
-                readOnly: true,
-              }}
-            />
-          </>
-        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Hủy</Button>

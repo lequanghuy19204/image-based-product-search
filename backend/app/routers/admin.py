@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.config.mongodb_config import users_collection, companies_collection, products_collection
 from datetime import datetime
-from app.models.user import UserCreate, UserStatusUpdate
+from app.models.user import UserCreate, UserStatusUpdate, UserUpdate
 from app.utils.auth import get_password_hash
 from bson import ObjectId
 
@@ -246,7 +246,7 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(verify
 @admin_router.put("/users/{user_id}")
 async def update_user(
     user_id: str,
-    user_data: dict,
+    user_data: UserUpdate,  # Sử dụng Pydantic model mới
     current_user: dict = Depends(verify_admin)
 ):
     try:
@@ -256,8 +256,11 @@ async def update_user(
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
 
         # Kiểm tra email đã tồn tại (nếu có thay đổi email)
-        if 'email' in user_data:
-            existing_user = await users_collection.find_one({"email": user_data['email']})
+        if user_data.email != user['email']:
+            existing_user = await users_collection.find_one({
+                "email": user_data.email,
+                "_id": {"$ne": ObjectId(user_id)}
+            })
             if existing_user:
                 raise HTTPException(
                     status_code=400,
@@ -266,45 +269,46 @@ async def update_user(
 
         # Cập nhật thông tin
         update_data = {
+            "username": user_data.username,
+            "email": user_data.email,
+            "role": user_data.role,
             "updated_at": datetime.utcnow()
         }
-        
-        allowed_fields = ['username', 'email', 'role']
-        for field in allowed_fields:
-            if field in user_data:
-                update_data[field] = user_data[field]
 
         result = await users_collection.update_one(
             {"_id": ObjectId(user_id)},
-            {
-                "$set": update_data
-            }
+            {"$set": update_data}
         )
         
         if result.modified_count == 0:
             raise HTTPException(status_code=400, detail="Không thể cập nhật thông tin")
         
         # Lấy thông tin user sau khi cập nhật
-        updated_user = await users_collection.find_one(
-            {"_id": ObjectId(user_id)},
-            {"password_hash": 0}
-        )
+        updated_user = await users_collection.find_one({"_id": ObjectId(user_id)})
         
         # Lấy thông tin company
-        company_data = {}
-        if updated_user.get('company_id'):
-            company = await companies_collection.find_one({"_id": ObjectId(updated_user['company_id'])})
-            if company:
-                company_data = company
+        company = await companies_collection.find_one(
+            {"_id": ObjectId(updated_user['company_id'])}
+        ) if updated_user.get('company_id') else None
 
-        return {
-            'id': updated_user['_id'],
-            **updated_user,
-            'company_name': company_data.get('company_name', ''),
-            'company_code': company_data.get('company_code', '')
+        # Chuẩn bị response
+        response_data = {
+            "id": str(updated_user["_id"]),
+            "username": updated_user["username"],
+            "email": updated_user["email"],
+            "role": updated_user["role"],
+            "status": updated_user["status"],
+            "company_id": str(updated_user["company_id"]) if updated_user.get("company_id") else None,
+            "created_at": updated_user["created_at"].isoformat(),
+            "updated_at": updated_user["updated_at"].isoformat(),
+            "company_name": company["company_name"] if company else None,
+            "company_code": company["company_code"] if company else None
         }
+        
+        return response_data
 
     except Exception as e:
+        print(f"Error updating user: {str(e)}")  # Thêm log
         raise HTTPException(status_code=500, detail=str(e))
 
 @admin_router.delete("/users/{user_id}")
