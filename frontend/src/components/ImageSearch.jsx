@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload, Search, Delete, ImageSearch as ImageSearchIcon } from '@mui/icons-material';
 import Sidebar from './common/Sidebar';
 import '../styles/ImageSearch.css';
 import { apiService } from '../services/api.service';
+
 
 function ImageSearch() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -18,12 +19,10 @@ function ImageSearch() {
   };
 
   const [images, setImages] = useState([]);
-  const [imageUrl, setImageUrl] = useState('');
-  const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [comment, setComment] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Mock data cho comments
   const [comments] = useState([
@@ -43,44 +42,55 @@ function ImageSearch() {
     }
   ]);
 
-  const handleSearch = useCallback(async () => {
-    if ((!images.length && !imageUrl) || loading) return;
+  const handleImageUpload = (imageList) => {
+    setImages(imageList);
+  };
+
+  const handleSearch = async () => {
+    if (images.length === 0) return;
     
     setLoading(true);
     try {
-      const formData = new FormData();
-      
-      if (images.length > 0) {
-        // Nếu có file ảnh được upload
-        const imageFile = await fetch(images[0].data_url).then(r => r.blob());
-        formData.append('file', imageFile, 'image.jpg');
-      } else if (imageUrl) {
-        // Nếu có URL ảnh
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        formData.append('file', blob, 'image.jpg');
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      const company_id = userDetails?.company_id;
+
+      // Validate company_id
+      if (!company_id) {
+        throw new Error('Không tìm thấy thông tin công ty');
       }
 
-      formData.append('company_id', user.company_id);
+      const formData = new FormData();
+      formData.append('file', images[0].file);
+      formData.append('company_id', company_id.toString()); // Đảm bảo company_id là string
+      formData.append('top_k', '8');
+
+      const response = await apiService.postFormData('/api/images/search', formData);
       
-      const response = await apiService.post('/api/image-search/search', formData);
-      setSearchResults(response.results);
-      setSuccessMessage('Tìm kiếm thành công!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      if (response.results.length === 0) {
+        alert('Không tìm thấy sản phẩm tương tự');
+        return;
+      }
+
+      setSearchResults(response.results.map(result => ({
+        id: result.product_id,
+        imageUrl: result.image_url,
+        title: result.product_name || '',
+        price: result.price ? `${result.price.toLocaleString()}đ` : '0đ',
+        similarity: `${(result.similarity || 0).toFixed(1)}%`,
+        description: result.description || '',
+        brand: result.brand || '',
+        productCode: result.product_code || '',
+        featureSimilarity: result.feature_similarity ? `${(result.feature_similarity * 100).toFixed(1)}%` : '0%',
+        hashSimilarity: result.hash_similarity ? `${(result.hash_similarity * 100).toFixed(1)}%` : '0%'
+      })));
+
     } catch (error) {
-      setSuccessMessage(`Lỗi: ${error.message}`);
-      setTimeout(() => setSuccessMessage(''), 3000);
+      console.error('Search error:', error);
+      alert(error.message || 'Có lỗi xảy ra khi tìm kiếm');
     } finally {
       setLoading(false);
     }
-  }, [images, imageUrl]);
-
-  // Tự động tìm kiếm khi có ảnh mới
-  React.useEffect(() => {
-    if (images.length > 0 || imageUrl) {
-      handleSearch();
-    }
-  }, [images, imageUrl, handleSearch]);
+  };
 
   const handleCommentSubmit = () => {
     if (!comment.trim()) return;
@@ -106,37 +116,17 @@ function ImageSearch() {
             Tải lên hình ảnh sản phẩm để tìm kiếm
           </p>
         </div>
-
-        {/* Thông báo thành công */}
-        {successMessage && (
-          <div className="alert alert-success" role="alert">
-            {successMessage}
-          </div>
-        )}
-
+      
         {/* Upload Section */}
         <div className="card shadow-sm mb-4">
           <div className="card-body">
-            <h5 className="card-title mb-4">Tìm kiếm bằng hình ảnh</h5>
-            
-            {/* URL Input */}
-            <div className="mb-3">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Nhập URL hình ảnh..."
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-              />
-            </div>
-            {/* Image Upload */}
             <ImageUploading
+              multiple={false}
               value={images}
-              onChange={(imageList) => {
-                setImages(imageList);
-                setImageUrl(''); // Xóa URL khi upload ảnh
-              }}
+              onChange={handleImageUpload}
               maxNumber={1}
+              dataURLKey="data_url"
+              acceptType={['jpg', 'jpeg', 'png']}
             >
               {({
                 imageList,
