@@ -214,18 +214,24 @@ class ImageSearchEngine:
                     feature_sim = float(np.dot(query_features, img_features) / 
                                       (np.linalg.norm(query_features) * np.linalg.norm(img_features)))
 
+                    # Đảm bảo feature_sim nằm trong khoảng [0, 1]
+                    feature_sim = max(0, min(1, feature_sim))
+
                     # Tính điểm tương đồng hash
                     hash_sim = 1 - (abs(int(query_hash, 16) - int(img['image_hash'], 16)) / 64)
+                    
+                    # Đảm bảo hash_sim nằm trong khoảng [0, 1]
+                    hash_sim = max(0, min(1, hash_sim))
 
                     # Tính điểm tổng hợp (trọng số 0.7 cho đặc trưng và 0.3 cho hash)
                     combined_sim = 0.7 * feature_sim + 0.3 * hash_sim
 
                     similarities.append({
-                        'product_id': str(img['product_id']),  # Chuyển ObjectId thành string
+                        'product_id': str(img['product_id']),
                         'image_url': img['image_url'],
-                        'similarity': float(combined_sim * 100),  # Chuyển thành phần trăm
-                        'feature_similarity': float(feature_sim * 100),
-                        'hash_similarity': float(hash_sim * 100)
+                        'similarity': round(float(combined_sim * 100), 2),  # Làm tròn 2 chữ số
+                        'feature_similarity': round(float(feature_sim * 100), 2),
+                        'hash_similarity': round(float(hash_sim * 100), 2)
                     })
                 except Exception as e:
                     logger.error(f"Error processing image {img.get('image_url')}: {str(e)}")
