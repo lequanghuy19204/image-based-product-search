@@ -13,6 +13,14 @@ image_search_router = APIRouter()
 # Khởi tạo search engine
 search_engine = ImageSearchEngine()
 
+def normalize_percentage(value):
+    """Chuẩn hóa giá trị về dạng phần trăm từ 0-100"""
+    try:
+        # Giới hạn giá trị trong khoảng 0-100
+        return max(0, min(100, float(value)))
+    except:
+        return 0
+
 @image_search_router.post("/search")
 async def search_similar_images(
     file: UploadFile = File(..., description="Ảnh cần tìm kiếm"),
@@ -54,12 +62,11 @@ async def search_similar_images(
 
         # Lấy thông tin sản phẩm cho mỗi kết quả
         enriched_results = []
-        product_cache = {}  # Cache để lưu thông tin sản phẩm
+        product_cache = {}
 
         for result in results:
             product_id = result['product_id']
             
-            # Kiểm tra cache trước khi query database
             if product_id not in product_cache:
                 product = await products_collection.find_one({"_id": ObjectId(product_id)})
                 product_cache[product_id] = product
@@ -73,20 +80,12 @@ async def search_similar_images(
                     'product_code': product.get('product_code', ''),
                     'price': float(product.get('price', 0)),
                     'brand': product.get('brand', ''),
-                    'description': product.get('description', ''),
-                    'feature_similarity': result.get('feature_similarity', 0),
-                    'hash_similarity': result.get('hash_similarity', 0)
+                    'description': product.get('description', '')
                 })
 
-        # Sắp xếp lại kết quả theo độ tương đồng
-        enriched_results.sort(key=lambda x: x['similarity'], reverse=True)
-        
-        # Lấy top_k kết quả
-        final_results = enriched_results[:top_k]
-
         return {
-            "total": len(final_results),
-            "results": final_results
+            "total": len(enriched_results),
+            "results": enriched_results[:top_k]
         }
 
     except Exception as e:

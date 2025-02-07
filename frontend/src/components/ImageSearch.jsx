@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ImageUploading from 'react-images-uploading';
 import { CloudUpload, Search, Delete, ImageSearch as ImageSearchIcon } from '@mui/icons-material';
 import Sidebar from './common/Sidebar';
@@ -19,8 +19,11 @@ function ImageSearch() {
   };
 
   const [images, setImages] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
+  const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [comment, setComment] = useState('');
 
@@ -42,51 +45,62 @@ function ImageSearch() {
     }
   ]);
 
+  // Thêm useEffect để tự động tìm kiếm khi có ảnh
+  useEffect(() => {
+    if (images.length > 0 || previewUrl) {
+      handleSearch();
+    }
+  }, [images, previewUrl]);
+
   const handleImageUpload = (imageList) => {
     setImages(imageList);
   };
 
+  const handleImageUrl = async (url) => {
+    setImageUrl(url);
+    try {
+      // Kiểm tra và hiển thị preview ảnh
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Không thể tải ảnh');
+      setPreviewUrl(url);
+      setImages([]); // Xóa ảnh upload nếu có
+    } catch (error) {
+      setSuccessMessage('URL ảnh không hợp lệ');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      setPreviewUrl('');
+    }
+  };
+
   const handleSearch = async () => {
-    if (images.length === 0) return;
+    if ((!images.length && !previewUrl) || loading) return;
     
     setLoading(true);
     try {
-      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      const company_id = userDetails?.company_id;
-
-      // Validate company_id
-      if (!company_id) {
-        throw new Error('Không tìm thấy thông tin công ty');
+      const formData = new FormData();
+      
+      if (images.length > 0) {
+        // Nếu có file ảnh được upload
+        const imageFile = await fetch(images[0].data_url).then(r => r.blob());
+        formData.append('file', imageFile, 'image.jpg');
+      } else if (previewUrl) {
+        // Nếu có URL ảnh hợp lệ
+        const response = await fetch(previewUrl);
+        if (!response.ok) throw new Error('Không thể tải ảnh từ URL');
+        const blob = await response.blob();
+        formData.append('file', blob, 'image.jpg');
       }
 
-      const formData = new FormData();
-      formData.append('file', images[0].file);
-      formData.append('company_id', company_id.toString()); // Đảm bảo company_id là string
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      formData.append('company_id', userDetails.company_id);
       formData.append('top_k', '8');
 
       const response = await apiService.postFormData('/api/images/search', formData);
-      
-      if (response.results.length === 0) {
-        alert('Không tìm thấy sản phẩm tương tự');
-        return;
-      }
-
-      setSearchResults(response.results.map(result => ({
-        id: result.product_id,
-        imageUrl: result.image_url,
-        title: result.product_name || '',
-        price: result.price ? `${result.price.toLocaleString()}đ` : '0đ',
-        similarity: `${(result.similarity || 0).toFixed(1)}%`,
-        description: result.description || '',
-        brand: result.brand || '',
-        productCode: result.product_code || '',
-        featureSimilarity: result.feature_similarity ? `${(result.feature_similarity * 100).toFixed(1)}%` : '0%',
-        hashSimilarity: result.hash_similarity ? `${(result.hash_similarity * 100).toFixed(1)}%` : '0%'
-      })));
-
+      setSearchResults(response.results);
+      setSuccessMessage('Tìm kiếm thành công!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
-      console.error('Search error:', error);
-      alert(error.message || 'Có lỗi xảy ra khi tìm kiếm');
+      setSuccessMessage(`Lỗi: ${error.message}`);
+      setTimeout(() => setSuccessMessage(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -120,10 +134,34 @@ function ImageSearch() {
         {/* Upload Section */}
         <div className="card shadow-sm mb-4">
           <div className="card-body">
+            <div className="mb-3">
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nhập URL ảnh..."
+                  value={imageUrl}
+                  onChange={(e) => handleImageUrl(e.target.value)}
+                />
+                <button 
+                  className="btn btn-outline-primary"
+                  onClick={() => handleImageUrl(imageUrl)}
+                  disabled={!imageUrl}
+                >
+                  <Search className="me-1" />
+                  Xem trước
+                </button>
+              </div>
+            </div>
+
             <ImageUploading
               multiple={false}
               value={images}
-              onChange={handleImageUpload}
+              onChange={(imageList) => {
+                setImages(imageList);
+                setPreviewUrl('');
+                setImageUrl('');
+              }}
               maxNumber={1}
               dataURLKey="data_url"
               acceptType={['jpg', 'jpeg', 'png']}
@@ -136,7 +174,7 @@ function ImageSearch() {
                 dragProps
               }) => (
                 <div className="upload-area p-4 text-center">
-                  {imageList.length === 0 ? (
+                  {!imageList.length && !previewUrl ? (
                     <div 
                       className={`upload-placeholder border-2 border-dashed rounded p-5 
                         ${isDragging ? 'bg-light' : ''}`}
@@ -156,14 +194,18 @@ function ImageSearch() {
                   ) : (
                     <div className="position-relative d-inline-block">
                       <img 
-                        src={imageList[0].data_url} 
+                        src={imageList[0]?.data_url || previewUrl}
                         alt="Preview" 
                         className="img-fluid rounded"
                         style={{ maxHeight: '150px' }}
                       />
                       <button
                         className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
-                        onClick={() => onImageRemove(0)}
+                        onClick={() => {
+                          if (imageList.length) onImageRemove(0);
+                          setPreviewUrl('');
+                          setImageUrl('');
+                        }}
                       >
                         <Delete />
                       </button>
@@ -173,22 +215,27 @@ function ImageSearch() {
               )}
             </ImageUploading>
 
-            <button
-              className="btn btn-primary w-100 mt-3"
-              onClick={handleSearch}
-              disabled={images.length === 0 || loading}
-            >
-              {loading ? (
-                <div className="spinner-border spinner-border-sm me-2" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              ) : (
-                <Search className="me-2" />
-              )}
-              Tìm kiếm
-            </button>
+            <div className="text-center mt-3">
+              <button
+                className="btn btn-primary"
+                onClick={handleSearch}
+                disabled={loading || (!images.length && !previewUrl)}
+              >
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm me-2" />
+                ) : (
+                  <Search className="me-2" />
+                )}
+                Tìm kiếm
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Hiển thị thông báo */}
+        {successMessage && (
+          <div className="alert alert-info">{successMessage}</div>
+        )}
 
         {/* Results Section */}
         {searchResults.length > 0 && (
@@ -203,30 +250,19 @@ function ImageSearch() {
                 <div key={`${item.id}-${index}`} className="col">
                   <div className="card h-100">
                     <img
-                      src={item.imageUrl}
-                      alt={item.title}
+                      src={item.image_url}
+                      alt={item.product_name}
                       className="card-img-top"
                       style={{ height: '200px', objectFit: 'cover' }}
                     />
                     <div className="card-body">
-                      <h6 className="card-title">{item.title}</h6>
+                      <h6 className="card-title">{item.product_name}</h6>
                       <p className="card-text text-muted small mb-1">
-                        Mã SP: {item.productCode}
+                        Mã SP: {item.product_code}
                       </p>
                       <p className="card-text text-primary fw-bold mb-1">
-                        {item.price}
+                        {item.price ? `${item.price.toLocaleString()}đ` : '0đ'}
                       </p>
-                      <div className="similarity-details">
-                        <p className="card-text text-success small mb-1">
-                          Độ tương đồng tổng hợp: {item.similarity}%
-                        </p>
-                        <p className="card-text text-info small mb-1">
-                          Đặc trưng: {item.featureSimilarity}%
-                        </p>
-                        <p className="card-text text-warning small mb-0">
-                          Hash: {item.hashSimilarity}%
-                        </p>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -244,7 +280,7 @@ function ImageSearch() {
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">{selectedImage?.title}</h5>
+                <h5 className="modal-title">{selectedImage?.product_name}</h5>
                 <button 
                   type="button" 
                   className="btn-close"
@@ -255,13 +291,13 @@ function ImageSearch() {
                 <div className="row">
                   <div className="col-md-8">
                     <img
-                      src={selectedImage?.imageUrl}
-                      alt={selectedImage?.title}
+                      src={selectedImage?.image_url}
+                      alt={selectedImage?.product_name}
                       className="img-fluid rounded"
                     />
                   </div>
                   <div className="col-md-4">
-                    <h4 className="text-primary mb-3">{selectedImage?.price}</h4>
+                    <h4 className="text-primary mb-3">{selectedImage?.price ? `${selectedImage.price.toLocaleString()}đ` : '0đ'}</h4>
                     <p>{selectedImage?.description}</p>
                     
                     <div className="d-flex gap-2 mb-4">

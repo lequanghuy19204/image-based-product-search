@@ -205,33 +205,24 @@ class ImageSearchEngine:
             query_image = Image.open(BytesIO(image_bytes))
             query_hash = str(imagehash.average_hash(query_image))
 
-            # Tính toán điểm tương đồng cho tất cả ảnh
             similarities = []
             for img in images_data:
                 try:
                     # Tính điểm tương đồng đặc trưng
                     img_features = np.array(img['features'])
                     feature_sim = float(np.dot(query_features, img_features) / 
-                                      (np.linalg.norm(query_features) * np.linalg.norm(img_features)))
-
-                    # Đảm bảo feature_sim nằm trong khoảng [0, 1]
-                    feature_sim = max(0, min(1, feature_sim))
+                                     (np.linalg.norm(query_features) * np.linalg.norm(img_features)))
 
                     # Tính điểm tương đồng hash
                     hash_sim = 1 - (abs(int(query_hash, 16) - int(img['image_hash'], 16)) / 64)
-                    
-                    # Đảm bảo hash_sim nằm trong khoảng [0, 1]
-                    hash_sim = max(0, min(1, hash_sim))
 
-                    # Tính điểm tổng hợp (trọng số 0.7 cho đặc trưng và 0.3 cho hash)
-                    combined_sim = 0.7 * feature_sim + 0.3 * hash_sim
+                    # Tính điểm tổng hợp (70% đặc trưng + 30% hash)
+                    combined_sim = (0.7 * feature_sim + 0.3 * hash_sim) * 100
 
                     similarities.append({
                         'product_id': str(img['product_id']),
                         'image_url': img['image_url'],
-                        'similarity': round(float(combined_sim * 100), 2),  # Làm tròn 2 chữ số
-                        'feature_similarity': round(float(feature_sim * 100), 2),
-                        'hash_similarity': round(float(hash_sim * 100), 2)
+                        'similarity': combined_sim
                     })
                 except Exception as e:
                     logger.error(f"Error processing image {img.get('image_url')}: {str(e)}")
