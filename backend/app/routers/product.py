@@ -24,14 +24,22 @@ async def create_product(
     try:
         # Lấy thông tin user
         user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
-        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
         # Tạo document sản phẩm mới
         product_dict = {
-            **product_data.dict(exclude={'features', 'image_hashes'}),
-            'created_by': current_user['sub'],
-            'created_by_name': user.get('username', 'Unknown'),
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            "product_name": product_data.product_name,
+            "product_code": product_data.product_code,
+            "brand": product_data.brand or "",
+            "description": product_data.description or "",
+            "price": product_data.price,
+            "company_id": ObjectId(product_data.company_id),  # Chuyển string thành ObjectId
+            "image_urls": product_data.image_urls or [],
+            "created_by": ObjectId(current_user["sub"]),  # Chuyển string thành ObjectId
+            "created_by_name": user.get("username", "Unknown"),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
         }
         
         # Lưu sản phẩm
@@ -46,16 +54,15 @@ async def create_product(
                     features, image_hash = process_image(url)
                     if features and image_hash:
                         image_tasks.append({
-                            'image_url': url,
-                            'company_id': product_data.company_id,
-                            'product_id': product_id,
-                            'uploaded_by': current_user['sub'],
-                            'created_at': datetime.utcnow(),
-                            'features': features,
-                            'image_hash': image_hash
+                            "image_url": url,
+                            "company_id": ObjectId(product_data.company_id),
+                            "product_id": ObjectId(product_id),
+                            "uploaded_by": ObjectId(current_user["sub"]),
+                            "created_at": datetime.utcnow(),
+                            "features": features,
+                            "image_hash": image_hash
                         })
 
-                # Batch insert cho images nếu có
                 if image_tasks:
                     await images_collection.insert_many(image_tasks)
                     
@@ -65,10 +72,12 @@ async def create_product(
         # Chạy xử lý ảnh bất đồng bộ
         asyncio.create_task(process_images())
         
-        # Trả về response ngay
+        # Trả về response
         return {
-            'id': product_id,
-            **product_dict
+            "id": product_id,
+            **product_dict,
+            "company_id": str(product_dict["company_id"]),
+            "created_by": str(product_dict["created_by"])
         }
 
     except Exception as e:
@@ -209,7 +218,7 @@ async def update_product(
         
         # Lấy danh sách ảnh hiện tại
         current_images = set(product_doc.get('image_urls', []))
-        new_images = set(product_data.image_urls or [])  # Thêm kiểm tra None
+        new_images = set(product_data.image_urls or [])
         
         # Xác định ảnh bị xóa và ảnh mới
         deleted_images = current_images - new_images
@@ -219,22 +228,22 @@ async def update_product(
         if deleted_images:
             await images_collection.delete_many({
                 "image_url": {"$in": list(deleted_images)},
-                "product_id": product_id
+                "product_id": ObjectId(product_id)
             })
             logger.info(f"Deleted {len(deleted_images)} images from images collection")
 
         # Xử lý ảnh mới
         for image_url in added_images:
             try:
-                features, image_hash = process_image(image_url)  # Đã bỏ await vì process_image không phải async
+                features, image_hash = process_image(image_url)
                 if features is not None and image_hash is not None:
                     await images_collection.insert_one({
                         "image_url": image_url,
-                        "company_id": str(product_doc["company_id"]),
-                        "product_id": product_id,
-                        "uploaded_by": current_user["sub"],
+                        "company_id": product_doc["company_id"],  # Giữ nguyên ObjectId
+                        "product_id": ObjectId(product_id),
+                        "uploaded_by": ObjectId(current_user["sub"]),
                         "created_at": datetime.utcnow(),
-                        "features": features.tolist() if hasattr(features, 'tolist') else features,  # Chuyển numpy array thành list
+                        "features": features.tolist() if hasattr(features, 'tolist') else features,
                         "image_hash": image_hash
                     })
                     logger.info(f"Added new image to images collection: {image_url}")
@@ -244,10 +253,14 @@ async def update_product(
 
         # Cập nhật thông tin sản phẩm
         update_data = {
-            k: v for k, v in product_data.dict(exclude_unset=True).items() 
-            if v is not None and k != "deleted_images"  # Loại bỏ trường deleted_images
+            "product_name": product_data.product_name,
+            "product_code": product_data.product_code,
+            "brand": product_data.brand or "",
+            "description": product_data.description or "",
+            "price": product_data.price,
+            "image_urls": list(new_images),
+            "updated_at": datetime.utcnow()
         }
-        update_data["updated_at"] = datetime.utcnow()
         
         result = await products_collection.update_one(
             {"_id": ObjectId(product_id)},
@@ -281,13 +294,22 @@ async def delete_product(
         # Kiểm tra quyền
         await check_user_permission(current_user, product["company_id"])
         
+        # Xóa tất cả ảnh liên quan trong collection images
+        await images_collection.delete_many({
+            "product_id": ObjectId(product_id)
+        })
+        logger.info(f"Deleted all images for product {product_id}")
+        
         # Xóa sản phẩm
         result = await products_collection.delete_one({"_id": ObjectId(product_id)})
         
         if result.deleted_count == 0:
             raise HTTPException(status_code=400, detail="Product deletion failed")
             
-        return {"message": "Product deleted successfully"}
+        return {
+            "message": "Product and associated images deleted successfully",
+            "deleted_product_id": product_id
+        }
         
     except Exception as e:
         logger.error(f"Error deleting product: {str(e)}")

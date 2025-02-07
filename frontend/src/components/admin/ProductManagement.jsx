@@ -178,14 +178,25 @@ function ProductManagement() {
 
     try {
       setDeleteLoading(true);
-      await apiService.deleteProduct(selectedProductId);
+      const response = await apiService.deleteProduct(selectedProductId);
       
-      // Xóa cache và fetch lại dữ liệu
-      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      apiService.clearProductsCache(userDetails.company_id);
-      await fetchProducts(true);
+      // Xóa sản phẩm khỏi state
+      setProducts(prev => prev.filter(p => p.id !== selectedProductId));
       
-      setSuccessMessage('Xóa sản phẩm thành công');
+      // Cập nhật tổng số sản phẩm
+      setTotalItems(prev => prev - 1);
+      
+      // Tính lại tổng số trang
+      const newTotalPages = Math.ceil((totalItems - 1) / rowsPerPage);
+      setTotalPages(newTotalPages);
+      
+      // Kiểm tra và điều chỉnh trang hiện tại nếu cần
+      if (currentPage > newTotalPages) {
+        setCurrentPage(newTotalPages);
+      }
+      
+      setSuccessMessage('Xóa sản phẩm và các ảnh liên quan thành công');
+      setTimeout(() => setSuccessMessage(''), 3000);
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -214,32 +225,39 @@ function ProductManagement() {
       
       // Lấy thông tin user hiện tại
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      
-      // Thêm thông tin người tạo vào productData
-      const productWithCreator = {
-        ...productData,
-        created_by_name: userDetails.username,
-        created_at: new Date().toISOString()
+      if (!userDetails) {
+        throw new Error('Không tìm thấy thông tin người dùng');
+      }
+
+      // Chuẩn bị dữ liệu sản phẩm
+      const newProductData = {
+        product_name: productData.product_name,
+        product_code: productData.product_code,
+        brand: productData.brand || "",
+        description: productData.description || "",
+        price: parseFloat(productData.price),
+        company_id: userDetails.company_id,
+        image_urls: productData.image_urls || []
       };
 
-      const response = await apiService.createProduct(productWithCreator);
-      setSuccessMessage('Thêm sản phẩm thành công');
+      // Gọi API tạo sản phẩm
+      const response = await apiService.createProduct(newProductData);
       
-      // Cập nhật state với thông tin người tạo
+      setSuccessMessage('Thêm sản phẩm thành công');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      
+      // Cập nhật state với sản phẩm mới
       setProducts(prev => [{
         ...response,
         created_by_name: userDetails.username,
         created_at: new Date().toISOString()
       }, ...prev]);
 
-      // Xóa cache cũ và fetch lại dữ liệu mới nhất
-      apiService.clearProductsCache(productData.company_id);
-      await fetchProducts(true); // Force fetch để lấy dữ liệu mới nhất từ server
+      // Xóa cache và fetch lại dữ liệu mới nhất
+      await fetchProducts(true);
       
-      // Nếu cần chuyển trang
-      if (products.length >= rowsPerPage) {
-        setCurrentPage(1);
-      }
+      // Đóng dialog
+      setShowDialog(false);
     } catch (error) {
       setError(error.message || 'Không thể thêm sản phẩm');
     } finally {
@@ -268,6 +286,7 @@ function ProductManagement() {
         await fetchProducts(true);
         
         setSuccessMessage('Cập nhật sản phẩm thành công');
+        setTimeout(() => setSuccessMessage(''), 3000);
         setShowDialog(false);
       }
     } catch (error) {
@@ -366,8 +385,10 @@ function ProductManagement() {
         setTotalItems(response.total || 0);
         setTotalPages(Math.ceil(response.total / rowsPerPage) || 1);
         setSuccessMessage('Dữ liệu đã được cập nhật');
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         setSuccessMessage('Dữ liệu đã là mới nhất');
+        setTimeout(() => setSuccessMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error refreshing data:', error);

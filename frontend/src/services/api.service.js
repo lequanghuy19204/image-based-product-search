@@ -397,23 +397,26 @@ class ApiService {
     }
     try {
       // Đảm bảo company_id là string
-      if (productData.company_id) {
-        productData.company_id = productData.company_id.toString();
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      if (!userDetails?.company_id) {
+        throw new Error('Không tìm thấy thông tin công ty');
       }
 
-      // Thêm timeout để tránh request quá lâu
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const formattedData = {
+        product_name: productData.product_name,
+        product_code: productData.product_code,
+        brand: productData.brand || "",
+        description: productData.description || "",
+        price: parseFloat(productData.price),
+        company_id: userDetails.company_id.toString(),
+        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : []
+      };
 
-      const response = await this.post('/api/products', productData, {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeout);
+      const response = await this.post('/api/products', formattedData);
       
       // Xóa cache bất đồng bộ
       setTimeout(() => {
-        this.clearProductsCache(productData.company_id);
+        this.clearProductsCache(userDetails.company_id);
       }, 0);
       
       return this.transformMongoResponse(response);
@@ -428,18 +431,25 @@ class ApiService {
       throw new Error('Bạn không có quyền cập nhật sản phẩm');
     }
     try {
-      const response = await this.put(`/api/products/${productId}`, {
-        product_name: productData.get('product_name'),
-        product_code: productData.get('product_code'),
-        brand: productData.get('brand'),
-        description: productData.get('description'),
-        price: parseFloat(productData.get('price')),
-        image_urls: JSON.parse(productData.get('image_urls'))
-      });
+      // Chuẩn bị dữ liệu theo đúng format
+      const updateData = {
+        product_name: productData.product_name,
+        product_code: productData.product_code,
+        brand: productData.brand || "",
+        description: productData.description || "",
+        price: parseFloat(productData.price),
+        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : []
+      };
+
+      const response = await this.put(`/api/products/${productId}`, updateData);
       
       // Clear cache sau khi cập nhật sản phẩm
-      this.clearCacheByPrefix('api_cache_products');
-      return response;
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      if (userDetails?.company_id) {
+        this.clearProductsCache(userDetails.company_id);
+      }
+      
+      return this.transformMongoResponse(response);
     } catch (error) {
       console.error('Error updating product:', error);
       throw error;
@@ -487,7 +497,16 @@ class ApiService {
     }
     try {
       const response = await this.delete(`/api/products/${productId}`);
-      this.clearCacheByPrefix('products_');
+      
+      // Xóa cache sau khi xóa thành công
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      if (userDetails?.company_id) {
+        this.clearProductsCache(userDetails.company_id);
+        
+        // Xóa cache của images collection nếu có
+        this.clearCacheByPrefix(`images_${productId}`);
+      }
+      
       return response;
     } catch (error) {
       console.error('Error deleting product:', error);
