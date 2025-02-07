@@ -52,7 +52,7 @@ function ProductManagement() {
   const [userRole, setUserRole] = useState('');
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState('all'); // 'all', 'code', 'name', 'creator', 'price'
+  const [searchField, setSearchField] = useState('code');
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -417,7 +417,7 @@ function ProductManagement() {
         page: 1,
         limit: rowsPerPage,
         search: searchQuery,
-        search_field: searchField
+        search_field: searchField || 'code'
       };
 
       const data = await apiService.get('/api/products', { params });
@@ -477,7 +477,7 @@ function ProductManagement() {
                 <select
                   className="form-select"
                   style={{ maxWidth: '100px' }}
-                  value={searchField}
+                  value={searchField || 'code'}
                   onChange={(e) => setSearchField(e.target.value)}
                 >
                   <option value="code">Mã SP</option>

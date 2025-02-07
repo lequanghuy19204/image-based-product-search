@@ -435,7 +435,7 @@ function UserManagement() {
                   {currentUsers.map(user => (
                     <tr 
                       key={user.id} 
-                      className={`${isCurrentUser(user.id) ? 'table-primary' : ''}`}
+                      className={`${isCurrentUser(user.id) ? 'current-user-row' : ''}`}
                     >
                       <td>
                         <div className="d-flex align-items-center">

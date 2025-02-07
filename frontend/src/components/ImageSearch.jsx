@@ -61,25 +61,32 @@ function ImageSearch() {
 
       const formData = new FormData();
       formData.append('file', images[0].file);
-      formData.append('company_id', company_id);
-      formData.append('top_k', 8);
+      formData.append('company_id', company_id.toString()); // Đảm bảo company_id là string
+      formData.append('top_k', '8');
 
       const response = await apiService.postFormData('/api/images/search', formData);
+      
+      if (response.results.length === 0) {
+        alert('Không tìm thấy sản phẩm tương tự');
+        return;
+      }
 
       setSearchResults(response.results.map(result => ({
         id: result.product_id,
         imageUrl: result.image_url,
-        title: result.product_name,
-        price: `${result.price.toLocaleString()}đ`,
-        similarity: `${result.similarity.toFixed(1)}%`,
-        description: result.description,
-        brand: result.brand,
-        productCode: result.product_code
+        title: result.product_name || '',
+        price: result.price ? `${result.price.toLocaleString()}đ` : '0đ',
+        similarity: `${(result.similarity || 0).toFixed(1)}%`,
+        description: result.description || '',
+        brand: result.brand || '',
+        productCode: result.product_code || '',
+        featureSimilarity: result.feature_similarity ? `${(result.feature_similarity * 100).toFixed(1)}%` : '0%',
+        hashSimilarity: result.hash_similarity ? `${(result.hash_similarity * 100).toFixed(1)}%` : '0%'
       })));
 
     } catch (error) {
       console.error('Search error:', error);
-      alert(`Lỗi tìm kiếm: ${error.message}`);
+      alert(error.message || 'Có lỗi xảy ra khi tìm kiếm');
     } finally {
       setLoading(false);
     }
@@ -152,7 +159,7 @@ function ImageSearch() {
                         src={imageList[0].data_url} 
                         alt="Preview" 
                         className="img-fluid rounded"
-                        style={{ maxHeight: '300px' }}
+                        style={{ maxHeight: '150px' }}
                       />
                       <button
                         className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
@@ -209,9 +216,17 @@ function ImageSearch() {
                       <p className="card-text text-primary fw-bold mb-1">
                         {item.price}
                       </p>
-                      <p className="card-text text-success small mb-0">
-                        Độ tương đồng: {item.similarity}
-                      </p>
+                      <div className="similarity-details">
+                        <p className="card-text text-success small mb-1">
+                          Độ tương đồng tổng hợp: {item.similarity}%
+                        </p>
+                        <p className="card-text text-info small mb-1">
+                          Đặc trưng: {item.featureSimilarity}%
+                        </p>
+                        <p className="card-text text-warning small mb-0">
+                          Hash: {item.hashSimilarity}%
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

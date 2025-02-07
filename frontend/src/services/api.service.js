@@ -293,26 +293,30 @@ class ApiService {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
         headers: headers,
-        body: data
+        body: data,
+        credentials: 'include'
       });
 
       const responseData = await response.json();
 
       if (!response.ok) {
-        // Xử lý lỗi 422 chi tiết
-        if (response.status === 422) {
-          const validationErrors = responseData.detail.map(err => 
-            `${err.loc[1]} ${err.msg}`
-          ).join('\n');
-          throw new Error(`Lỗi validation: ${validationErrors}`);
+        if (response.status === 401) {
+          authService.logout();
+          window.location.href = '/login';
+          throw new Error('Phiên đăng nhập đã hết hạn');
         }
-        throw new Error(responseData.detail || 'Lỗi không xác định');
+        
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền thực hiện hành động này');
+        }
+
+        throw new Error(responseData.detail || 'Có lỗi xảy ra');
       }
 
       return responseData;
     } catch (error) {
       console.error('API request failed:', error);
-      throw new Error(error.message || 'Lỗi kết nối server');
+      throw error;
     }
   }
 

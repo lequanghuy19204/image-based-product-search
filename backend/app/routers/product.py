@@ -88,7 +88,7 @@ async def create_product(
 async def get_products(
     current_user: dict = Depends(verify_token),
     search: str = None,
-    search_field: str = 'all',
+    search_field: str = 'code',
     page: int = 1,
     limit: int = 10,
     sort_by: str = "created_at",

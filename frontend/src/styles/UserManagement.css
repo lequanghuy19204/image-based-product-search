@@ -296,7 +296,7 @@
 
 /* Style cho hàng của user đang đăng nhập */
 .current-user-row {
-  background-color: rgba(102, 126, 234, 0.1) !important;
+  background-color: rgba(102, 126, 234, 0.1);
   position: relative;
   border-left: 3px solid #667eea;
 }
@@ -407,4 +407,12 @@
 .current-user-row .status-control .MuiSwitch-root {
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+/* Style cho badge "Tài khoản của bạn" */
+.badge.bg-info {
+  font-size: 0.75rem;
+  font-weight: normal;
+  padding: 0.25rem 0.5rem;
+  background-color: #0dcaf0 !important;
 }

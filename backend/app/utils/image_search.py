@@ -179,11 +179,11 @@ class ImageSearchEngine:
                 if idx < len(self.image_data):
                     image_info = self.image_data[idx]
                     results.append({
-                        'product_id': image_info['product_id'],
+                        'product_id': str(image_info['product_id']),  # Chuyển ObjectId thành string
                         'image_url': image_info['image_url'],
                         'similarity': float(sim * 100),
-                        'company_id': image_info['company_id'],
-                        'created_at': image_info['created_at']
+                        'company_id': str(image_info['company_id']),  # Chuyển ObjectId thành string
+                        'created_at': image_info['created_at'].isoformat() if isinstance(image_info['created_at'], datetime) else image_info['created_at']  # Chuyển datetime thành string
                     })
 
             # Sắp xếp theo độ tương đồng
@@ -192,4 +192,49 @@ class ImageSearchEngine:
 
         except Exception as e:
             logger.error(f"Error searching similar images: {str(e)}")
+            return []
+
+    def find_similar_images_combined(self, image_bytes: bytes, images_data: List[Dict], top_k: int = 10) -> List[Dict]:
+        try:
+            # Trích xuất đặc trưng từ ảnh đầu vào
+            query_features = self.extract_features_from_bytes(image_bytes)
+            if query_features is None:
+                return []
+
+            # Tính toán image hash cho ảnh đầu vào
+            query_image = Image.open(BytesIO(image_bytes))
+            query_hash = str(imagehash.average_hash(query_image))
+
+            # Tính toán điểm tương đồng cho tất cả ảnh
+            similarities = []
+            for img in images_data:
+                try:
+                    # Tính điểm tương đồng đặc trưng
+                    img_features = np.array(img['features'])
+                    feature_sim = float(np.dot(query_features, img_features) / 
+                                      (np.linalg.norm(query_features) * np.linalg.norm(img_features)))
+
+                    # Tính điểm tương đồng hash
+                    hash_sim = 1 - (abs(int(query_hash, 16) - int(img['image_hash'], 16)) / 64)
+
+                    # Tính điểm tổng hợp (trọng số 0.7 cho đặc trưng và 0.3 cho hash)
+                    combined_sim = 0.7 * feature_sim + 0.3 * hash_sim
+
+                    similarities.append({
+                        'product_id': str(img['product_id']),  # Chuyển ObjectId thành string
+                        'image_url': img['image_url'],
+                        'similarity': float(combined_sim * 100),  # Chuyển thành phần trăm
+                        'feature_similarity': float(feature_sim * 100),
+                        'hash_similarity': float(hash_sim * 100)
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing image {img.get('image_url')}: {str(e)}")
+                    continue
+
+            # Sắp xếp theo độ tương đồng và lấy top_k kết quả
+            similarities.sort(key=lambda x: x['similarity'], reverse=True)
+            return similarities[:top_k]
+
+        except Exception as e:
+            logger.error(f"Error in find_similar_images_combined: {str(e)}")
             return [] 
