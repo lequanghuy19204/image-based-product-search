@@ -4,6 +4,7 @@ import { CloudUpload, Search, Delete, ImageSearch as ImageSearchIcon } from '@mu
 import Sidebar from './common/Sidebar';
 import '../styles/ImageSearch.css';
 import { apiService } from '../services/api.service';
+import { Modal } from 'react-bootstrap';
 
 
 function ImageSearch() {
@@ -26,6 +27,8 @@ function ImageSearch() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [comment, setComment] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Mock data cho comments
   const [comments] = useState([
@@ -112,6 +115,21 @@ function ImageSearch() {
     setComment('');
   };
 
+  // Thêm hàm để lấy thông tin chi tiết sản phẩm
+  const handleProductHover = async (productId) => {
+    try {
+      setLoading(true);
+      const productDetails = await apiService.getProductDetails(productId);
+      setSelectedProduct(productDetails);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      // Có thể thêm thông báo lỗi ở đây nếu cần
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="layout-container">
       <Sidebar 
@@ -126,7 +144,7 @@ function ImageSearch() {
             <ImageSearchIcon className="me-2" />
             Tìm kiếm Sản phẩm
           </h1>
-          <p className="lead">
+          <p className="lead text-center">
             Tải lên hình ảnh sản phẩm để tìm kiếm
           </p>
         </div>
@@ -239,22 +257,23 @@ function ImageSearch() {
 
         {/* Results Section */}
         {searchResults.length > 0 && (
-          <div className="results-section">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h5 className="mb-0">Kết quả tìm kiếm</h5>
-              <span className="badge bg-primary">{searchResults.length} sản phẩm</span>
-            </div>
-
-            <div className="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-3">
+          <div className="search-results mt-4">
+            <h5 className="mb-3">Kết quả tìm kiếm: {searchResults.length} ảnh</h5>
+            <div className="row">
               {searchResults.map((item, index) => (
-                <div key={`${item.id}-${index}`} className="col">
-                  <div className="card h-100">
-                    <img
-                      src={item.image_url}
-                      alt={item.product_name}
-                      className="card-img-top"
-                      style={{ height: '200px', objectFit: 'cover' }}
-                    />
+                <div key={index} className="col-md-2 mb-4">
+                  <div 
+                    className="card h-100 cursor-pointer"
+                    onClick={() => handleProductHover(item.product_id)}
+
+                  >
+                    <div className="card-img-container">
+                      <img
+                        src={item.image_url}
+                        className="card-img-top"
+                        alt={item.product_name}
+                      />
+                    </div>
                     <div className="card-body">
                       <h6 className="card-title">{item.product_name}</h6>
                       <p className="card-text text-muted small mb-1">
@@ -355,6 +374,57 @@ function ImageSearch() {
           </div>
         </div>
         {selectedImage && <div className="modal-backdrop fade show"></div>}
+
+        {/* Modal hiển thị chi tiết sản phẩm */}
+        <Modal 
+          show={showModal} 
+          onHide={() => setShowModal(false)}
+          size="md"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Chi tiết sản phẩm</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {loading ? (
+              <div className="text-center">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Đang tải...</span>
+                </div>
+              </div>
+            ) : selectedProduct && (
+              <div className="product-detail">
+                <h5>{selectedProduct.product_name}</h5>
+                <p className="text-muted small">Mã SP: {selectedProduct.product_code}</p>
+                <p className="text-primary h5 mb-3">{selectedProduct.price.toLocaleString()}đ</p>
+                
+                {/* Hiển thị tất cả ảnh */}
+                <div className="product-images-grid mb-3">
+                  {selectedProduct.image_urls.map((url, index) => (
+                    <img 
+                      key={index}
+                      src={url} 
+                      alt={`Ảnh ${index + 1}`}
+                      className="product-detail-image"
+                    />
+                  ))}
+                </div>
+
+                {selectedProduct.brand && (
+                  <p className="mb-2"><strong>Thương hiệu:</strong> {selectedProduct.brand}</p>
+                )}
+                {selectedProduct.description && (
+                  <div className="mb-2">
+                    <strong>Mô tả:</strong>
+                    <p className="small">{selectedProduct.description}</p>
+                  </div>
+                )}
+                <p className="text-muted small mb-0">
+                  Ngày tạo: {selectedProduct.created_at}
+                </p>
+              </div>
+            )}
+          </Modal.Body>
+        </Modal>
       </main>
     </div>
   );

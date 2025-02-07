@@ -313,4 +313,40 @@ async def delete_product(
         
     except Exception as e:
         logger.error(f"Error deleting product: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@product_router.get("/{product_id}", response_model=ProductResponse)
+async def get_product_by_id(
+    product_id: str,
+    current_user: dict = Depends(verify_token)
+):
+    try:
+        # Kiểm tra sản phẩm tồn tại
+        product = await products_collection.find_one({"_id": ObjectId(product_id)})
+        if not product:
+            raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+
+        # Kiểm tra quyền truy cập
+        await check_user_permission(current_user, product["company_id"])
+
+        # Format response
+        formatted_product = {
+            "_id": str(product["_id"]),  # Đổi từ id thành _id
+            "product_name": product["product_name"],
+            "product_code": product["product_code"],
+            "brand": product.get("brand", ""),
+            "description": product.get("description", ""),
+            "price": product["price"],
+            "image_urls": product.get("image_urls", []),
+            "created_by": str(product["created_by"]),
+            "created_by_name": product.get("created_by_name", ""),
+            "created_at": product["created_at"].isoformat() if isinstance(product["created_at"], datetime) else product["created_at"],
+            "updated_at": product["updated_at"].isoformat() if isinstance(product["updated_at"], datetime) else product["updated_at"],
+            "company_id": str(product["company_id"])
+        }
+
+        return formatted_product
+
+    except Exception as e:
+        logger.error(f"Error getting product details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi lấy thông tin sản phẩm: {str(e)}") 

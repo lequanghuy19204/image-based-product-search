@@ -582,6 +582,21 @@ class ApiService {
       throw error;
     }
   }
+
+  async getProductDetails(productId) {
+    try {
+      const response = await this.get(`/api/products/${productId}`);
+      // Chuyển đổi định dạng ngày tháng
+      return {
+        ...response,
+        created_at: new Date(response.created_at).toLocaleString('vi-VN'),
+        updated_at: new Date(response.updated_at).toLocaleString('vi-VN')
+      };
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      throw error;
+    }
+  }
 }
 
 // Export apiService instance

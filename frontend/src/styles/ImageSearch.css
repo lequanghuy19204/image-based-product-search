@@ -77,13 +77,20 @@
   transform: translateY(-3px);
 }
 
+.card-img-container {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
 .card-img-top {
-  height: auto !important;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain !important;
-  max-height: 300px;
-  width: 100%;
-  border-top-left-radius: var(--border-radius);
-  border-top-right-radius: var(--border-radius);
+  padding: 8px;
 }
 
 .card-body {
@@ -109,15 +116,62 @@
 
 /* Modal */
 .modal-content {
-  border-radius: var(--border-radius);
+  border-radius: 8px;
 }
 
 .modal-header {
-  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
 }
 
 .modal-body {
   padding: 1.5rem;
+}
+
+.carousel {
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.carousel-item img {
+  border-radius: 4px;
+}
+
+.product-detail {
+  padding: 0;
+}
+
+.product-detail h4 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.product-detail .text-primary {
+  font-weight: bold;
+}
+
+.product-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.product-detail-image {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+/* Hiển thị số lượng kết quả */
+.search-results h5 {
+  color: #666;
+  font-weight: 500px;
 }
 
 /* Responsive Design */
@@ -142,8 +196,16 @@
     padding: 1rem;
   }
 
-  .card-img-top {
-    height: 160px;
+  .card-img-container {
+    height: 200px;
+  }
+
+  .product-images-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .product-detail-image {
+    height: 120px;
   }
 }
 
@@ -163,4 +225,19 @@
 
 .mt-3 {
   margin-top: 0.75rem !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+
+.cursor-pointer:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Style cho modal chi tiết */
+.modal-dialog.modal-md {
+  max-width: 500px;
 }
