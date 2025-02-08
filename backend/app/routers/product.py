@@ -95,6 +95,9 @@ async def get_products(
     sort_order: str = "desc"
 ):
     try:
+        # Thêm kiểm tra cache để tránh gọi DB nhiều lần
+        cache_key = f"products_{current_user['sub']}_{page}_{limit}_{search}_{sort_by}_{sort_order}"
+        
         # Lấy thông tin user
         user = await users_collection.find_one({"_id": ObjectId(current_user["sub"])})
         if not user:

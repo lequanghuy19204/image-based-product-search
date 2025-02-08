@@ -201,8 +201,11 @@ class ApiService {
   // Thêm phương thức để lấy cache hiệu quả hơn
   async get(endpoint, options = {}) {
     try {
+        // Đảm bảo endpoint luôn kết thúc bằng /
+        let normalizedEndpoint = endpoint.endsWith('/') ? endpoint : `${endpoint}/`;
+        
         // Tạo URL với params
-        let url = `${this.baseURL}${endpoint}`;
+        let url = `${this.baseURL}${normalizedEndpoint}`;
         if (options.params) {
             const params = new URLSearchParams();
             Object.entries(options.params).forEach(([key, value]) => {
@@ -221,17 +224,6 @@ class ApiService {
         });
 
         const data = await this.handleResponse(response);
-        
-        // Chuyển đổi các trường thời gian thành đối tượng Date
-        if (data && typeof data === 'object') {
-            if (data.created_at) {
-                data.created_at = new Date(data.created_at);
-            }
-            if (data.updated_at) {
-                data.updated_at = new Date(data.updated_at);
-            }
-        }
-
         return data;
     } catch (error) {
         console.error('API request failed:', error);

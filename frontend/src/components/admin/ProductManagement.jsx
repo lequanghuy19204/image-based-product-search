@@ -17,7 +17,7 @@ import '../../styles/ProductManagement.css';
 import { apiService } from '../../services/api.service';
 import ProductDialog from './ProductDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import { debounce } from 'lodash';
+
 
 function ProductManagement() {
   // Khai báo tất cả state ở đầu component
@@ -130,10 +130,44 @@ function ProductManagement() {
 
   // Sử dụng useEffect để fetch data khi các tham số thay đổi
   useEffect(() => {
-    const debouncedFetch = debounce(fetchProducts, 300);
-    debouncedFetch();
-    return () => debouncedFetch.cancel();
-  }, [fetchProducts]);
+    const controller = new AbortController();
+    
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const response = await apiService.getProductsWithCache({
+                page: currentPage,
+                limit: rowsPerPage,
+                search: searchQuery,
+                search_field: searchField,
+                sort_by: sortField,
+                sort_order: sortOrder
+            });
+
+            if (response?.data) {
+                setProducts(response.data);
+                setTotalItems(response.total || 0);
+                setTotalPages(response.total_pages || 1);
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                console.error('Error fetching products:', error);
+                setError(error.message);
+            }
+        } finally {
+            if (!controller.signal.aborted) {
+                setLoading(false);
+            }
+        }
+    };
+
+    fetchData();
+
+    // Cleanup function
+    return () => {
+        controller.abort();
+    };
+  }, [currentPage, rowsPerPage, searchQuery, searchField, sortField, sortOrder]);
 
   // Thêm useEffect mới để theo dõi thay đổi params
   useEffect(() => {

@@ -262,12 +262,11 @@ function ImageSearch() {
             <div className="row">
               {searchResults.map((item, index) => (
                 <div key={index} className="col-md-2 mb-4">
-                  <div 
-                    className="card h-100 cursor-pointer"
-                    onClick={() => handleProductHover(item.product_id)}
-
-                  >
-                    <div className="card-img-container">
+                  <div className="card h-100">
+                    <div 
+                      className="card-img-container cursor-pointer"
+                      onClick={() => handleProductHover(item.product_id)}
+                    >
                       <img
                         src={item.image_url}
                         className="card-img-top"
