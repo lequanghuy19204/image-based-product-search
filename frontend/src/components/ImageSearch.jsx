@@ -26,27 +26,8 @@ function ImageSearch() {
   const [successMessage, setSuccessMessage] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
-  const [comment, setComment] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
-  // Mock data cho comments
-  const [comments] = useState([
-    {
-      id: 1,
-      user: 'User 1',
-      avatar: 'https://i.pravatar.cc/40?img=1',
-      text: 'Sản phẩm rất đẹp!',
-      timestamp: '2 giờ trước'
-    },
-    {
-      id: 2,
-      user: 'User 2',
-      avatar: 'https://i.pravatar.cc/40?img=2',
-      text: 'Giá cả hợp lý',
-      timestamp: '1 giờ trước'
-    }
-  ]);
 
   // Thêm useEffect để tự động tìm kiếm khi có ảnh
   useEffect(() => {
@@ -54,10 +35,6 @@ function ImageSearch() {
       handleSearch();
     }
   }, [images, previewUrl]);
-
-  const handleImageUpload = (imageList) => {
-    setImages(imageList);
-  };
 
   const handleImageUrl = async (url) => {
     setImageUrl(url);
@@ -68,6 +45,7 @@ function ImageSearch() {
       setPreviewUrl(url);
       setImages([]); // Xóa ảnh upload nếu có
     } catch (error) {
+      console.error('Lỗi:', error);
       setSuccessMessage('URL ảnh không hợp lệ');
       setTimeout(() => setSuccessMessage(''), 3000);
       setPreviewUrl('');
@@ -107,12 +85,6 @@ function ImageSearch() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCommentSubmit = () => {
-    if (!comment.trim()) return;
-    // Xử lý thêm comment
-    setComment('');
   };
 
   // Thêm hàm để lấy thông tin chi tiết sản phẩm
@@ -327,44 +299,6 @@ function ImageSearch() {
                         <i className="bi bi-share me-1"></i>
                         Chia sẻ
                       </button>
-                    </div>
-
-                    <hr />
-
-                    <h6 className="mb-3">Bình luận</h6>
-                    <div className="comments-section">
-                      {comments.map((comment) => (
-                        <div key={comment.id} className="d-flex mb-3">
-                          <img
-                            src={comment.avatar}
-                            alt={comment.user}
-                            className="rounded-circle me-2"
-                            width="32"
-                          />
-                          <div>
-                            <h6 className="mb-1">{comment.user}</h6>
-                            <p className="mb-1">{comment.text}</p>
-                            <small className="text-muted">{comment.timestamp}</small>
-                          </div>
-                        </div>
-                      ))}
-
-                      <div className="input-group mt-3">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Thêm bình luận..."
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                        />
-                        <button
-                          className="btn btn-primary"
-                          onClick={handleCommentSubmit}
-                          disabled={!comment.trim()}
-                        >
-                          Gửi
-                        </button>
-                      </div>
                     </div>
                   </div>
                 </div>
