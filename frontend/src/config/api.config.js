@@ -4,6 +4,7 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/api/auth/login',
     REGISTER: '/api/auth/register',
+    CHECK_EMAIL: '/api/auth/check-email',
     LOGOUT: '/auth/logout',
     GENERATE_COMPANY_CODE: '/api/auth/generate-company-code'  // Endpoint này bị thiếu
   },

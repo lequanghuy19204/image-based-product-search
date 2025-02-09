@@ -189,7 +189,6 @@ function UserManagement() {
           company_id: currentUser.company_id
         };
         
-
         // Gọi API thêm người dùng
         const response = await apiService.post('/api/admin/users', userDataToSubmit);
         
@@ -199,12 +198,12 @@ function UserManagement() {
         processAndUpdateUsers(updatedUsers);
         saveUsersToCache(updatedUsers);
         
-        // Hiển thị thông báo thành công
         setSuccessMessage('Thêm người dùng thành công');
         setTimeout(() => setSuccessMessage(''), 3000);
+        setOpenDialog(false);
         
         // Tự động làm mới dữ liệu
-        await fetchUsers(true); // forceRefresh = true để lấy dữ liệu mới nhất
+        await fetchUsers(true);
       } else {
         // Chỉnh sửa user
         const userDataToUpdate = {
@@ -224,10 +223,14 @@ function UserManagement() {
         setSuccessMessage('Cập nhật người dùng thành công');
         setTimeout(() => setSuccessMessage(''), 3000);
       }
-      setOpenDialog(false);
     } catch (error) {
-      setError(error.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
-      console.error('Error submitting user:', error);
+      if (error.message.includes('Email đã được sử dụng')) {
+        // Không đóng dialog và để component con xử lý lỗi
+        throw error;
+      } else {
+        setError(error.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+        console.error('Error submitting user:', error);
+      }
     }
   };
 

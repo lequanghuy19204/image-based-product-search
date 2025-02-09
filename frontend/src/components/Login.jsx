@@ -23,6 +23,7 @@ function Login() {
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const generateCompanyCode = async () => {
     try {
@@ -72,56 +73,79 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const checkExistingEmail = async (email) => {
+    try {
+      const response = await authService.checkEmail(email);
+      if (response.exists) {
+        setErrors(prev => ({
+          ...prev,
+          email: 'Email này đã được đăng ký'
+        }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
+    setErrors({});
     
     if (!validateForm()) return;
 
     try {
-        setIsLoading(true);
-        if (isLogin) {
-            // Xử lý đăng nhập
-            const response = await authService.login(
-                formData.email,
-                formData.password,
-                rememberMe
-            );
-            
-            if (response.access_token) {
-                // Lưu token và thông tin user
-                localStorage.setItem('token', response.access_token);
-                localStorage.setItem('user', JSON.stringify(response.user));
-                if (rememberMe) {
-                    localStorage.setItem('rememberedLogin', 'true');
-                }
-                navigate('/search');
-            }
-        } else {
-            // Xử lý đăng ký
-            const company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
-            
-            const userData = {
-                username: formData.username || formData.email.split('@')[0],
-                email: formData.email,
-                password: formData.password,
-                role: accountType === 'admin' ? "Admin" : "User",
-                company_code: company_code,
-                company_name: accountType === 'admin' ? companyName : undefined
-            };
-
-            const response = await authService.register(userData);
-            if (response.access_token) {
-                localStorage.setItem('token', response.access_token);
-                localStorage.setItem('user', JSON.stringify(response.user));
-                navigate('/search');
-            }
+      setIsLoading(true);
+      
+      if (isLogin) {
+        const response = await authService.login(
+          formData.email,
+          formData.password,
+          rememberMe
+        );
+        
+        if (response.access_token) {
+          localStorage.setItem('token', response.access_token);
+          localStorage.setItem('user', JSON.stringify(response.user));
+          if (rememberMe) {
+            localStorage.setItem('rememberedLogin', 'true');
+          }
+          navigate('/search');
         }
+      } else {
+        const company_code = accountType === 'admin' ? generatedCompanyCode : companyCode;
+        
+        const userData = {
+          username: formData.username || formData.email.split('@')[0],
+          email: formData.email,
+          password: formData.password,
+          role: accountType === 'admin' ? "Admin" : "User",
+          company_code: company_code,
+          company_name: accountType === 'admin' ? companyName : undefined
+        };
+
+        const response = await authService.register(userData);
+        if (response.access_token) {
+          localStorage.setItem('token', response.access_token);
+          localStorage.setItem('user', JSON.stringify(response.user));
+          navigate('/search');
+        }
+      }
     } catch (error) {
-        console.error('Lỗi:', error);
+      console.error('Lỗi:', error);
+      if (error.message.includes('Email đã được sử dụng')) {
+        setErrors(prev => ({
+          ...prev,
+          email: 'Email này đã được đăng ký'
+        }));
+      } else {
         setLoginError(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      }
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -136,6 +160,9 @@ function Login() {
         ...errors,
         [name]: ''
       });
+    }
+    if (name === 'email') {
+      setEmailError('');
     }
   };
 

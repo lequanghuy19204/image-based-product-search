@@ -217,7 +217,7 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(verify
         result = await users_collection.insert_one(new_user)
         
         # Lấy thông tin company
-        company = await companies_collection.find_one({"_id": ObjectId(company_id)})
+        company = await companies_collection.find_one({"_id": company_id})
         
         # Chuẩn bị response data
         response_data = {
@@ -225,19 +225,23 @@ async def create_user(user_data: UserCreate, current_user: dict = Depends(verify
             "username": new_user["username"],
             "email": new_user["email"],
             "role": new_user["role"],
+            "company_id": str(company_id),
+            "company_name": company.get("company_name") if company else None,
+            "company_code": company.get("company_code") if company else None,
             "status": new_user["status"],
-            "company_id": company_id,
             "created_at": new_user["created_at"].isoformat(),
-            "updated_at": new_user["updated_at"].isoformat(),
-            "company_name": company.get('company_name', ''),
-            "company_code": company.get('company_code', '')
+            "updated_at": new_user["updated_at"].isoformat()
         }
-        
+
         return response_data
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        print(f"Error creating user: {str(e)}")  # Thêm log
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi server: {str(e)}"
+        )
 
 @admin_router.put("/users/{user_id}")
 async def update_user(

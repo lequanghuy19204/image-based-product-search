@@ -68,6 +68,11 @@ async def verify_admin(token: str = Depends(verify_token)):
                 detail="Bạn không có quyền truy cập"
             )
             
+        # Chuyển đổi ObjectId thành string trong token
+        token['sub'] = str(token['sub'])
+        if 'company_id' in user:
+            token['company_id'] = str(user['company_id'])
+            
         return token
         
     except Exception as e:

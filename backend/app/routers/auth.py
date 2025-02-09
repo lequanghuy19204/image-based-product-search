@@ -6,6 +6,7 @@ from datetime import datetime
 from app.config.mongodb_config import users_collection, companies_collection
 from app.utils.company_code import get_unique_company_code
 from bson import ObjectId
+from pydantic import BaseModel
 
 auth_router = APIRouter()
 
@@ -128,25 +129,27 @@ async def register(user_data: UserCreate):
         
         result = await users_collection.insert_one(new_user)
         
-        # Tạo token và response
+        # Tạo token
         access_token = create_access_token(
-            data={"sub": str(result.inserted_id), "role": user_data.role}
+            data={
+                "sub": str(result.inserted_id),
+                "role": user_data.role
+            }
         )
-
-        # Chuẩn bị response data
+        
+        # Chuẩn bị user response
         user_response = {
             "id": str(result.inserted_id),
-            "username": new_user["username"],
-            "email": new_user["email"],
-            "role": new_user["role"],
-            "company_id": str(new_user["company_id"]),
-            "status": new_user["status"],
+            "username": user_data.username,
+            "email": user_data.email,
+            "role": user_data.role,
+            "company_id": str(company_id),
+            "status": "active",
             "created_at": new_user["created_at"].isoformat(),
             "updated_at": new_user["updated_at"].isoformat()
         }
         
         return {
-            "message": "Đăng ký thành công",
             "access_token": access_token,
             "token_type": "bearer",
             "user": user_response
@@ -171,4 +174,23 @@ async def generate_company_code():
         raise HTTPException(
             status_code=500,
             detail=str(e)
+        )
+
+# Thêm model cho check email
+class EmailCheck(BaseModel):
+    email: str
+
+@auth_router.post("/check-email")
+async def check_email(email_data: EmailCheck):
+    try:
+        # Kiểm tra email trong database
+        existing_user = await users_collection.find_one({"email": email_data.email})
+        return {
+            "exists": existing_user is not None,
+            "message": "Email đã tồn tại" if existing_user else "Email hợp lệ"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi kiểm tra email: {str(e)}"
         )

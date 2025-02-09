@@ -91,13 +91,22 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      const submitData = {
-        ...formData,
-        role: formData.role || 'User' // Đảm bảo role luôn có giá trị
-      };
-      onSubmit(submitData);
+  const handleSubmit = async () => {
+    try {
+      if (validateForm()) {
+        await onSubmit(formData);
+        handleClose();
+      }
+    } catch (error) {
+      // Xử lý lỗi email đã tồn tại
+      if (error.message.includes('Email đã được sử dụng')) {
+        setErrors(prev => ({
+          ...prev,
+          email: 'Email này đã được đăng ký'
+        }));
+      } else {
+        console.error('Error submitting form:', error);
+      }
     }
   };
 
@@ -122,7 +131,13 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
           type="email"
           fullWidth
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={(e) => {
+            setFormData({ ...formData, email: e.target.value });
+            // Xóa lỗi email khi người dùng bắt đầu nhập lại
+            if (errors.email) {
+              setErrors(prev => ({ ...prev, email: '' }));
+            }
+          }}
           error={!!errors.email}
           helperText={errors.email}
         />
