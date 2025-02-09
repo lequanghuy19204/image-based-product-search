@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, FormControl, InputLabel, Select, MenuItem
-} from '@mui/material';
+import { Modal, Button } from 'react-bootstrap';
 
 function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
   const [formData, setFormData] = useState({
@@ -16,6 +13,7 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
     company_id: ''
   });
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   const [currentUser] = useState(null);
 
   // Lấy thông tin user hiện tại từ localStorage
@@ -91,88 +89,130 @@ function UserDialog({ open, onClose, user, onSubmit, mode = 'add' }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setSubmitting(true);
     try {
-      if (validateForm()) {
-        await onSubmit(formData);
-        handleClose();
-      }
+      await onSubmit(formData);
+      handleClose();
     } catch (error) {
-      // Xử lý lỗi email đã tồn tại
       if (error.message.includes('Email đã được sử dụng')) {
         setErrors(prev => ({
           ...prev,
           email: 'Email này đã được đăng ký'
         }));
       } else {
-        console.error('Error submitting form:', error);
+        setErrors(prev => ({
+          ...prev,
+          submit: error.message || 'Có lỗi xảy ra'
+        }));
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {mode === 'add' ? 'Thêm người dùng mới' : 'Chỉnh sửa người dùng'}
-      </DialogTitle>
-      <DialogContent>
-        <TextField
-          margin="dense"
-          label="Tên người dùng"
-          fullWidth
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          error={!!errors.username}
-          helperText={errors.username}
-        />
-        <TextField
-          margin="dense"
-          label="Email"
-          type="email"
-          fullWidth
-          value={formData.email}
-          onChange={(e) => {
-            setFormData({ ...formData, email: e.target.value });
-            // Xóa lỗi email khi người dùng bắt đầu nhập lại
-            if (errors.email) {
-              setErrors(prev => ({ ...prev, email: '' }));
-            }
-          }}
-          error={!!errors.email}
-          helperText={errors.email}
-        />
-        {mode === 'add' && (
-          <TextField
-            margin="dense"
-            label="Mật khẩu"
-            type="password"
-            fullWidth
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            error={!!errors.password}
-            helperText={errors.password}
-          />
-        )}
-        <FormControl fullWidth margin="dense">
-          <InputLabel>Vai trò</InputLabel>
-          <Select
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            error={!!errors.role}
+    <Modal show={open} onHide={onClose} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>
+          {mode === 'add' ? 'Thêm người dùng mới' : 'Chỉnh sửa người dùng'}
+        </Modal.Title>
+      </Modal.Header>
+
+      <form onSubmit={handleSubmit}>
+        <Modal.Body>
+          <div className="mb-3">
+            <label className="form-label">Tên người dùng *</label>
+            <input
+              type="text"
+              className={`form-control ${errors.username ? 'is-invalid' : ''}`}
+              value={formData.username}
+              onChange={(e) => setFormData({...formData, username: e.target.value})}
+            />
+            {errors.username && (
+              <div className="invalid-feedback">{errors.username}</div>
+            )}
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Email *</label>
+            <input
+              type="email"
+              className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+              value={formData.email}
+              onChange={(e) => {
+                setFormData({...formData, email: e.target.value});
+                if (errors.email) setErrors({...errors, email: ''});
+              }}
+            />
+            {errors.email && (
+              <div className="invalid-feedback">{errors.email}</div>
+            )}
+          </div>
+
+          {mode === 'add' && (
+            <div className="mb-3">
+              <label className="form-label">Mật khẩu *</label>
+              <input
+                type="password"
+                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+              />
+              {errors.password && (
+                <div className="invalid-feedback">{errors.password}</div>
+              )}
+            </div>
+          )}
+
+          <div className="mb-3">
+            <label className="form-label">Vai trò *</label>
+            <select
+              className={`form-select ${errors.role ? 'is-invalid' : ''}`}
+              value={formData.role}
+              onChange={(e) => setFormData({...formData, role: e.target.value})}
+            >
+              <option value="User">Người dùng</option>
+              <option value="Admin">Quản trị viên</option>
+            </select>
+            {errors.role && (
+              <div className="invalid-feedback">{errors.role}</div>
+            )}
+          </div>
+
+          {errors.submit && (
+            <div className="alert alert-danger">{errors.submit}</div>
+          )}
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={onClose}
+            disabled={submitting}
           >
-            <MenuItem value="User">Người dùng</MenuItem>
-            <MenuItem value="Admin">Quản trị viên</MenuItem>
-          </Select>
-        </FormControl>
-        
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>Hủy</Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary">
-          {mode === 'add' ? 'Thêm' : 'Cập nhật'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            Hủy
+          </Button>
+          <Button 
+            variant="primary" 
+            type="submit"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                Đang xử lý...
+              </>
+            ) : (
+              mode === 'add' ? 'Thêm' : 'Cập nhật'
+            )}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
   );
 }
 
