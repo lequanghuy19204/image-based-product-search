@@ -11,8 +11,18 @@ from app.routers.product import product_router
 
 app = FastAPI(title="Search Images API")
 
+@app.get("/")
+async def root():
+    return {"status": "Welcome to Search Images API"}
+
+@app.head("/")
+async def health_check():
+    return {"status": "OK"}
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+
+
     print(f"Global error: {str(exc)}")  # Log lỗi
     return JSONResponse(
         status_code=500,
