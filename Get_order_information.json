@@ -1,0 +1,811 @@
+{
+  "name": "Get order information",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e7bf73fd-51cf-40d3-babb-75c9d58adf7a",
+              "name": "page_id",
+              "value": "={{ $json.body[0].conversation_link.split(\"/\")[3].split(\"?\")[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "bc389ea2-5c12-4abe-9768-21be4b290047",
+              "name": "conversation_id",
+              "value": "={{ $json.body[0].conversation_link.split(\"c_id=\")[1] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1780,
+        80
+      ],
+      "id": "b9fb6fc6-c6c3-43d4-bbfe-c0cbeed44de2",
+      "name": "Extract URL Parameters"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://pages.fm/api/v1/pages/{{ $json.page_id }}/generate_page_access_token",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $('Webhook').item.json.body[0].access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1580,
+        320
+      ],
+      "id": "12d28e5b-b022-4b2f-995d-a0ef2c84be93",
+      "name": "HTTP Request Generate page_access_token"
+    },
+    {
+      "parameters": {
+        "url": "=https://pages.fm/api/public_api/v1/pages/{{ $('Code').item.json.page_id }}/conversations/{{ $('Code').item.json.conversation_id }}/messages ",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=page_access_token",
+              "value": "={{ $('HTTP Request Generate page_access_token').item.json.page_access_token }}"
+            },
+            {
+              "name": "customer_id",
+              "value": "={{ $('HTTP Request Conversations').item.json.conversations[0].customer_id }}"
+            },
+            {
+              "name": "current_count"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        220
+      ],
+      "id": "717bb332-19e7-42cf-8df6-3b663c50c3bf",
+      "name": "HTTP Request Get messages"
+    },
+    {
+      "parameters": {
+        "url": "https://pages.fm/api/v1/pages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $('Webhook').item.json.body[0].access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1580,
+        80
+      ],
+      "id": "0b3cda0d-ece7-414e-9c1e-ed7c435996e7",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4bdf1092-650d-417a-932a-caad92298823",
+              "name": "pages",
+              "value": "={{ $json.categorized.activated }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1380,
+        80
+      ],
+      "id": "136d798e-786d-4a54-b563-6271618b3bf0",
+      "name": "Page List"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pageListString = $input.first().json.pages;\nconst pages = JSON.parse(pageListString); // Parse chuỗi JSON thành object\n\nreturn [{\n  json: {\n    pages: pages\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1980,
+        320
+      ],
+      "id": "67d30e03-5894-4388-8051-1a876a2e266d",
+      "name": "Parse Page List"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputPageId = $('Extract URL Parameters').first().json.page_id;\nconst conversationId = $('Extract URL Parameters').first().json.conversation_id;\nconst pages = $input.first().json.pages;\n\nlet matchedPageId = inputPageId; // Giữ nguyên page_id ban đầu nếu không khớp\n\n// Tìm trong danh sách pages\nfor (const page of pages) {\n  if (page.id === inputPageId || page.name === inputPageId || page.username === inputPageId) {\n    matchedPageId = page.id; // Nếu khớp, lấy id của trang\n    break;\n  }\n}\n\n// Lấy page_access_token tương ứng\nconst matchedPage = pages.find(page => page.id === matchedPageId);\n\n// Trả về kết quả\nreturn [{\n  json: {\n    page_id: matchedPageId,\n    conversation_id: conversationId,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1780,
+        320
+      ],
+      "id": "76a61634-ff23-4564-8433-5a2d83ab6dbe",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "url": "=https://pages.fm/api/public_api/v2/pages/{{ $('Code').item.json.page_id }}/conversations",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "page_access_token",
+              "value": "={{ $json.page_access_token }}"
+            },
+            {
+              "name": "page_id",
+              "value": "={{ $('Code').item.json.page_id }}"
+            },
+            {
+              "name": "last_conversation_id",
+              "value": "={{ $('Code').item.json.conversation_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1380,
+        320
+      ],
+      "id": "e33ae28b-06de-4576-bf3a-5eaafe8b56e2",
+      "name": "HTTP Request Conversations"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.request_body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f549ea96-cf8c-48c1-8a28-e62122af44b7",
+      "name": "Call OpenRouter API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const combinedMessages = $input.first().json.combined_messages;\n\nconst requestBody = {\n    model: \"google/gemini-2.0-pro-exp-02-05:free\",\n  messages: [\n    {\n      role: \"user\",\n      content: `Xử lý đoạn hội thoại sau và trả về thông tin đơn hàng dưới dạng JSON. Lưu ý rằng hội thoại có thể chứa nhiều đơn hàng, bao gồm cả đơn hàng đã giao và đơn hàng mới. Hãy phân tích ngữ cảnh để xác định các đơn hàng riêng biệt và trả về danh sách các đơn hàng với các trường sau: weight, height, phone_number, full_address, province, district, ward, quantity, size, color, order_price, shipping_fee.\n\nHướng dẫn cụ thể:\n1. Nếu có thông tin về cân nặng (weight) và chiều cao (height), chỉ lấy thông tin mới nhất từ hội thoại và áp dụng cho các đơn hàng chưa có thông tin này.\n2. Địa chỉ (full_address) cần được phân tích chính xác để lấy thông tin province (tỉnh/thành phố), district (quận/huyện), ward (phường/xã). Nếu địa chỉ không rõ ràng, hãy cố gắng suy luận hợp lý dựa trên ngữ cảnh hội thoại và địa lý Việt Nam. **Bắt buộc phải điền đầy đủ các trường province, district, và ward, không được để trống (null). Nếu không thể xác định chính xác ward, hãy suy luận hợp lý hoặc đặt giá trị mặc định phù hợp với district.**\n3. Số lượng (quantity), kích thước (size), và màu sắc (color) phải được xác định rõ từ hội thoại, nếu không có thông tin thì để null.\n4. Giá đơn hàng (order_price) và phí vận chuyển (shipping_fee) cần được lấy từ hội thoại, nếu không rõ thì để null.\n5. Chỉ trả về các đơn hàng có thông tin đủ để xác định (ít nhất có phone_number hoặc full_address).\n6. Trả về dưới dạng mảng JSON, không bao gồm giải thích, ví dụ: [{\"weight\": null, \"height\": null, ...}, ...]\n\nĐoạn hội thoại: \\n${combinedMessages}`\n    }\n  ],\n  max_tokens: 500,\n  temperature: 0.7\n};\n\nreturn [{\n  json: {\n    request_body: requestBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        460
+      ],
+      "id": "f4901ae7-1e05-41c1-b672-1f781b93688a",
+      "name": "Prepare OpenRouter Body"
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const rawContent = $input.first().json.text;\n  const jsonString = rawContent\n    .replace(/```json\\n/, '')\n    .replace(/\\n```/, '')\n    .trim();\n  const parsedData = JSON.parse(jsonString);\n  const orders = Array.isArray(parsedData) ? parsedData : [parsedData];\n  return orders.map(order => ({\n    json: order\n  }));\n} catch (error) {\n  return [{\n    json: {\n      error: \"Failed to parse JSON\",\n      rawContent: $input.first().json.choices[0].message.content\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        460
+      ],
+      "id": "56fbc6ac-33e7-4c2f-a088-648f590bc377",
+      "name": "Parse OpenRouter Response"
+    },
+    {
+      "parameters": {
+        "url": "=https://pages.fm/api/public_api/v1/pages/{{ $('Code').item.json.page_id }}/conversations/{{ $('Code').item.json.conversation_id }}/messages ",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=page_access_token",
+              "value": "={{ $('HTTP Request Generate page_access_token').item.json.page_access_token }}"
+            },
+            {
+              "name": "customer_id",
+              "value": "={{ $('HTTP Request Conversations').item.json.conversations[0].customer_id }}"
+            },
+            {
+              "name": "current_count",
+              "value": "=30"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        380
+      ],
+      "id": "bdba2eaa-fd5a-482e-877b-3610e8b2db30",
+      "name": "HTTP Request Get messages1"
+    },
+    {
+      "parameters": {
+        "url": "=https://pages.fm/api/public_api/v1/pages/{{ $('Code').item.json.page_id }}/conversations/{{ $('Code').item.json.conversation_id }}/messages ",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=page_access_token",
+              "value": "={{ $('HTTP Request Generate page_access_token').item.json.page_access_token }}"
+            },
+            {
+              "name": "customer_id",
+              "value": "={{ $('HTTP Request Conversations').item.json.conversations[0].customer_id }}"
+            },
+            {
+              "name": "current_count",
+              "value": "=60"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        540
+      ],
+      "id": "f6e09b51-4dd7-411f-8346-4db3826094a5",
+      "name": "HTTP Request Get messages2"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -880,
+        440
+      ],
+      "id": "6f9c26f5-108a-41d8-8598-f9e775a04f9f",
+      "name": "Merge Messages"
+    },
+    {
+      "parameters": {
+        "url": "=https://pages.fm/api/public_api/v1/pages/{{ $('Code').item.json.page_id }}/conversations/{{ $('Code').item.json.conversation_id }}/messages ",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=page_access_token",
+              "value": "={{ $('HTTP Request Generate page_access_token').item.json.page_access_token }}"
+            },
+            {
+              "name": "customer_id",
+              "value": "={{ $('HTTP Request Conversations').item.json.conversations[0].customer_id }}"
+            },
+            {
+              "name": "current_count",
+              "value": "=90"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        700
+      ],
+      "id": "beccb8af-01bd-4806-b72f-63f427b1683a",
+      "name": "HTTP Request Get messages3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lấy dữ liệu từ Merge Messages\nconst messages = $('HTTP Request Get messages').first().json.messages;\nconst messages1 = $('HTTP Request Get messages1').first().json.messages;\nconst messages2 = $('HTTP Request Get messages2').first().json.messages;\nconst messages3 = $('HTTP Request Get messages3').first().json.messages;\n\n// Gộp các tin nhắn từ 3 lần gọi thành một mảng duy nhất\nconst allMessages = [...messages3, ...messages2, ...messages1, ...messages];\n\n// Đảo ngược thứ tự để tin nhắn từ lần gọi sau (cũ hơn) lên trước\nconst reversedMessages = allMessages.slice();\n\nreturn [{\n  json: {\n    all_messages: reversedMessages\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        460
+      ],
+      "id": "728965e5-476b-489b-aeb3-d11ddcb068a0",
+      "name": "Combine All Messages"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.request_body.messages[0].content }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -80,
+        460
+      ],
+      "id": "b01177d9-7080-4c1c-98fa-58ed6760b082",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.0-pro-exp-02-05:free",
+        "options": {
+          "temperature": 0.9
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        660
+      ],
+      "id": "07d0e1e7-bf59-43f5-9f23-05e6fee384f9",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "aNOSYXdlVOlp80g2",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "httpMethod": [
+          "POST"
+        ],
+        "path": "create-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1980,
+        80
+      ],
+      "id": "49cf704a-e6a1-4fc5-8251-4a1459e4d2e3",
+      "name": "Webhook",
+      "webhookId": "79af9956-0fb1-4908-b3f0-df571cac9ddd"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        460
+      ],
+      "id": "860e8526-e749-49a9-99ff-e5ff792760e0",
+      "name": "Respond to Webhook",
+      "alwaysOutputData": false,
+      "retryOnFail": false,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "666877a9-28fa-4a96-ad5a-05075d1cfb26",
+              "name": "weight",
+              "value": "={{ $json.weight }}",
+              "type": "string"
+            },
+            {
+              "id": "6e228041-7b94-4851-99cd-b3005a063994",
+              "name": "height",
+              "value": "={{ $json.height }}",
+              "type": "string"
+            },
+            {
+              "id": "bf050c4c-1815-4338-9a79-f0b622c04e71",
+              "name": "phone_number",
+              "value": "={{ $json.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "85aa0fa4-1cf0-454d-9634-4a56481866b9",
+              "name": "full_address",
+              "value": "={{ $json.full_address }}",
+              "type": "string"
+            },
+            {
+              "id": "5f562cf5-d998-47b5-b884-25a41541c59c",
+              "name": "province",
+              "value": "={{ $json.province }}",
+              "type": "string"
+            },
+            {
+              "id": "0aa3cf83-ae2c-4ae3-84e1-4341dd51cb46",
+              "name": "district",
+              "value": "={{ $json.district }}",
+              "type": "string"
+            },
+            {
+              "id": "69edd8f3-6e66-4ab1-be00-d675283a5a29",
+              "name": "ward",
+              "value": "={{ $json.ward }}",
+              "type": "string"
+            },
+            {
+              "id": "4276d9bc-121e-4964-a906-784fe4ee79bc",
+              "name": "quantity",
+              "value": "={{ $json.quantity }}",
+              "type": "string"
+            },
+            {
+              "id": "23ca203b-b41f-47f1-8b2e-02f718def725",
+              "name": "size",
+              "value": "={{ $json.size }}",
+              "type": "string"
+            },
+            {
+              "id": "22e1d797-daf6-4bd9-8417-d7a11833241e",
+              "name": "color",
+              "value": "={{ $json.color }}",
+              "type": "string"
+            },
+            {
+              "id": "0748c3ee-7f48-4c5c-951b-6a58fb8e5b74",
+              "name": "order_price",
+              "value": "={{ $json.order_price }}",
+              "type": "string"
+            },
+            {
+              "id": "9eda11dd-1657-4156-95e8-0dbf207f5089",
+              "name": "shipping_fee",
+              "value": "={{ $json.shipping_fee }}",
+              "type": "string"
+            },
+            {
+              "id": "2b94e954-55a7-4f5c-9d85-6ce6d5f2374d",
+              "name": "name_customers",
+              "value": "={{ $('HTTP Request Conversations').first().json.conversations[0].page_customer.name }}",
+              "type": "string"
+            },
+            {
+              "id": "5ef0c371-4bfa-4408-ace8-b6af4419343c",
+              "name": "gender",
+              "value": "={{ $('HTTP Request Conversations').first().json.conversations[0].page_customer.gender }}",
+              "type": "string"
+            },
+            {
+              "id": "fa5cf6e6-a966-4168-829d-5d7cde762e4c",
+              "name": "name_page",
+              "value": "={{ $('HTTP Request Conversations').first().json.conversations[0].last_sent_by.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        460
+      ],
+      "id": "b0d97c57-1516-490b-b6a3-3d975cb8e39a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lấy mảng tin nhắn đã gộp từ node Combine All Messages\nconst messages = $input.first().json.all_messages;\n\n// Trích xuất tất cả original_message và gộp thành một chuỗi\nconst combinedMessages = messages\n  .map(message => message.original_message.trim()) // Lấy original_message và loại bỏ khoảng trắng thừa\n  .filter(message => message !== \"\") // Loại bỏ các tin nhắn rỗng\n  .join(\" | \"); // Gộp các tin nhắn lại, ngăn cách bằng \" | \"\n\n// Trả về chuỗi gộp\nreturn [{\n  json: {\n    combined_messages: combinedMessages\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        460
+      ],
+      "id": "6a5cd106-ec60-4361-a579-cd324f7a82f7",
+      "name": "Combine Messages"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract URL Parameters": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Generate page_access_token": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Page List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Page List": {
+      "main": [
+        [
+          {
+            "node": "Parse Page List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Page List": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Generate page_access_token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Conversations": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Get messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request Get messages1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request Get messages2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request Get messages3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Get messages": {
+      "main": [
+        [
+          {
+            "node": "Merge Messages",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Prepare OpenRouter Body": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Get messages1": {
+      "main": [
+        [
+          {
+            "node": "Merge Messages",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "HTTP Request Get messages2": {
+      "main": [
+        [
+          {
+            "node": "Merge Messages",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Request Get messages3": {
+      "main": [
+        [
+          {
+            "node": "Merge Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Messages": {
+      "main": [
+        [
+          {
+            "node": "Combine All Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine All Messages": {
+      "main": [
+        [
+          {
+            "node": "Combine Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse OpenRouter Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract URL Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OpenRouter Response": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Messages": {
+      "main": [
+        [
+          {
+            "node": "Prepare OpenRouter Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "768308e2-6150-40b1-b344-a674d2aacf50",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c2a0bcdfc4175b5524650dddd831852085f112c77cfd3dad108ac82f512097d5"
+  },
+  "id": "2SUKNJzl8YOkkvUs",
+  "tags": []
+}
