@@ -8,6 +8,7 @@ import UserManagement from './components/admin/UserManagement';
 import Profile from './components/Profile';
 import ChangePassword from './components/ChangePassword';
 import AdminRoute from './components/common/AdminRoute';
+import Orders from './components/orders/Orders';
 import './App.css';
 // import { ToastContainer } from 'react-toastify';
 // import 'react-toastify/dist/ReactToastify.css';
@@ -58,6 +59,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ChangePassword />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/orders" 
+            element={
+              <PrivateRoute>
+                <Orders />
               </PrivateRoute>
             } 
           />

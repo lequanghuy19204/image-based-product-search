@@ -10,7 +10,8 @@ import {
   VpnKey,
   Menu as MenuIcon,
   ChevronLeft,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 import { authService } from '../../services/auth.service';
@@ -123,6 +124,12 @@ function Sidebar({ open, onToggle }) {
       title: 'Tìm kiếm Sản phẩm',
       path: '/search',
       icon: <Search />,
+      showFor: ['Admin', 'User']
+    },
+    {
+      title: 'Quản lý Đơn hàng',
+      path: '/orders',
+      icon: <ReceiptIcon />,
       showFor: ['Admin', 'User']
     },
     {
