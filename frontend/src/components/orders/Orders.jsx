@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
-  Card, Dropdown, OverlayTrigger, Tooltip, Alert
+  Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal
 } from 'react-bootstrap';
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
   FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt,
-  FaPrint, FaQuestionCircle, FaPlus, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane
+  FaPrint, FaQuestionCircle, FaPlus, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane, FaCheck,
+  FaWeight, FaRulerVertical, FaMars, FaVenus, FaShoppingBag, FaStore
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
 import axios from 'axios';
+import { appConfigService } from '../../services/app-config.service';
 
 const Orders = () => {
   const [validated, setValidated] = useState(false);
@@ -23,6 +25,34 @@ const Orders = () => {
   const [apiResponse, setApiResponse] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingToken, setLoadingToken] = useState(true);
+  const [selectedOrderIndex, setSelectedOrderIndex] = useState(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+
+  useEffect(() => {
+    // Lấy thông tin người dùng từ localStorage
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (userDetails?.company_id) {
+      fetchAccessToken(userDetails.company_id);
+    } else {
+      setLoadingToken(false);
+    }
+  }, []);
+
+  const fetchAccessToken = async (companyId) => {
+    try {
+      setLoadingToken(true);
+      const config = await appConfigService.getAppConfig(companyId);
+      if (config && config.access_token) {
+        setAccessToken(config.access_token);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy access token:', error);
+      // Không hiển thị lỗi cho người dùng vì đây là quá trình tự động
+    } finally {
+      setLoadingToken(false);
+    }
+  };
 
   const handleToggleSidebar = () => {
     const newState = !sidebarOpen;
@@ -48,6 +78,7 @@ const Orders = () => {
     setIsLoading(true);
     setApiError(null);
     setApiResponse(null);
+    setSelectedOrderIndex(null);
 
     try {
       const response = await axios.post('http://localhost:1234/webhook/create-order', [
@@ -58,12 +89,38 @@ const Orders = () => {
       ]);
       
       setApiResponse(response.data);
+      // Nếu chỉ có một kết quả, tự động chọn
+      if (Array.isArray(response.data) && response.data.length === 1) {
+        setSelectedOrderIndex(0);
+      }
     } catch (error) {
       console.error('Error creating order:', error);
       setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi gọi API');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectOrder = (index) => {
+    setSelectedOrderIndex(index);
+  };
+
+  const handleViewDetails = () => {
+    setShowOrderDetails(true);
+  };
+
+  const handleCloseDetails = () => {
+    setShowOrderDetails(false);
+  };
+
+  const handleConfirmOrder = () => {
+    // Xử lý xác nhận đơn hàng đã chọn
+    alert(`Đã chọn đơn hàng: ${JSON.stringify(apiResponse[selectedOrderIndex])}`);
+    // Ở đây bạn có thể gọi API để xác nhận đơn hàng
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
   return (
@@ -102,7 +159,15 @@ const Orders = () => {
                       placeholder="Token" 
                       value={accessToken}
                       onChange={(e) => setAccessToken(e.target.value)}
+                      type="password"
+                      readOnly
+                      disabled={loadingToken}
                     />
+                    {loadingToken && (
+                      <InputGroup.Text>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      </InputGroup.Text>
+                    )}
                   </InputGroup>
                 </Col>
                 <Col md={2}>
@@ -110,7 +175,7 @@ const Orders = () => {
                     variant="primary" 
                     className="w-100" 
                     onClick={handleCreateOrder}
-                    disabled={isLoading}
+                    disabled={isLoading || !accessToken}
                   >
                     {isLoading ? (
                       <>
@@ -132,16 +197,175 @@ const Orders = () => {
                 </Alert>
               )}
               
-              {apiResponse && (
+              {apiResponse && Array.isArray(apiResponse) && apiResponse.length > 0 && (
                 <div className="mt-3">
-                  <h6>Kết quả:</h6>
-                  <div className="api-response">
-                    <pre>{JSON.stringify(apiResponse, null, 2)}</pre>
-                  </div>
+                  <h6>Kết quả phân tích ({apiResponse.length} đơn hàng):</h6>
+                  
+                  <ListGroup className="mt-3">
+                    {apiResponse.map((order, index) => (
+                      <ListGroup.Item 
+                        key={index}
+                        action
+                        active={selectedOrderIndex === index}
+                        onClick={() => handleSelectOrder(index)}
+                        className="d-flex justify-content-between align-items-center"
+                      >
+                        <div>
+                          <div className="fw-bold">
+                            <FaUser className="me-1" /> {order.name_customers} 
+                            {order.gender && (
+                              <span className="ms-2">
+                                {order.gender === 'male' ? <FaMars className="text-primary" /> : <FaVenus className="text-danger" />}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <FaPhone className="me-1" /> {order.phone_number}
+                          </div>
+                          <div>
+                            <FaMapMarkerAlt className="me-1" /> {order.full_address}
+                          </div>
+                          <div>
+                            <FaWeight className="me-1" /> Cân nặng: {order.weight} kg
+                            <span className="ms-3"><FaRulerVertical className="me-1" /> Chiều cao: {order.height} m</span>
+                          </div>
+                        </div>
+                        <div className="text-end">
+                          <div>
+                            <FaBox className="me-1" /> {order.quantity}x {order.size} 
+                            {order.color && ` - ${order.color}`}
+                          </div>
+                          <div>
+                            <FaStore className="me-1" /> {order.name_page}
+                          </div>
+                          <div className="fw-bold">
+                            Giá: {formatCurrency(order.order_price)}
+                          </div>
+                          <div>
+                            Ship: {formatCurrency(order.shipping_fee)}
+                          </div>
+                          <div className="fw-bold">
+                            Tổng: {formatCurrency(parseInt(order.order_price) + parseInt(order.shipping_fee))}
+                          </div>
+                        </div>
+                        {selectedOrderIndex === index && (
+                          <div className="ms-2 text-success">
+                            <FaCheck />
+                          </div>
+                        )}
+                      </ListGroup.Item>
+                    ))}
+                  </ListGroup>
+                  
+                  {selectedOrderIndex !== null && (
+                    <div className="d-flex justify-content-end mt-3 gap-2">
+                      <Button 
+                        variant="info" 
+                        onClick={handleViewDetails}
+                      >
+                        <FaQuestionCircle className="me-2" /> Xem chi tiết
+                      </Button>
+                      <Button 
+                        variant="success" 
+                        onClick={handleConfirmOrder}
+                      >
+                        <FaCheck className="me-2" /> Xác nhận đơn hàng
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </Card.Body>
           </Card>
+
+          {/* Modal hiển thị chi tiết đơn hàng */}
+          {selectedOrderIndex !== null && apiResponse && (
+            <Modal show={showOrderDetails} onHide={handleCloseDetails} size="lg">
+              <Modal.Header closeButton>
+                <Modal.Title>Chi tiết đơn hàng</Modal.Title>
+              </Modal.Header>
+              <Modal.Body className="p-0">
+                <div className="table-responsive">
+                  <Table bordered hover className="mb-0">
+                    <tbody>
+                      <tr>
+                        <td className="fw-bold" width="30%">Tên khách hàng</td>
+                        <td>{apiResponse[selectedOrderIndex].name_customers}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Giới tính</td>
+                        <td>{apiResponse[selectedOrderIndex].gender === 'male' ? 'Nam' : 'Nữ'}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Số điện thoại</td>
+                        <td>{apiResponse[selectedOrderIndex].phone_number}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Địa chỉ đầy đủ</td>
+                        <td style={{wordBreak: 'break-word'}}>{apiResponse[selectedOrderIndex].full_address}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Tỉnh/Thành phố</td>
+                        <td>{apiResponse[selectedOrderIndex].province}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Quận/Huyện</td>
+                        <td>{apiResponse[selectedOrderIndex].district}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Phường/Xã</td>
+                        <td>{apiResponse[selectedOrderIndex].ward}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Cân nặng</td>
+                        <td>{apiResponse[selectedOrderIndex].weight} kg</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Chiều cao</td>
+                        <td>{apiResponse[selectedOrderIndex].height} m</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Số lượng</td>
+                        <td>{apiResponse[selectedOrderIndex].quantity}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Kích thước</td>
+                        <td>{apiResponse[selectedOrderIndex].size}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Màu sắc</td>
+                        <td>{apiResponse[selectedOrderIndex].color || 'Không có'}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Giá đơn hàng</td>
+                        <td>{formatCurrency(apiResponse[selectedOrderIndex].order_price)}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Phí vận chuyển</td>
+                        <td>{formatCurrency(apiResponse[selectedOrderIndex].shipping_fee)}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Tổng cộng</td>
+                        <td className="fw-bold">{formatCurrency(parseInt(apiResponse[selectedOrderIndex].order_price) + parseInt(apiResponse[selectedOrderIndex].shipping_fee))}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Tên trang</td>
+                        <td>{apiResponse[selectedOrderIndex].name_page}</td>
+                      </tr>
+                    </tbody>
+                  </Table>
+                </div>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={handleCloseDetails}>
+                  Đóng
+                </Button>
+                <Button variant="success" onClick={handleConfirmOrder}>
+                  <FaCheck className="me-2" /> Xác nhận đơn hàng
+                </Button>
+              </Modal.Footer>
+            </Modal>
+          )}
 
           <Row>
             {/* Cột trái - 70% */}
@@ -387,7 +611,9 @@ const Orders = () => {
                         placement="top"
                         overlay={<Tooltip>Thông tin về bảo hiểm</Tooltip>}
                       >
-                        <FaQuestionCircle className="ms-1 text-muted" />
+                        <span>
+                          <FaQuestionCircle className="ms-1 text-muted" />
+                        </span>
                       </OverlayTrigger>
                     </Col>
                     <Col md={3}>
@@ -400,7 +626,9 @@ const Orders = () => {
                         placement="top"
                         overlay={<Tooltip>Thông tin về giao hàng một phần</Tooltip>}
                       >
-                        <FaQuestionCircle className="ms-1 text-muted" />
+                        <span>
+                          <FaQuestionCircle className="ms-1 text-muted" />
+                        </span>
                       </OverlayTrigger>
                     </Col>
                     <Col md={3}>
@@ -413,7 +641,9 @@ const Orders = () => {
                         placement="top"
                         overlay={<Tooltip>Thông tin về hàng dễ vỡ</Tooltip>}
                       >
-                        <FaQuestionCircle className="ms-1 text-muted" />
+                        <span>
+                          <FaQuestionCircle className="ms-1 text-muted" />
+                        </span>
                       </OverlayTrigger>
                     </Col>
                   </Row>
@@ -438,7 +668,9 @@ const Orders = () => {
                           placement="top"
                           overlay={<Tooltip>Thông tin về kích thước</Tooltip>}
                         >
-                          <FaQuestionCircle className="ms-1 text-muted" />
+                          <span>
+                            <FaQuestionCircle className="ms-1 text-muted" />
+                          </span>
                         </OverlayTrigger>
                       </Col>
                     </Row>
@@ -452,7 +684,9 @@ const Orders = () => {
                       placement="top"
                       overlay={<Tooltip>Thông tin về gộp kiện</Tooltip>}
                     >
-                      <FaQuestionCircle className="ms-1 text-muted" />
+                      <span>
+                        <FaQuestionCircle className="ms-1 text-muted" />
+                      </span>
                     </OverlayTrigger>
                   </div>
                 </Card.Body>
@@ -510,7 +744,7 @@ const Orders = () => {
                     </Col>
                     <Col>
                       <Form.Control type="text" placeholder="Mã Coupon" />
-                    </Col>
+                    </Col>    
                     <Col xs={3} className="text-center">
                       <Button variant="light" size="sm">
                         <FaSync />
@@ -548,7 +782,9 @@ const Orders = () => {
                         placement="top"
                         overlay={<Tooltip>Thông tin về chuyển khoản</Tooltip>}
                       >
-                        <FaQuestionCircle className="text-muted" />
+                        <span>
+                          <FaQuestionCircle className="text-muted" />
+                        </span>
                       </OverlayTrigger>
                     </Col>
                   </Row>
@@ -594,7 +830,9 @@ const Orders = () => {
                         placement="top"
                         overlay={<Tooltip>Thông tin về trạng thái đơn hàng</Tooltip>}
                       >
-                        <FaQuestionCircle className="text-muted" />
+                        <span>
+                          <FaQuestionCircle className="text-muted" />
+                        </span>
                       </OverlayTrigger>
                     </Col>
                   </Row>
