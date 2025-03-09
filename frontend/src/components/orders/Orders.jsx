@@ -244,8 +244,13 @@ const Orders = () => {
                           <div>
                             Ship: {formatCurrency(order.shipping_fee)}
                           </div>
+                          
+                          <div>
+                            Đặt cọc: {formatCurrency(order.money_deposit)}
+                          </div>
+                          
                           <div className="fw-bold">
-                            Tổng: {formatCurrency(parseInt(order.order_price) + parseInt(order.shipping_fee))}
+                            Tổng: {formatCurrency(parseInt(order.order_price) + parseInt(order.shipping_fee || 0))}
                           </div>
                         </div>
                         {selectedOrderIndex === index && (
@@ -343,6 +348,10 @@ const Orders = () => {
                       <tr>
                         <td className="fw-bold">Phí vận chuyển</td>
                         <td>{formatCurrency(apiResponse[selectedOrderIndex].shipping_fee)}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Tiền đặt cọc</td>
+                        <td>{formatCurrency(apiResponse[selectedOrderIndex].money_deposit || 0)}</td>
                       </tr>
                       <tr>
                         <td className="fw-bold">Tổng cộng</td>
