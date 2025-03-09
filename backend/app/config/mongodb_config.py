@@ -18,4 +18,5 @@ db = client.images_search  # Tên database
 users_collection = db.users
 companies_collection = db.companies
 products_collection = db.products
-images_collection = db.images 
+images_collection = db.images
+app_configs_collection = db.app_configs  # Collection mới 

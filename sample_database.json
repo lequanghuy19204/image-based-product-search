@@ -8,6 +8,19 @@
         "updated_at": ISODate("2025-02-06T09:34:30.353Z")
       }
     ],
+    "app_configs":[
+      {
+        "_id": ObjectId("67a482260c544d49f037fb60"),
+        "company_id": ObjectId("67a482260c544d49f037fb60"),
+        "access_token": "1234567890",
+        "version": "1.0.0",
+        "appId": "1234567890",
+        "businessId": "1234567890", 
+        "accessToken": "1234567890",
+        "created_at": ISODate("2025-02-06T09:34:30.353Z"),
+        "updated_at": ISODate("2025-02-06T09:34:30.353Z")
+      }
+    ],
     "users": [
       {
         "_id": ObjectId("67a482260c544d49f037fb61"),

@@ -8,6 +8,7 @@ from app.routers.image_search import image_search_router
 from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
 from app.routers.product import product_router
+from app.routers.app_config import app_config_router
 
 app = FastAPI(title="Search Images API")
 
@@ -90,6 +91,14 @@ app.include_router(
     image_search_router,
     prefix="/api/images",
     tags=["Image Search"],
+    dependencies=[Depends(verify_token)]
+)
+
+# Thêm app config router
+app.include_router(
+    app_config_router,
+    prefix="/api/app-configs",
+    tags=["App Configs"],
     dependencies=[Depends(verify_token)]
 )
 

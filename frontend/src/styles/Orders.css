@@ -1,5 +1,6 @@
 .orders-container {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  padding: 0px;
 }
 
 .card {
@@ -20,6 +21,21 @@
 .product-table th, .product-table td {
   vertical-align: middle;
   padding: 0.5rem;
+}
+
+.api-response {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.api-response pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Responsive adjustments */

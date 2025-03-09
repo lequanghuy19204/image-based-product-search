@@ -9,9 +9,9 @@ import Profile from './components/Profile';
 import ChangePassword from './components/ChangePassword';
 import AdminRoute from './components/common/AdminRoute';
 import Orders from './components/orders/Orders';
+import AppConfig from './components/admin/AppConfig';
 import './App.css';
-// import { ToastContainer } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
+
 
 function App() {
   return (
@@ -70,6 +70,15 @@ function App() {
               </PrivateRoute>
             } 
           />
+          <Route 
+            path="/admin/app-config" 
+            element={
+              <AdminRoute>
+                <AppConfig />
+              </AdminRoute>
+            } 
+          />
+          
         </Routes>
         {/* <ToastContainer 
           position="top-right"

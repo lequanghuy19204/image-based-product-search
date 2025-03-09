@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
-  Card, Dropdown, OverlayTrigger, Tooltip 
+  Card, Dropdown, OverlayTrigger, Tooltip, Alert
 } from 'react-bootstrap';
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
   FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt,
-  FaPrint, FaQuestionCircle, FaPlus, FaChevronDown, FaSync
+  FaPrint, FaQuestionCircle, FaPlus, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
+import axios from 'axios';
 
 const Orders = () => {
   const [validated, setValidated] = useState(false);
@@ -17,6 +18,11 @@ const Orders = () => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved ? JSON.parse(saved) : false;
   });
+  const [conversationLink, setConversationLink] = useState('');
+  const [accessToken, setAccessToken] = useState('');
+  const [apiResponse, setApiResponse] = useState(null);
+  const [apiError, setApiError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleToggleSidebar = () => {
     const newState = !sidebarOpen;
@@ -33,12 +39,110 @@ const Orders = () => {
     setValidated(true);
   };
 
+  const handleCreateOrder = async () => {
+    if (!conversationLink || !accessToken) {
+      setApiError('Vui lòng nhập đầy đủ Link hội thoại và Token');
+      return;
+    }
+
+    setIsLoading(true);
+    setApiError(null);
+    setApiResponse(null);
+
+    try {
+      const response = await axios.post('http://localhost:1234/webhook/create-order', [
+        {
+          conversation_link: conversationLink,
+          access_token: accessToken
+        }
+      ]);
+      
+      setApiResponse(response.data);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi gọi API');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="layout-container">
       <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
       
       <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
         <Container className="orders-container py-3">
+          {/* API Integration Card */}
+          <Card className="mb-3 shadow-sm">
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <div>
+                <FaLink className="me-2" /> Tạo đơn từ hội thoại
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={5}>
+                  <InputGroup className="mb-3">
+                    <InputGroup.Text>
+                      <FaLink />
+                    </InputGroup.Text>
+                    <Form.Control 
+                      placeholder="Link hội thoại" 
+                      value={conversationLink}
+                      onChange={(e) => setConversationLink(e.target.value)}
+                    />
+                  </InputGroup>
+                </Col>
+                <Col md={5}>
+                  <InputGroup className="mb-3">
+                    <InputGroup.Text>
+                      <FaKey />
+                    </InputGroup.Text>
+                    <Form.Control 
+                      placeholder="Token" 
+                      value={accessToken}
+                      onChange={(e) => setAccessToken(e.target.value)}
+                    />
+                  </InputGroup>
+                </Col>
+                <Col md={2}>
+                  <Button 
+                    variant="primary" 
+                    className="w-100" 
+                    onClick={handleCreateOrder}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        <FaPaperPlane className="me-2" /> Gửi
+                      </>
+                    )}
+                  </Button>
+                </Col>
+              </Row>
+              
+              {apiError && (
+                <Alert variant="danger" className="mt-3">
+                  {apiError}
+                </Alert>
+              )}
+              
+              {apiResponse && (
+                <div className="mt-3">
+                  <h6>Kết quả:</h6>
+                  <div className="api-response">
+                    <pre>{JSON.stringify(apiResponse, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+
           <Row>
             {/* Cột trái - 70% */}
             <Col lg={8}>

@@ -11,7 +11,8 @@ import {
   Menu as MenuIcon,
   ChevronLeft,
   Refresh as RefreshIcon,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import '../../styles/Sidebar.css';
 import { authService } from '../../services/auth.service';
@@ -142,6 +143,12 @@ function Sidebar({ open, onToggle }) {
       title: 'Quản lý Người dùng',
       path: '/admin/users',
       icon: <People />,
+      showFor: ['Admin']
+    },
+    {
+      title: 'Cấu hình Ứng dụng',
+      path: '/admin/app-config',
+      icon: <SettingsIcon />,
       showFor: ['Admin']
     }
   ], []);

@@ -1,0 +1,29 @@
+.app-config-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.main-content {
+  flex: 1;
+  transition: margin-left 0.3s;
+  padding: 20px;
+  width: calc(100% - 60px);
+}
+
+.main-content.sidebar-open {
+  margin-left: 240px;
+  width: calc(100% - 240px);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    width: 100%;
+    margin-left: 0;
+  }
+  
+  .main-content.sidebar-open {
+    margin-left: 0;
+    width: 100%;
+  }
+} 
