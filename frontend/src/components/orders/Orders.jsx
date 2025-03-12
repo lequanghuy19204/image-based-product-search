@@ -5,14 +5,14 @@ import {
 } from 'react-bootstrap';
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
-  FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt,
-  FaPrint, FaQuestionCircle, FaPlus, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane, FaCheck,
-  FaWeight, FaRulerVertical, FaMars, FaVenus, FaShoppingBag, FaStore
+  FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt, FaQuestionCircle, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane, FaCheck,
+  FaWeight, FaRulerVertical, FaMars, FaVenus, FaStore
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
 import axios from 'axios';
 import { appConfigService } from '../../services/app-config.service';
+import { nhanhService } from '../../services/nhanh.service';
 
 const Orders = () => {
   const [validated, setValidated] = useState(false);
@@ -28,6 +28,9 @@ const Orders = () => {
   const [loadingToken, setLoadingToken] = useState(true);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [orderSources, setOrderSources] = useState([]);
+  const [selectedSource, setSelectedSource] = useState('');
+  const [loadingSources, setLoadingSources] = useState(false);
 
   useEffect(() => {
     // Lấy thông tin người dùng từ localStorage
@@ -37,6 +40,22 @@ const Orders = () => {
     } else {
       setLoadingToken(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchOrderSources = async () => {
+      try {
+        setLoadingSources(true);
+        const sources = await nhanhService.getOrderSources();
+        setOrderSources(sources);
+        setLoadingSources(false);
+      } catch (error) {
+        console.error('Lỗi khi lấy nguồn đơn hàng:', error);
+        setLoadingSources(false);
+      }
+    };
+    
+    fetchOrderSources();
   }, []);
 
   const fetchAccessToken = async (companyId) => {
@@ -72,6 +91,7 @@ const Orders = () => {
   const handleCreateOrder = async () => {
     if (!conversationLink || !accessToken) {
       setApiError('Vui lòng nhập đầy đủ Link hội thoại và Token');
+      setTimeout(() => setApiError(''), 3000);
       return;
     }
 
@@ -386,15 +406,21 @@ const Orders = () => {
                     <FaUser className="me-2" /> Khách hàng
                   </div>
                   <div>
-                    <Form.Select className="d-inline-block me-2 source-select">
-                      <option>- Nguồn đơn hàng -</option>
-                      <option>Facebook</option>
-                      <option>Zalo</option>
-                      <option>Website</option>
+                    <Form.Select 
+                      className="d-inline-block me-2 source-select"
+                      value={selectedSource}
+                      onChange={(e) => setSelectedSource(e.target.value)}
+                      disabled={loadingSources}
+                    >
+                      <option value="">- Nguồn đơn hàng -</option>
+                      {loadingSources ? (
+                        <option disabled>Đang tải...</option>
+                      ) : (
+                        orderSources && Object.entries(orderSources).map(([id, name]) => (
+                          <option key={id} value={id}>{name}</option>
+                        ))
+                      )}
                     </Form.Select>
-                    <Button variant="light" size="sm">
-                      <FaPlus />
-                    </Button>
                   </div>
                 </Card.Header>
                 <Card.Body>

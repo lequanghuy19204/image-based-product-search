@@ -1,0 +1,46 @@
+import { apiService } from './api.service';
+import { appConfigService } from './app-config.service';
+
+export const nhanhService = {
+  getOrderSources,
+};
+
+async function getOrderSources() {
+  try {
+    // Lấy thông tin cấu hình từ database
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails?.company_id) {
+      throw new Error('Không tìm thấy thông tin công ty');
+    }
+    
+    const config = await appConfigService.getAppConfig(userDetails.company_id);
+    
+    if (!config) {
+      throw new Error('Không tìm thấy cấu hình Nhanh.vn');
+    }
+    
+    // Chuẩn bị FormData để gửi đến Nhanh.vn
+    const formData = new FormData();
+    formData.append('version', config.version || '');
+    formData.append('appId', config.appId || '');
+    formData.append('businessId', config.businessId || '');
+    formData.append('accessToken', config.accessToken || '');
+    
+    // Gọi API Nhanh.vn
+    const response = await fetch('https://open.nhanh.vn/api/order/source', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const data = await response.json();
+    
+    if (data.code !== 1) {
+      throw new Error(data.messages || 'Lỗi khi lấy nguồn đơn hàng');
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error('Lỗi khi lấy nguồn đơn hàng:', error);
+    throw error;
+  }
+} 
