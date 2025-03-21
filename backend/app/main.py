@@ -12,6 +12,15 @@ from app.routers.app_config import app_config_router
 
 app = FastAPI(title="Search Images API")
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://172.18.32.15:5173", "https://localhost:5173"],  # Thêm cả localhost và IP
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 async def root():
     return {"status": "Welcome to Search Images API"}
@@ -29,17 +38,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": f"Lỗi server: {str(exc)}"}
     )
-
-# Cấu hình CORS chi tiết hơn
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Thêm domain của frontend
-    allow_credentials=True,
-    allow_methods=["*"],  # Cho phép tất cả các methods
-    allow_headers=["*"],  # Cho phép tất cả các headers
-    expose_headers=["*"],  # Cho phép frontend truy cập tất cả headers
-    max_age=3600  # Thêm max age để cache preflight requests
-)
 
 
 # Route không cần xác thực
@@ -101,4 +99,3 @@ app.include_router(
     tags=["App Configs"],
     dependencies=[Depends(verify_token)]
 )
-
