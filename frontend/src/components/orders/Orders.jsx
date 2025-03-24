@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
   Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal
@@ -10,8 +10,6 @@ import {
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
-import axios from 'axios';
-import { appConfigService } from '../../services/app-config.service';
 import { nhanhService } from '../../services/nhanh.service';
 
 const Orders = () => {
@@ -21,57 +19,12 @@ const Orders = () => {
     return saved ? JSON.parse(saved) : false;
   });
   const [conversationLink, setConversationLink] = useState('');
-  const [accessToken, setAccessToken] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingToken, setLoadingToken] = useState(true);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [orderSources, setOrderSources] = useState([]);
   const [selectedSource, setSelectedSource] = useState('');
-  const [loadingSources, setLoadingSources] = useState(false);
-
-  useEffect(() => {
-    // Lấy thông tin người dùng từ localStorage
-    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-    if (userDetails?.company_id) {
-      fetchAccessToken(userDetails.company_id);
-    } else {
-      setLoadingToken(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const fetchOrderSources = async () => {
-      try {
-        setLoadingSources(true);
-        const sources = await nhanhService.getOrderSources();
-        setOrderSources(sources);
-        setLoadingSources(false);
-      } catch (error) {
-        console.error('Lỗi khi lấy nguồn đơn hàng:', error);
-        setLoadingSources(false);
-      }
-    };
-    
-    fetchOrderSources();
-  }, []);
-
-  const fetchAccessToken = async (companyId) => {
-    try {
-      setLoadingToken(true);
-      const config = await appConfigService.getAppConfig(companyId);
-      if (config && config.access_token) {
-        setAccessToken(config.access_token);
-      }
-    } catch (error) {
-      console.error('Lỗi khi lấy access token:', error);
-      // Không hiển thị lỗi cho người dùng vì đây là quá trình tự động
-    } finally {
-      setLoadingToken(false);
-    }
-  };
 
   const handleToggleSidebar = () => {
     const newState = !sidebarOpen;
@@ -89,8 +42,8 @@ const Orders = () => {
   };
 
   const handleCreateOrder = async () => {
-    if (!conversationLink || !accessToken) {
-      setApiError('Vui lòng nhập đầy đủ Link hội thoại và Token');
+    if (!conversationLink) {
+      setApiError('Vui lòng nhập Link hội thoại');
       setTimeout(() => setApiError(''), 3000);
       return;
     }
@@ -101,21 +54,16 @@ const Orders = () => {
     setSelectedOrderIndex(null);
 
     try {
-      const response = await axios.post('https://call-indiana-apt-crime.trycloudflare.com/webhook/create-order', [
-        {
-          conversation_link: conversationLink,
-          access_token: accessToken
-        }
-      ]);
+      const response = await nhanhService.createOrderFromConversation(conversationLink);
       
-      setApiResponse(response.data);
+      setApiResponse(response);
       // Nếu chỉ có một kết quả, tự động chọn
-      if (Array.isArray(response.data) && response.data.length === 1) {
+      if (Array.isArray(response) && response.length === 1) {
         setSelectedOrderIndex(0);
       }
     } catch (error) {
       console.error('Error creating order:', error);
-      setApiError(error.response?.data?.message || 'Có lỗi xảy ra khi gọi API');
+      setApiError(error.response?.data?.detail || error.message || 'Có lỗi xảy ra khi gọi API');
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +106,7 @@ const Orders = () => {
             </Card.Header>
             <Card.Body>
               <Row>
-                <Col md={5}>
+                <Col md={10}>
                   <InputGroup className="mb-3">
                     <InputGroup.Text>
                       <FaLink />
@@ -170,32 +118,12 @@ const Orders = () => {
                     />
                   </InputGroup>
                 </Col>
-                <Col md={5}>
-                  <InputGroup className="mb-3">
-                    <InputGroup.Text>
-                      <FaKey />
-                    </InputGroup.Text>
-                    <Form.Control 
-                      placeholder="Token" 
-                      value={accessToken}
-                      onChange={(e) => setAccessToken(e.target.value)}
-                      type="password"
-                      readOnly
-                      disabled={loadingToken}
-                    />
-                    {loadingToken && (
-                      <InputGroup.Text>
-                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      </InputGroup.Text>
-                    )}
-                  </InputGroup>
-                </Col>
                 <Col md={2}>
                   <Button 
                     variant="primary" 
                     className="w-100" 
                     onClick={handleCreateOrder}
-                    disabled={isLoading || !accessToken}
+                    disabled={isLoading}
                   >
                     {isLoading ? (
                       <>
@@ -410,16 +338,13 @@ const Orders = () => {
                       className="d-inline-block me-2 source-select"
                       value={selectedSource}
                       onChange={(e) => setSelectedSource(e.target.value)}
-                      disabled={loadingSources}
                     >
                       <option value="">- Nguồn đơn hàng -</option>
-                      {loadingSources ? (
-                        <option disabled>Đang tải...</option>
-                      ) : (
-                        orderSources && Object.entries(orderSources).map(([id, name]) => (
-                          <option key={id} value={id}>{name}</option>
-                        ))
-                      )}
+                      <option value="facebook">Facebook</option>
+                      <option value="zalo">Zalo</option>
+                      <option value="shopee">Shopee</option>
+                      <option value="lazada">Lazada</option>
+                      <option value="tiktok">Tiktok</option>
                     </Form.Select>
                   </div>
                 </Card.Header>

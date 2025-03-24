@@ -1,8 +1,10 @@
 import { apiService } from './api.service';
 import { appConfigService } from './app-config.service';
+import { API_ENDPOINTS } from '../config/api.config';
 
 export const nhanhService = {
   getOrderSources,
+  createOrderFromConversation
 };
 
 async function getOrderSources() {
@@ -41,6 +43,25 @@ async function getOrderSources() {
     return data.data;
   } catch (error) {
     console.error('Lỗi khi lấy nguồn đơn hàng:', error);
+    throw error;
+  }
+}
+
+async function createOrderFromConversation(conversationLink) {
+  try {
+    if (!conversationLink) {
+      throw new Error('Vui lòng nhập Link hội thoại');
+    }
+    
+    // Gọi API backend để xử lý đơn hàng từ hội thoại
+    // Backend sẽ tự lấy access_token từ database
+    const response = await apiService.post(API_ENDPOINTS.ORDERS.CREATE_FROM_CONVERSATION, {
+      conversation_link: conversationLink
+    });
+    
+    return response;
+  } catch (error) {
+    console.error('Lỗi khi tạo đơn hàng từ hội thoại:', error);
     throw error;
   }
 } 

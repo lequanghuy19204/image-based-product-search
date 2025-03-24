@@ -23,4 +23,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/images',
     DELETE: '/api/images/:id',
   },
+  ORDERS: {
+    CREATE_FROM_CONVERSATION: '/api/orders/create-from-conversation'
+  }
 };
