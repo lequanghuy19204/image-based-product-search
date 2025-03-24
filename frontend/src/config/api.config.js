@@ -6,7 +6,7 @@ export const API_ENDPOINTS = {
     REGISTER: '/api/auth/register',
     CHECK_EMAIL: '/api/auth/check-email',
     LOGOUT: '/auth/logout',
-    GENERATE_COMPANY_CODE: '/api/auth/generate-company-code'  // Endpoint này bị thiếu
+    GENERATE_COMPANY_CODE: '/api/auth/generate-company-code'
   },
   USERS: {
     PROFILE: '/users/profile',
@@ -22,8 +22,5 @@ export const API_ENDPOINTS = {
     UPLOAD: '/api/images/upload',
     LIST: '/api/images',
     DELETE: '/api/images/:id',
-  },
-  ORDERS: {
-    CREATE_FROM_CONVERSATION: '/api/orders/create-from-conversation'
   }
 };
