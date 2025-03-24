@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
   Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal
@@ -25,6 +25,24 @@ const Orders = () => {
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [selectedSource, setSelectedSource] = useState('');
+  const [orderSources, setOrderSources] = useState([]);
+  const [isLoadingSources, setIsLoadingSources] = useState(false);
+
+  useEffect(() => {
+    loadOrderSources();
+  }, []);
+
+  const loadOrderSources = async () => {
+    try {
+      setIsLoadingSources(true);
+      const sources = await nhanhService.getOrderSources();
+      setOrderSources(sources);
+    } catch (error) {
+      console.error('Lỗi khi tải nguồn đơn hàng:', error);
+    } finally {
+      setIsLoadingSources(false);
+    }
+  };
 
   const handleToggleSidebar = () => {
     const newState = !sidebarOpen;
@@ -338,13 +356,18 @@ const Orders = () => {
                       className="d-inline-block me-2 source-select"
                       value={selectedSource}
                       onChange={(e) => setSelectedSource(e.target.value)}
+                      disabled={isLoadingSources}
                     >
                       <option value="">- Nguồn đơn hàng -</option>
-                      <option value="facebook">Facebook</option>
-                      <option value="zalo">Zalo</option>
-                      <option value="shopee">Shopee</option>
-                      <option value="lazada">Lazada</option>
-                      <option value="tiktok">Tiktok</option>
+                      {isLoadingSources ? (
+                        <option disabled>Đang tải...</option>
+                      ) : (
+                        orderSources.map(source => (
+                          <option key={source.id} value={source.id}>
+                            {source.name}
+                          </option>
+                        ))
+                      )}
                     </Form.Select>
                   </div>
                 </Card.Header>

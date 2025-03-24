@@ -21,26 +21,19 @@ async function getOrderSources() {
       throw new Error('Không tìm thấy cấu hình Nhanh.vn');
     }
     
-    // Chuẩn bị FormData để gửi đến Nhanh.vn
-    const formData = new FormData();
-    formData.append('version', config.version || '');
-    formData.append('appId', config.appId || '');
-    formData.append('businessId', config.businessId || '');
-    formData.append('accessToken', config.accessToken || '');
-    
-    // Gọi API Nhanh.vn
-    const response = await fetch('https://open.nhanh.vn/api/order/source', {
-      method: 'POST',
-      body: formData,
+    // Gọi API thông qua backend
+    const response = await apiService.post('/api/nhanh/order-sources', {
+      version: config.version || '',
+      appId: config.appId || '',
+      businessId: config.businessId || '',
+      accessToken: config.accessToken || ''
     });
     
-    const data = await response.json();
-    
-    if (data.code !== 1) {
-      throw new Error(data.messages || 'Lỗi khi lấy nguồn đơn hàng');
+    if (!response || !response.data || !response.data.sources) {
+      throw new Error('Không nhận được dữ liệu nguồn đơn hàng');
     }
     
-    return data.data;
+    return response.data.sources;
   } catch (error) {
     console.error('Lỗi khi lấy nguồn đơn hàng:', error);
     throw error;

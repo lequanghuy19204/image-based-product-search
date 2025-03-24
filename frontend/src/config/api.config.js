@@ -22,5 +22,8 @@ export const API_ENDPOINTS = {
     UPLOAD: '/api/images/upload',
     LIST: '/api/images',
     DELETE: '/api/images/:id',
+  },
+  NHANH: {
+    ORDER_SOURCES: '/api/nhanh/order-sources'
   }
 };
