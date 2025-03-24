@@ -9,13 +9,14 @@ from app.middleware.auth_middleware import verify_token, verify_admin
 from app.routers.user import user_router
 from app.routers.product import product_router
 from app.routers.app_config import app_config_router
+import os
 
 app = FastAPI(title="Search Images API")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://172.18.32.15:5173", "https://localhost:5173"],  # Thêm cả localhost và IP
+    allow_origins=os.getenv("ALLOWED_ORIGINS"),  # Lấy danh sách origins từ biến môi trường
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
