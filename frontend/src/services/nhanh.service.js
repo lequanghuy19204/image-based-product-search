@@ -1,28 +1,34 @@
 import { apiService } from './api.service';
 import { appConfigService } from './app-config.service';
+import { cacheService } from './cache.service';
 import { API_ENDPOINTS } from '../config/api.config';
 
 export const nhanhService = {
   getOrderSources,
   createOrderFromConversation,
-  getLocations
+  getLocations,
+  searchProducts
 };
 
 async function getOrderSources() {
   try {
-    // Lấy thông tin cấu hình từ database
+    // Kiểm tra cache trước
+    const cachedSources = cacheService.get('order_sources');
+    if (cachedSources) {
+      return cachedSources;
+    }
+
+    // Nếu không có cache, gọi API
     const userDetails = JSON.parse(localStorage.getItem('userDetails'));
     if (!userDetails?.company_id) {
       throw new Error('Không tìm thấy thông tin công ty');
     }
     
     const config = await appConfigService.getAppConfig(userDetails.company_id);
-    
     if (!config) {
       throw new Error('Không tìm thấy cấu hình Nhanh.vn');
     }
     
-    // Gọi API thông qua backend
     const response = await apiService.post('/api/nhanh/order-sources', {
       version: config.version || '',
       appId: config.appId || '',
@@ -34,6 +40,8 @@ async function getOrderSources() {
       throw new Error('Không nhận được dữ liệu nguồn đơn hàng');
     }
     
+    // Lưu vào cache
+    cacheService.set('order_sources', response.data.sources);
     return response.data.sources;
   } catch (error) {
     console.error('Lỗi khi lấy nguồn đơn hàng:', error);
@@ -90,6 +98,15 @@ async function createOrderFromConversation(conversationLink) {
 
 async function getLocations(type, parentId = null) {
   try {
+    // Tạo cache key dựa trên type và parentId
+    const cacheKey = `locations_${type}_${parentId || 'null'}`;
+    
+    // Kiểm tra cache trước
+    const cachedLocations = cacheService.get(cacheKey);
+    if (cachedLocations) {
+      return cachedLocations;
+    }
+
     const userDetails = JSON.parse(localStorage.getItem('userDetails'));
     if (!userDetails?.company_id) {
       throw new Error('Không tìm thấy thông tin công ty');
@@ -100,8 +117,6 @@ async function getLocations(type, parentId = null) {
       throw new Error('Không tìm thấy cấu hình Nhanh.vn');
     }
 
-    console.log('Calling getLocations with:', { type, parentId });
-
     const response = await apiService.post('/api/nhanh/locations', {
       version: config.version || '',
       appId: config.appId || '',
@@ -111,13 +126,44 @@ async function getLocations(type, parentId = null) {
       parentId
     });
 
-    console.log('Location API response:', response);
-
-    // Trả về trực tiếp response.data thay vì chỉ lấy mảng data
+    // Lưu vào cache
+    cacheService.set(cacheKey, response.data);
     return response.data;
 
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu địa chỉ:', error);
+    throw error;
+  }
+}
+
+async function searchProducts(searchTerm) {
+  try {
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails?.company_id) {
+      throw new Error('Không tìm thấy thông tin công ty');
+    }
+    
+    const config = await appConfigService.getAppConfig(userDetails.company_id);
+    if (!config) {
+      throw new Error('Không tìm thấy cấu hình Nhanh.vn');
+    }
+
+    const response = await apiService.post('/api/nhanh/products/search', {
+      version: config.version || '',
+      appId: config.appId || '',
+      businessId: config.businessId || '',
+      accessToken: config.accessToken || '',
+      name: searchTerm
+    });
+
+
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi chi tiết khi tìm kiếm sản phẩm:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
     throw error;
   }
 } 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
   Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal
@@ -34,10 +34,25 @@ const Orders = () => {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     loadOrderSources();
     loadCities();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadOrderSources = async () => {
@@ -145,7 +160,6 @@ const Orders = () => {
       try {
         setIsLoadingLocations(true);
         const districtsData = await nhanhService.getLocations('DISTRICT', parseInt(cityId));
-        console.log('Loaded districts:', districtsData);
         setDistricts(districtsData);
       } catch (error) {
         console.error('Lỗi khi tải danh sách quận/huyện:', error);
@@ -165,12 +179,37 @@ const Orders = () => {
       try {
         setIsLoadingLocations(true);
         const wardsData = await nhanhService.getLocations('WARD', parseInt(districtId));
-        console.log('Loaded wards:', wardsData);
         setWards(wardsData);
       } catch (error) {
         console.error('Lỗi khi tải danh sách phường/xã:', error);
       } finally {
         setIsLoadingLocations(false);
+      }
+    }
+  };
+
+  const handleSearch = async (e) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      setIsSearching(true);
+      setShowSearchResults(true);
+      try {
+        const response = await nhanhService.searchProducts(searchTerm);
+        
+        if (response?.products) {
+          const productsArray = Object.values(response.products);
+          if (productsArray.length > 0) {
+            setSearchResults(productsArray);
+          } else {
+            setSearchResults([]);
+          }
+        } else {
+          setSearchResults([]);
+        }
+      } catch (error) {
+        console.error('Lỗi tìm kiếm:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
       }
     }
   };
@@ -558,28 +597,70 @@ const Orders = () => {
                   <div>
                     <FaBox className="me-2" /> Sản phẩm
                   </div>
-                  <div>
-                    <Button variant="light" size="sm" className="me-2">
-                      <FaSearch className="me-1" /> Xem tồn
-                    </Button>
-                    <Dropdown className="d-inline-block">
-                      <Dropdown.Toggle variant="light" size="sm">
-                        Bán lẻ
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item>Bán lẻ</Dropdown.Item>
-                        <Dropdown.Item>Bán sỉ</Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </div>
                 </Card.Header>
                 <Card.Body>
-                  <InputGroup className="mb-3">
-                    <InputGroup.Text>
-                      <FaSearch />
-                    </InputGroup.Text>
-                    <Form.Control placeholder="(F3) Tìm kiếm sản phẩm" />
-                  </InputGroup>
+                  <div ref={searchRef} className="position-relative">
+                    <InputGroup className="mb-3">
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                      <Form.Control
+                        placeholder="(F3) Tìm kiếm sản phẩm"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={handleSearch}
+                      />
+                    </InputGroup>
+
+                    {showSearchResults && (
+                      <div className="position-absolute w-100 mt-1 shadow bg-white rounded border" 
+                           style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                        {isSearching ? (
+                          <div className="p-3 text-center">
+                            Đang tìm kiếm...
+                          </div>
+                        ) : searchResults && searchResults.length > 0 ? (
+                          <ListGroup variant="flush">
+                            {searchResults.map((product) => (
+                              <ListGroup.Item 
+                                key={product.idNhanh}
+                                action
+                                className="d-flex justify-content-between align-items-center py-2"
+                              >
+                                <div className="d-flex flex-column">
+                                  <div className="fw-medium">{product.name}</div>
+                                  <div className="small text-muted">
+                                    {product.code && <span className="me-2">Mã: {product.code}</span>}
+                                    <span>Tồn: {product.inventory.available}</span>
+                                  </div>
+                                </div>
+                                <div className="text-end">
+                                  <div className="text-primary fw-medium">
+                                    {new Intl.NumberFormat('vi-VN', {
+                                      style: 'currency',
+                                      currency: 'VND'
+                                    }).format(product.price)}
+                                  </div>
+                                  {product.wholesalePrice && product.wholesalePrice !== product.price && (
+                                    <small className="text-success">
+                                      Sỉ: {new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND'
+                                      }).format(product.wholesalePrice)}
+                                    </small>
+                                  )}
+                                </div>
+                              </ListGroup.Item>
+                            ))}
+                          </ListGroup>
+                        ) : (
+                          <div className="p-3 text-center text-muted">
+                            Không tìm thấy sản phẩm
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="table-responsive">
                     <Table bordered hover className="product-table">

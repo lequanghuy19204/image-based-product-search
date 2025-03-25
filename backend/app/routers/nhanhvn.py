@@ -22,6 +22,13 @@ class LocationRequest(BaseModel):
     type: str
     parentId: Optional[int] = None
 
+class ProductSearchRequest(BaseModel):
+    version: str
+    appId: str
+    businessId: str
+    accessToken: str
+    name: str
+
 @nhanhvn_router.post("/order-sources")
 async def get_order_sources(request_data: NhanhOrderSourceRequest, current_user: dict = Depends(verify_token)):
     try:
@@ -101,4 +108,34 @@ async def get_locations(request_data: LocationRequest, current_user: dict = Depe
             
     except Exception as e:
         print(f"Error in get_locations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@nhanhvn_router.post("/products/search")
+async def search_products(request_data: ProductSearchRequest, current_user: dict = Depends(verify_token)):
+    try:
+        form_data = {
+            'version': request_data.version,
+            'appId': request_data.appId,
+            'businessId': request_data.businessId,
+            'accessToken': request_data.accessToken,
+            'data': json.dumps({'name': request_data.name})
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                'https://open.nhanh.vn/api/product/search',
+                data=form_data
+            )
+            
+            data = response.json()
+            if data.get('code') != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=data.get('messages') or 'Lỗi từ API Nhanh.vn'
+                )
+            
+            return data
+            
+    except Exception as e:
+        print(f"Error in search_products: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
