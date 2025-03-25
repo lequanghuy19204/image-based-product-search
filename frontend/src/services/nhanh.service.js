@@ -4,7 +4,8 @@ import { API_ENDPOINTS } from '../config/api.config';
 
 export const nhanhService = {
   getOrderSources,
-  createOrderFromConversation
+  createOrderFromConversation,
+  getLocations
 };
 
 async function getOrderSources() {
@@ -84,5 +85,39 @@ async function createOrderFromConversation(conversationLink) {
   } catch (error) {
     console.error('Lỗi khi tạo đơn hàng từ hội thoại:', error);
     throw error.message || 'Có lỗi xảy ra khi gọi webhook';
+  }
+}
+
+async function getLocations(type, parentId = null) {
+  try {
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails?.company_id) {
+      throw new Error('Không tìm thấy thông tin công ty');
+    }
+    
+    const config = await appConfigService.getAppConfig(userDetails.company_id);
+    if (!config) {
+      throw new Error('Không tìm thấy cấu hình Nhanh.vn');
+    }
+
+    console.log('Calling getLocations with:', { type, parentId });
+
+    const response = await apiService.post('/api/nhanh/locations', {
+      version: config.version || '',
+      appId: config.appId || '',
+      businessId: config.businessId || '',
+      accessToken: config.accessToken || '',
+      type,
+      parentId
+    });
+
+    console.log('Location API response:', response);
+
+    // Trả về trực tiếp response.data thay vì chỉ lấy mảng data
+    return response.data;
+
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu địa chỉ:', error);
+    throw error;
   }
 } 

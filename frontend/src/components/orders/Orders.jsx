@@ -27,9 +27,17 @@ const Orders = () => {
   const [selectedSource, setSelectedSource] = useState('');
   const [orderSources, setOrderSources] = useState([]);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   useEffect(() => {
     loadOrderSources();
+    loadCities();
   }, []);
 
   const loadOrderSources = async () => {
@@ -41,6 +49,22 @@ const Orders = () => {
       console.error('Lỗi khi tải nguồn đơn hàng:', error);
     } finally {
       setIsLoadingSources(false);
+    }
+  };
+
+  const loadCities = async () => {
+    try {
+      setIsLoadingLocations(true);
+      const citiesData = await nhanhService.getLocations('CITY');
+      if (citiesData && Array.isArray(citiesData)) {
+        setCities(citiesData);
+      } else {
+        console.error('Dữ liệu thành phố không đúng định dạng:', citiesData);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải danh sách thành phố:', error);
+    } finally {
+      setIsLoadingLocations(false);
     }
   };
 
@@ -107,6 +131,48 @@ const Orders = () => {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+
+  const handleCityChange = async (e) => {
+    const cityId = e.target.value;
+    setSelectedCity(cityId);
+    setSelectedDistrict('');
+    setSelectedWard('');
+    setDistricts([]);
+    setWards([]);
+
+    if (cityId) {
+      try {
+        setIsLoadingLocations(true);
+        const districtsData = await nhanhService.getLocations('DISTRICT', parseInt(cityId));
+        console.log('Loaded districts:', districtsData);
+        setDistricts(districtsData);
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách quận/huyện:', error);
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    }
+  };
+
+  const handleDistrictChange = async (e) => {
+    const districtId = e.target.value;
+    setSelectedDistrict(districtId);
+    setSelectedWard('');
+    setWards([]);
+
+    if (districtId) {
+      try {
+        setIsLoadingLocations(true);
+        const wardsData = await nhanhService.getLocations('WARD', parseInt(districtId));
+        console.log('Loaded wards:', wardsData);
+        setWards(wardsData);
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách phường/xã:', error);
+      } finally {
+        setIsLoadingLocations(false);
+      }
+    }
   };
 
   return (
@@ -412,11 +478,21 @@ const Orders = () => {
                         <InputGroup.Text>
                           <FaMapMarkerAlt />
                         </InputGroup.Text>
-                        <Form.Select>
-                          <option>- Thành phố -</option>
-                          <option>Hà Nội</option>
-                          <option>TP. Hồ Chí Minh</option>
-                          <option>Đà Nẵng</option>
+                        <Form.Select 
+                          value={selectedCity}
+                          onChange={handleCityChange}
+                          disabled={isLoadingLocations}
+                        >
+                          <option value="">- Chọn thành phố -</option>
+                          {isLoadingLocations ? (
+                            <option value="" disabled>Đang tải...</option>
+                          ) : (
+                            cities && cities.map(city => (
+                              <option key={city.id} value={city.id}>
+                                {city.name}
+                              </option>
+                            ))
+                          )}
                         </Form.Select>
                       </InputGroup>
                       
@@ -424,8 +500,17 @@ const Orders = () => {
                         <InputGroup.Text>
                           <FaMapMarkerAlt />
                         </InputGroup.Text>
-                        <Form.Select>
-                          <option>- Quận huyện -</option>
+                        <Form.Select
+                          value={selectedDistrict}
+                          onChange={handleDistrictChange}
+                          disabled={!selectedCity || isLoadingLocations}
+                        >
+                          <option value="">- Quận huyện -</option>
+                          {districts.map(district => (
+                            <option key={district.id} value={district.id}>
+                              {district.name}
+                            </option>
+                          ))}
                         </Form.Select>
                       </InputGroup>
                       
@@ -433,8 +518,17 @@ const Orders = () => {
                         <InputGroup.Text>
                           <FaMapMarkerAlt />
                         </InputGroup.Text>
-                        <Form.Select>
-                          <option>- Phường xã -</option>
+                        <Form.Select
+                          value={selectedWard}
+                          onChange={(e) => setSelectedWard(e.target.value)}
+                          disabled={!selectedDistrict || isLoadingLocations}
+                        >
+                          <option value="">- Phường xã -</option>
+                          {wards.map(ward => (
+                            <option key={ward.id} value={ward.id}>
+                              {ward.name}
+                            </option>
+                          ))}
                         </Form.Select>
                       </InputGroup>
                       
