@@ -10,9 +10,10 @@ import {
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
-import { nhanhService } from '../../services/nhanh.service';
+import { getOrderSources, createOrderFromConversation, getLocations, searchProducts, getUsers } from '../../services/nhanh.service';
 
 const Orders = () => {
+  // console.log('nhanhService methods:', Object.keys(nhanhService));
   const [validated, setValidated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
@@ -39,10 +40,29 @@ const Orders = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef(null);
+  const [staffList, setStaffList] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
 
   useEffect(() => {
     loadOrderSources();
     loadCities();
+    const fetchStaffList = async () => {
+      setIsLoadingStaff(true);
+      try {
+        const response = await getUsers();
+        if (response?.users) {
+          const staffArray = Object.values(response.users);
+          setStaffList(staffArray);
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy danh sách nhân viên:', error);
+      } finally {
+        setIsLoadingStaff(false);
+      }
+    };
+
+    fetchStaffList();
   }, []);
 
   useEffect(() => {
@@ -58,7 +78,7 @@ const Orders = () => {
   const loadOrderSources = async () => {
     try {
       setIsLoadingSources(true);
-      const sources = await nhanhService.getOrderSources();
+      const sources = await getOrderSources();
       setOrderSources(sources);
     } catch (error) {
       console.error('Lỗi khi tải nguồn đơn hàng:', error);
@@ -70,7 +90,7 @@ const Orders = () => {
   const loadCities = async () => {
     try {
       setIsLoadingLocations(true);
-      const citiesData = await nhanhService.getLocations('CITY');
+      const citiesData = await getLocations('CITY');
       if (citiesData && Array.isArray(citiesData)) {
         setCities(citiesData);
       } else {
@@ -111,7 +131,7 @@ const Orders = () => {
     setSelectedOrderIndex(null);
 
     try {
-      const response = await nhanhService.createOrderFromConversation(conversationLink);
+      const response = await createOrderFromConversation(conversationLink);
       
       setApiResponse(response);
       // Nếu chỉ có một kết quả, tự động chọn
@@ -121,6 +141,8 @@ const Orders = () => {
     } catch (error) {
       console.error('Error creating order:', error);
       setApiError(error.response?.data?.detail || error.message || 'Có lỗi xảy ra khi gọi API');
+      setTimeout(() => setApiError(''), 3000);
+
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +181,7 @@ const Orders = () => {
     if (cityId) {
       try {
         setIsLoadingLocations(true);
-        const districtsData = await nhanhService.getLocations('DISTRICT', parseInt(cityId));
+        const districtsData = await getLocations('DISTRICT', parseInt(cityId));
         setDistricts(districtsData);
       } catch (error) {
         console.error('Lỗi khi tải danh sách quận/huyện:', error);
@@ -178,7 +200,7 @@ const Orders = () => {
     if (districtId) {
       try {
         setIsLoadingLocations(true);
-        const wardsData = await nhanhService.getLocations('WARD', parseInt(districtId));
+        const wardsData = await getLocations('WARD', parseInt(districtId));
         setWards(wardsData);
       } catch (error) {
         console.error('Lỗi khi tải danh sách phường/xã:', error);
@@ -193,7 +215,7 @@ const Orders = () => {
       setIsSearching(true);
       setShowSearchResults(true);
       try {
-        const response = await nhanhService.searchProducts(searchTerm);
+        const response = await searchProducts(searchTerm);
         
         if (response?.products) {
           const productsArray = Object.values(response.products);
@@ -968,7 +990,22 @@ const Orders = () => {
                     <InputGroup.Text>
                       <FaUser />
                     </InputGroup.Text>
-                    <Form.Control placeholder="Nhân viên bán hàng" />
+                    <Form.Select 
+                      value={selectedStaff}
+                      onChange={(e) => setSelectedStaff(e.target.value)}
+                      disabled={isLoadingStaff}
+                    >
+                      <option value="">Chọn nhân viên tạo đơn hàng</option>
+                      {isLoadingStaff ? (
+                        <option disabled>Đang tải...</option>
+                      ) : (
+                        staffList.map(staff => (
+                          <option key={staff.id} value={staff.id}>
+                            {staff.id} {staff.fullName || staff.username} {staff.roleName ? `(${staff.roleName})` : ''}
+                          </option>
+                        ))
+                      )}
+                    </Form.Select>
                   </InputGroup>
                   
                   <Row className="mb-3">

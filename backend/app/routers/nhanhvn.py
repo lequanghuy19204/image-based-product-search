@@ -29,12 +29,16 @@ class ProductSearchRequest(BaseModel):
     accessToken: str
     name: str
 
+class UserListRequest(BaseModel):
+    version: str
+    appId: str
+    businessId: str
+    accessToken: str
+    itemsPerPage: Optional[int] = 50
+
 @nhanhvn_router.post("/order-sources")
 async def get_order_sources(request_data: NhanhOrderSourceRequest, current_user: dict = Depends(verify_token)):
     try:
-        # Thêm log để debug
-        print(f"Request data: {request_data}")
-        
         # Chuẩn bị FormData để gửi đến Nhanh.vn
         form_data = {
             'version': request_data.version,
@@ -50,10 +54,6 @@ async def get_order_sources(request_data: NhanhOrderSourceRequest, current_user:
                     'https://open.nhanh.vn/api/order/source',
                     data=form_data
                 )
-                
-                # Thêm log để debug
-                print(f"Response status: {response.status_code}")
-                print(f"Response text: {response.text}")
                 
                 data = response.json()
                 
@@ -138,4 +138,34 @@ async def search_products(request_data: ProductSearchRequest, current_user: dict
             
     except Exception as e:
         print(f"Error in search_products: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@nhanhvn_router.post("/users")
+async def get_users(request_data: UserListRequest, current_user: dict = Depends(verify_token)):
+    try:
+        form_data = {
+            'version': request_data.version,
+            'appId': request_data.appId,
+            'businessId': request_data.businessId,
+            'accessToken': request_data.accessToken,
+            'data': json.dumps({'icpp': request_data.itemsPerPage})
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                'https://open.nhanh.vn/api/user/index',
+                data=form_data
+            )
+            
+            data = response.json()
+            if data.get('code') != 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=data.get('messages') or 'Lỗi từ API Nhanh.vn'
+                )
+            
+            return data
+            
+    except Exception as e:
+        print(f"Error in get_users: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

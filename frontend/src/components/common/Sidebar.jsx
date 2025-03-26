@@ -191,7 +191,6 @@ function Sidebar({ open, onToggle }) {
       <div className={`sidebar ${!open ? 'collapsed' : ''} ${isMobile ? 'mobile' : ''} ${isMobile && open ? 'expanded' : ''}`}>
         <div className="sidebar-header">
           <div className="d-flex align-items-center justify-content-between w-100">
-            {open && <h5 className="mb-0 ms-2">Admin Portal</h5>}
             {isDataStale && open && (
               <button 
                 className="btn btn-link btn-sm text-warning"

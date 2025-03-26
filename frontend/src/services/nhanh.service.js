@@ -1,15 +1,8 @@
 import { apiService } from './api.service';
 import { appConfigService } from './app-config.service';
 import { cacheService } from './cache.service';
-import { API_ENDPOINTS } from '../config/api.config';
 
-export const nhanhService = {
-  getOrderSources,
-  createOrderFromConversation,
-  getLocations,
-  searchProducts
-};
-
+// Định nghĩa các hàm (không export trực tiếp)
 async function getOrderSources() {
   try {
     // Kiểm tra cache trước
@@ -156,7 +149,6 @@ async function searchProducts(searchTerm) {
       name: searchTerm
     });
 
-
     return response.data;
   } catch (error) {
     console.error('Lỗi chi tiết khi tìm kiếm sản phẩm:', {
@@ -166,4 +158,61 @@ async function searchProducts(searchTerm) {
     });
     throw error;
   }
-} 
+}
+
+async function getUsers() {
+  try {
+    // Kiểm tra cache trước
+    const cachedUsers = cacheService.get('users_list');
+    if (cachedUsers) {
+      return cachedUsers;
+    }
+
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails?.company_id) {
+      throw new Error('Không tìm thấy thông tin công ty');
+    }
+    
+    const config = await appConfigService.getAppConfig(userDetails.company_id);
+    if (!config) {
+      throw new Error('Không tìm thấy cấu hình Nhanh.vn');
+    }
+
+    const response = await apiService.post('/api/nhanh/users', {
+      version: config.version || '',
+      appId: config.appId || '',
+      businessId: config.businessId || '',
+      accessToken: config.accessToken || '',
+      itemsPerPage: 50
+    });
+
+    if (response?.data?.users) {
+      // Lưu vào cache
+      cacheService.set('users_list', response.data);
+      return response.data;
+    } else {
+      throw new Error('Không nhận được dữ liệu nhân viên');
+    }
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách nhân viên:', error);
+    throw error;
+  }
+}
+
+// Export tất cả các hàm một lần ở cuối file
+export {
+  getOrderSources,
+  createOrderFromConversation,
+  getLocations,
+  searchProducts,
+  getUsers
+};
+
+// Giữ lại nhanhService cho khả năng tương thích ngược
+export const nhanhService = {
+  getOrderSources,
+  createOrderFromConversation,
+  getLocations,
+  searchProducts,
+  getUsers
+}; 

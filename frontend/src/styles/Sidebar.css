@@ -1,6 +1,6 @@
 /* Biến CSS toàn cục */
 :root {
-  --sidebar-width: 220px; /* Giảm kích thước sidebar */
+  --sidebar-width: 250px; /* Giảm kích thước sidebar */
   --sidebar-collapsed-width: 60px; /* Giảm kích thước sidebar thu gọn */
   --sidebar-bg: #ffffff;
   --sidebar-hover: #f5f5f5;
