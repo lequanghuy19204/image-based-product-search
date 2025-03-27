@@ -43,6 +43,12 @@ const Orders = () => {
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [targetProvince, setTargetProvince] = useState('');
+  const [targetDistrict, setTargetDistrict] = useState('');
+  const [targetWard, setTargetWard] = useState('');
 
   useEffect(() => {
     loadOrderSources();
@@ -160,10 +166,78 @@ const Orders = () => {
     setShowOrderDetails(false);
   };
 
-  const handleConfirmOrder = () => {
-    // Xử lý xác nhận đơn hàng đã chọn
-    alert(`Đã chọn đơn hàng: ${JSON.stringify(apiResponse[selectedOrderIndex])}`);
-    // Ở đây bạn có thể gọi API để xác nhận đơn hàng
+  const handleConfirmOrder = async () => {
+    if (selectedOrderIndex !== null && apiResponse) {
+      const orderData = apiResponse[selectedOrderIndex];
+      
+      // Điền thông tin cơ bản
+      setCustomerPhone(orderData.phone_number || '');
+      setCustomerName(orderData.name_customers || '');
+      setCustomerAddress(orderData.full_address || '');
+      
+      // Lưu thông tin địa chỉ cần tìm
+      setTargetProvince(orderData.province || '');
+      setTargetDistrict(orderData.district || '');
+      setTargetWard(orderData.ward || '');
+      
+      // Hàm helper để so sánh tương đối
+      const fuzzyMatch = (str1, str2) => {
+        const s1 = str1.toLowerCase().trim();
+        const s2 = str2.toLowerCase().trim();
+        return s1.includes(s2) || s2.includes(s1);
+      };
+      
+      // Tìm và chọn thành phố
+      if (cities.length > 0 && orderData.province) {
+        const cityName = orderData.province.toLowerCase().trim();
+        const matchedCity = cities.find(city => 
+          fuzzyMatch(city.name, cityName)
+        );
+        
+        if (matchedCity) {
+          try {
+            // Chọn thành phố và đợi load quận/huyện
+            setSelectedCity(matchedCity.id);
+            await handleCityChange({ target: { value: matchedCity.id } });
+            
+            // Sau khi có quận/huyện, tìm và chọn quận/huyện
+            if (districts.length > 0 && orderData.district) {
+              const districtName = orderData.district.toLowerCase().trim();
+              const matchedDistrict = districts.find(district =>
+                fuzzyMatch(district.name, districtName)
+              );
+              
+              if (matchedDistrict) {
+                try {
+                  // Chọn quận/huyện và đợi load phường/xã
+                  setSelectedDistrict(matchedDistrict.id);
+                  await handleDistrictChange({ target: { value: matchedDistrict.id } });
+                  
+                  // Sau khi có phường/xã, tìm và chọn phường/xã
+                  if (wards.length > 0 && orderData.ward) {
+                    const wardName = orderData.ward.toLowerCase().trim();
+                    const matchedWard = wards.find(ward =>
+                      fuzzyMatch(ward.name, wardName)
+                    );
+                    
+                    if (matchedWard) {
+                      setSelectedWard(matchedWard.id);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Lỗi khi chọn quận/huyện:', error);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Lỗi khi chọn thành phố:', error);
+          }
+        }
+      }
+      
+      // Đóng modal
+      setShowOrderDetails(false);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -505,21 +579,33 @@ const Orders = () => {
                         <InputGroup.Text>
                           <FaPhone />
                         </InputGroup.Text>
-                        <Form.Control placeholder="Điện thoại" />
+                        <Form.Control 
+                          placeholder="Điện thoại"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                        />
                       </InputGroup>
                       
                       <InputGroup className="mb-3">
                         <InputGroup.Text>
                           <FaUser />
                         </InputGroup.Text>
-                        <Form.Control placeholder="Tên khách" />
+                        <Form.Control 
+                          placeholder="Tên khách"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                        />
                       </InputGroup>
                       
                       <InputGroup className="mb-3">
                         <InputGroup.Text>
                           <FaHome />
                         </InputGroup.Text>
-                        <Form.Control placeholder="Địa chỉ" />
+                        <Form.Control 
+                          placeholder="Địa chỉ"
+                          value={customerAddress}
+                          onChange={(e) => setCustomerAddress(e.target.value)}
+                        />
                       </InputGroup>
                       
                       <InputGroup className="mb-3">
