@@ -170,69 +170,66 @@ const Orders = () => {
     if (selectedOrderIndex !== null && apiResponse) {
       const orderData = apiResponse[selectedOrderIndex];
       
-      // Điền thông tin cơ bản
-      setCustomerPhone(orderData.phone_number || '');
-      setCustomerName(orderData.name_customers || '');
-      setCustomerAddress(orderData.full_address || '');
-      
-      // Lưu thông tin địa chỉ cần tìm
-      setTargetProvince(orderData.province || '');
-      setTargetDistrict(orderData.district || '');
-      setTargetWard(orderData.ward || '');
-      
-      // Hàm helper để so sánh tương đối
-      const fuzzyMatch = (str1, str2) => {
-        const s1 = str1.toLowerCase().trim();
-        const s2 = str2.toLowerCase().trim();
-        return s1.includes(s2) || s2.includes(s1);
-      };
-      
-      // Tìm và chọn thành phố
-      if (cities.length > 0 && orderData.province) {
-        const cityName = orderData.province.toLowerCase().trim();
-        const matchedCity = cities.find(city => 
-          fuzzyMatch(city.name, cityName)
-        );
+      try {
+        // Điền thông tin cơ bản trước
+        setCustomerPhone(orderData.phone_number || '');
+        setCustomerName(orderData.name_customers || '');
+        setCustomerAddress(orderData.full_address || '');
         
-        if (matchedCity) {
-          try {
-            // Chọn thành phố và đợi load quận/huyện
+        // Lưu thông tin địa chỉ cần tìm
+        setTargetProvince(orderData.province || '');
+        setTargetDistrict(orderData.district || '');
+        setTargetWard(orderData.ward || '');
+
+        // Hàm helper để so sánh tương đối
+        const fuzzyMatch = (str1, str2) => {
+          if (!str1 || !str2) return false;
+          const s1 = str1.toLowerCase().trim();
+          const s2 = str2.toLowerCase().trim();
+          return s1.includes(s2) || s2.includes(s1);
+        };
+
+        // 1. Lấy và chọn thành phố
+        if (cities.length > 0 && orderData.province) {
+          const cityName = orderData.province.toLowerCase().trim();
+          const matchedCity = cities.find(city => fuzzyMatch(city.name, cityName));
+          
+          if (matchedCity) {
+            // 2. Lấy danh sách quận/huyện
+            const districtsData = await getLocations('DISTRICT', parseInt(matchedCity.id));
+            setDistricts(districtsData);
             setSelectedCity(matchedCity.id);
-            await handleCityChange({ target: { value: matchedCity.id } });
-            
-            // Sau khi có quận/huyện, tìm và chọn quận/huyện
-            if (districts.length > 0 && orderData.district) {
+
+            // 3. Tìm và chọn quận/huyện
+            if (districtsData.length > 0 && orderData.district) {
               const districtName = orderData.district.toLowerCase().trim();
-              const matchedDistrict = districts.find(district =>
+              const matchedDistrict = districtsData.find(district => 
                 fuzzyMatch(district.name, districtName)
               );
-              
+
               if (matchedDistrict) {
-                try {
-                  // Chọn quận/huyện và đợi load phường/xã
-                  setSelectedDistrict(matchedDistrict.id);
-                  await handleDistrictChange({ target: { value: matchedDistrict.id } });
+                // 4. Lấy danh sách phường/xã
+                const wardsData = await getLocations('WARD', parseInt(matchedDistrict.id));
+                setWards(wardsData);
+                setSelectedDistrict(matchedDistrict.id);
+
+                // 5. Tìm và chọn phường/xã
+                if (wardsData.length > 0 && orderData.ward) {
+                  const wardName = orderData.ward.toLowerCase().trim();
+                  const matchedWard = wardsData.find(ward => 
+                    fuzzyMatch(ward.name, wardName)
+                  );
                   
-                  // Sau khi có phường/xã, tìm và chọn phường/xã
-                  if (wards.length > 0 && orderData.ward) {
-                    const wardName = orderData.ward.toLowerCase().trim();
-                    const matchedWard = wards.find(ward =>
-                      fuzzyMatch(ward.name, wardName)
-                    );
-                    
-                    if (matchedWard) {
-                      setSelectedWard(matchedWard.id);
-                    }
+                  if (matchedWard) {
+                    setSelectedWard(matchedWard.id);
                   }
-                } catch (error) {
-                  console.error('Lỗi khi chọn quận/huyện:', error);
                 }
               }
             }
-          } catch (error) {
-            console.error('Lỗi khi chọn thành phố:', error);
           }
         }
+      } catch (error) {
+        console.error('Lỗi khi điền thông tin địa chỉ:', error);
       }
       
       // Đóng modal
