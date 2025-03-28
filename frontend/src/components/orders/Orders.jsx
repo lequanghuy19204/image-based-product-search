@@ -181,6 +181,21 @@ const Orders = () => {
         setTargetDistrict(orderData.district || '');
         setTargetWard(orderData.ward || '');
 
+        // Tìm nguồn đơn hàng phù hợp dựa trên tên trang
+        if (orderData.name_page && orderSources.length > 0) {
+          const pageName = orderData.name_page.toLowerCase().trim();
+          
+          // Tìm nguồn đơn hàng có tên gần giống nhất
+          const matchedSource = orderSources.find(source => {
+            const sourceName = source.name.toLowerCase().trim();
+            return sourceName.includes(pageName) || pageName.includes(sourceName);
+          });
+
+          if (matchedSource) {
+            setSelectedSource(matchedSource.id);
+          }
+        }
+
         // Hàm helper để so sánh tương đối
         const fuzzyMatch = (str1, str2) => {
           if (!str1 || !str2) return false;
@@ -229,7 +244,7 @@ const Orders = () => {
           }
         }
       } catch (error) {
-        console.error('Lỗi khi điền thông tin địa chỉ:', error);
+        console.error('Lỗi khi điền thông tin đơn hàng:', error);
       }
       
       // Đóng modal
@@ -961,78 +976,11 @@ const Orders = () => {
               {/* 2.2 Khối thanh toán */}
               <Card className="mb-3 shadow-sm">
                 <Card.Header className="d-flex justify-content-between align-items-center">
-                  <Dropdown>
-                    <Dropdown.Toggle variant="light" size="sm">
-                      Bổ tự động
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item>Tùy chọn 1</Dropdown.Item>
-                      <Dropdown.Item>Tùy chọn 2</Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                  <Dropdown>
-                    <Dropdown.Toggle variant="light" size="sm">
-                      VAT
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item>Có VAT</Dropdown.Item>
-                      <Dropdown.Item>Không VAT</Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
+                  <div>
+                    <FaExchangeAlt className="me-2" /> Chuyển khoản
+                  </div>
                 </Card.Header>
                 <Card.Body>
-                  <Row className="mb-3 align-items-center">
-                    <Col xs={2} className="text-center">
-                      <FaPercent className="text-danger" />
-                    </Col>
-                    <Col>
-                      <Form.Control type="text" placeholder="Chiết khấu" />
-                    </Col>
-                    <Col xs={3}>
-                      <Dropdown>
-                        <Dropdown.Toggle variant="light" size="sm" className="w-100">
-                          $
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                          <Dropdown.Item>$</Dropdown.Item>
-                          <Dropdown.Item>%</Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    </Col>
-                  </Row>
-                  
-                  <Row className="mb-3 align-items-center">
-                    <Col xs={2} className="text-center">
-                      <FaTicketAlt />
-                    </Col>
-                    <Col>
-                      <Form.Control type="text" placeholder="Mã Coupon" />
-                    </Col>    
-                    <Col xs={3} className="text-center">
-                      <Button variant="light" size="sm">
-                        <FaSync />
-                      </Button>
-                    </Col>
-                  </Row>
-                  
-                  <Row className="mb-3 align-items-center">
-                    <Col xs={2} className="text-center">
-                      <FaMoneyBillWave />
-                    </Col>
-                    <Col>
-                      <Form.Control type="text" placeholder="Tiêu điểm" readOnly value="0" />
-                    </Col>
-                  </Row>
-                  
-                  <Row className="mb-3 align-items-center">
-                    <Col xs={2} className="text-center">
-                      <FaCreditCard />
-                    </Col>
-                    <Col>
-                      <Form.Control type="text" placeholder="Tiền đặt cọc" />
-                    </Col>
-                  </Row>
-                  
                   <Row className="mb-3 align-items-center">
                     <Col xs={2} className="text-center">
                       <FaExchangeAlt />

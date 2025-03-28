@@ -1,5 +1,5 @@
 {
-  "name": "Get order information",
+  "name": "My workflow",
   "nodes": [
     {
       "parameters": {
@@ -24,10 +24,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1780,
-        80
+        220,
+        560
       ],
-      "id": "b9fb6fc6-c6c3-43d4-bbfe-c0cbeed44de2",
+      "id": "4c945d3f-290b-4635-bc19-afdbeeac88eb",
       "name": "Extract URL Parameters"
     },
     {
@@ -48,10 +48,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1580,
-        320
+        1320,
+        560
       ],
-      "id": "12d28e5b-b022-4b2f-995d-a0ef2c84be93",
+      "id": "8306fb9a-4e2b-49b9-9c3a-77b6031d4cf2",
       "name": "HTTP Request Generate page_access_token"
     },
     {
@@ -78,10 +78,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1120,
-        220
+        1760,
+        260
       ],
-      "id": "717bb332-19e7-42cf-8df6-3b663c50c3bf",
+      "id": "83b572c6-bc02-444f-ab18-e6c67dc91899",
       "name": "HTTP Request Get messages"
     },
     {
@@ -101,10 +101,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1580,
-        80
+        440,
+        560
       ],
-      "id": "0b3cda0d-ece7-414e-9c1e-ed7c435996e7",
+      "id": "08a29735-b4ac-4f03-a7be-d30c716fa48d",
       "name": "HTTP Request"
     },
     {
@@ -124,10 +124,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1380,
-        80
+        660,
+        560
       ],
-      "id": "136d798e-786d-4a54-b563-6271618b3bf0",
+      "id": "e8f210fc-a03d-43b0-9892-93bcd7282bef",
       "name": "Page List"
     },
     {
@@ -137,23 +137,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1980,
-        320
+        880,
+        560
       ],
-      "id": "67d30e03-5894-4388-8051-1a876a2e266d",
+      "id": "b4f662a4-2846-4cfb-8800-c3617de0ac8f",
       "name": "Parse Page List"
     },
     {
       "parameters": {
-        "jsCode": "const inputPageId = $('Extract URL Parameters').first().json.page_id;\nconst conversationId = $('Extract URL Parameters').first().json.conversation_id;\nconst pages = $input.first().json.pages;\n\nlet matchedPageId = inputPageId; // Giữ nguyên page_id ban đầu nếu không khớp\n\n// Tìm trong danh sách pages\nfor (const page of pages) {\n  if (page.id === inputPageId || page.name === inputPageId || page.username === inputPageId) {\n    matchedPageId = page.id; // Nếu khớp, lấy id của trang\n    break;\n  }\n}\n\n// Lấy page_access_token tương ứng\nconst matchedPage = pages.find(page => page.id === matchedPageId);\n\n// Trả về kết quả\nreturn [{\n  json: {\n    page_id: matchedPageId,\n    conversation_id: conversationId,\n  }\n}];"
+        "jsCode": "const inputPageId = $('Extract URL Parameters').first().json.page_id;\nconst conversationId = $('Extract URL Parameters').first().json.conversation_id;\nconst pages = $input.first().json.pages;\n\nlet matchedPageId = inputPageId; // Giữ nguyên page_id ban đầu nếu không khớp\nlet check_name = \"\";\n\n// Tìm trong danh sách pages\nfor (const page of pages) {\n  if (page.id === inputPageId || page.name === inputPageId || page.username === inputPageId) {\n    matchedPageId = page.id; // Nếu khớp, lấy id của trang\n    check_name = page.name;\n    break;\n  }\n}\n\n// Lấy page_access_token tương ứng\nconst matchedPage = pages.find(page => page.id === matchedPageId);\n\n// Trả về kết quả\nreturn [{\n  json: {\n    page_id: matchedPageId,\n    page_name: check_name,\n    conversation_id: conversationId,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1780,
-        320
+        1100,
+        560
       ],
-      "id": "76a61634-ff23-4564-8433-5a2d83ab6dbe",
+      "id": "9ec6f75b-acd2-416c-873e-5aa7388f90b0",
       "name": "Code"
     },
     {
@@ -181,10 +181,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1380,
-        320
+        1540,
+        560
       ],
-      "id": "e33ae28b-06de-4576-bf3a-5eaafe8b56e2",
+      "id": "67d08f0c-a317-4da7-90d9-f0a3b2b47328",
       "name": "HTTP Request Conversations"
     },
     {
@@ -196,7 +196,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer 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"
+              "value": "Bearer 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"
             },
             {
               "name": "Content-Type",
@@ -212,23 +212,24 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        0,
-        0
+        2780,
+        300
       ],
-      "id": "f549ea96-cf8c-48c1-8a28-e62122af44b7",
-      "name": "Call OpenRouter API"
+      "id": "e85fc3fb-1a91-4d30-aed4-f150c83e2bb5",
+      "name": "Call OpenRouter API",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const combinedMessages = $input.first().json.combined_messages;\n\nconst requestBody = {\n    model: \"google/gemini-2.0-pro-exp-02-05:free\",\n  messages: [\n    {\n      role: \"user\",\n      content: `Xử lý đoạn hội thoại sau và trả về thông tin đơn hàng dưới dạng JSON. Lưu ý rằng hội thoại có thể chứa nhiều đơn hàng, bao gồm cả đơn hàng đã giao và đơn hàng mới. Hãy phân tích ngữ cảnh để xác định các đơn hàng riêng biệt và trả về danh sách các đơn hàng với các trường sau: weight, height, phone_number, full_address, province, district, ward, quantity, size, color, order_price, shipping_fee.\n\nHướng dẫn cụ thể:\n1. Nếu có thông tin về cân nặng (weight) và chiều cao (height), chỉ lấy thông tin mới nhất từ hội thoại và áp dụng cho các đơn hàng chưa có thông tin này.\n2. Địa chỉ (full_address) cần được phân tích chính xác để lấy thông tin province (tỉnh/thành phố), district (quận/huyện), ward (phường/xã). Nếu địa chỉ không rõ ràng, hãy cố gắng suy luận hợp lý dựa trên ngữ cảnh hội thoại và địa lý Việt Nam. **Bắt buộc phải điền đầy đủ các trường province, district, và ward, không được để trống (null). Nếu không thể xác định chính xác ward, hãy suy luận hợp lý hoặc đặt giá trị mặc định phù hợp với district.**\n3. Số lượng (quantity), kích thước (size), và màu sắc (color) phải được xác định rõ từ hội thoại, nếu không có thông tin thì để null.\n4. Giá đơn hàng (order_price) và phí vận chuyển (shipping_fee) cần được lấy từ hội thoại, nếu không rõ thì để null.\n5. Chỉ trả về các đơn hàng có thông tin đủ để xác định (ít nhất có phone_number hoặc full_address).\n6. Trả về dưới dạng mảng JSON, không bao gồm giải thích, ví dụ: [{\"weight\": null, \"height\": null, ...}, ...]\n\nĐoạn hội thoại: \\n${combinedMessages}`\n    }\n  ],\n  max_tokens: 500,\n  temperature: 0.7\n};\n\nreturn [{\n  json: {\n    request_body: requestBody\n  }\n}];"
+        "jsCode": "const combinedMessages = $input.first().json.combined_messages;\n\nconst requestBody = {\n  model: \"google/gemini-2.0-pro-exp-02-05:free\",\n  messages: [\n    {\n      role: \"user\",\n      content: [\n        {\n          type: \"text\",\n          text: `Xử lý đoạn hội thoại sau và trả về thông tin đơn hàng dưới dạng JSON. Lưu ý rằng hội thoại có thể chứa nhiều đơn hàng, bao gồm cả đơn hàng đã giao và đơn hàng mới. Hãy phân tích ngữ cảnh để xác định các đơn hàng riêng biệt và trả về danh sách các đơn hàng với các trường sau: weight, height, phone_number, full_address, province, district, ward, quantity, size, color, order_price, money_deposit, shipping_fee.\n\nHướng dẫn cụ thể:\n1. Nếu có thông tin về cân nặng (weight) và chiều cao (height), chỉ lấy thông tin mới nhất từ hội thoại và áp dụng cho các đơn hàng chưa có thông tin này.\n2. Địa chỉ (full_address) cần được phân tích chính xác để lấy thông tin province (tỉnh/thành phố), district (quận/huyện), ward (phường/xã). Nếu địa chỉ không rõ ràng, hãy cố gắng suy luận hợp lý dựa trên ngữ cảnh hội thoại và địa lý Việt Nam. **Bắt buộc phải điền đầy đủ các trường province, district, và ward, không được để trống (null). Nếu không thể xác định chính xác ward, hãy suy luận hợp lý hoặc đặt giá trị mặc định phù hợp với district.**\n\n3. Số lượng (quantity), kích thước (size), và màu sắc (color) phải được xác định rõ từ hội thoại, nếu không có thông tin thì để null.\n4. Giá đơn hàng (order_price), phí vận chuyển (shipping_fee), tiền đặt cọc(money_deposit) cần được lấy từ hội thoại, nếu không rõ thì để null.\n5. Chỉ trả về các đơn hàng có thông tin đủ để xác định (ít nhất có phone_number hoặc full_address).\n6. Trả về dưới dạng mảng JSON, không bao gồm giải thích, ví dụ: [{\"weight\": null, \"height\": null, ...}, ...]\n\nĐoạn hội thoại: \\n${combinedMessages}`\n        }\n      ]\n    }\n  ],\n  temperature: 0.9\n};\n\nreturn [{\n  json: {\n    request_body: requestBody\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -300,
-        460
+        2640,
+        560
       ],
-      "id": "f4901ae7-1e05-41c1-b672-1f781b93688a",
+      "id": "1ea0d2eb-54fa-42cc-bec7-f72b0891a1be",
       "name": "Prepare OpenRouter Body"
     },
     {
@@ -238,10 +239,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        260,
-        460
+        3236,
+        560
       ],
-      "id": "56fbc6ac-33e7-4c2f-a088-648f590bc377",
+      "id": "7906459b-68bf-42db-bed0-bcd5f261c88e",
       "name": "Parse OpenRouter Response"
     },
     {
@@ -269,10 +270,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1120,
-        380
+        1760,
+        460
       ],
-      "id": "bdba2eaa-fd5a-482e-877b-3610e8b2db30",
+      "id": "bd7e2cf9-4511-4e65-bb9e-99a81544bdc6",
       "name": "HTTP Request Get messages1"
     },
     {
@@ -300,10 +301,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1120,
-        540
+        1760,
+        660
       ],
-      "id": "f6e09b51-4dd7-411f-8346-4db3826094a5",
+      "id": "3477bb26-fb40-4f0a-81a4-f42f26eff157",
       "name": "HTTP Request Get messages2"
     },
     {
@@ -313,10 +314,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        -880,
-        440
+        1980,
+        539
       ],
-      "id": "6f9c26f5-108a-41d8-8598-f9e775a04f9f",
+      "id": "21fb4f8f-d7cb-4292-b425-069ee4e963da",
       "name": "Merge Messages"
     },
     {
@@ -344,10 +345,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1120,
-        700
+        1760,
+        860
       ],
-      "id": "beccb8af-01bd-4806-b72f-63f427b1683a",
+      "id": "d383a4f1-27a6-4d75-991b-c10f53c54b30",
       "name": "HTTP Request Get messages3"
     },
     {
@@ -357,44 +358,44 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -680,
-        460
+        2200,
+        560
       ],
-      "id": "728965e5-476b-489b-aeb3-d11ddcb068a0",
+      "id": "6d182d46-05c7-469f-85f3-ae4e1bfca121",
       "name": "Combine All Messages"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $json.request_body.messages[0].content }}"
+        "text": "={{ $json.request_body.messages[0].content[0].text }}"
       },
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.5,
       "position": [
-        -80,
-        460
+        2860,
+        560
       ],
-      "id": "b01177d9-7080-4c1c-98fa-58ed6760b082",
+      "id": "a4cc6fd1-1b53-4bb6-b197-d4a0c8f49963",
       "name": "Basic LLM Chain"
     },
     {
       "parameters": {
-        "model": "google/gemini-2.0-pro-exp-02-05:free",
+        "model": "deepseek/deepseek-chat-v3-0324:free",
         "options": {
-          "temperature": 0.9
+          "temperature": 1
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        -60,
-        660
+        2840,
+        760
       ],
-      "id": "07d0e1e7-bf59-43f5-9f23-05e6fee384f9",
+      "id": "057e9b33-e81a-4029-a8ab-ad5ee0c291cf",
       "name": "OpenRouter Chat Model",
       "credentials": {
         "openRouterApi": {
-          "id": "aNOSYXdlVOlp80g2",
+          "id": "DcmdrY9j4xr6JtBh",
           "name": "OpenRouter account"
         }
       }
@@ -407,15 +408,17 @@
         ],
         "path": "create-order",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -1980,
-        80
+        0,
+        560
       ],
-      "id": "49cf704a-e6a1-4fc5-8251-4a1459e4d2e3",
+      "id": "71d869f3-ce41-42a4-8c07-63703ca5a4fb",
       "name": "Webhook",
       "webhookId": "79af9956-0fb1-4908-b3f0-df571cac9ddd"
     },
@@ -429,10 +432,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        640,
-        460
+        3676,
+        560
       ],
-      "id": "860e8526-e749-49a9-99ff-e5ff792760e0",
+      "id": "e0ef7696-94b1-4253-80e5-bb30ac1d4413",
       "name": "Respond to Webhook",
       "alwaysOutputData": false,
       "retryOnFail": false,
@@ -515,6 +518,12 @@
               "type": "string"
             },
             {
+              "id": "a798c3e5-beae-42d2-99f4-7af0785a8cfc",
+              "name": "money_deposit",
+              "value": "={{ $json.money_deposit }}",
+              "type": "string"
+            },
+            {
               "id": "2b94e954-55a7-4f5c-9d85-6ce6d5f2374d",
               "name": "name_customers",
               "value": "={{ $('HTTP Request Conversations').first().json.conversations[0].page_customer.name }}",
@@ -529,7 +538,7 @@
             {
               "id": "fa5cf6e6-a966-4168-829d-5d7cde762e4c",
               "name": "name_page",
-              "value": "={{ $('HTTP Request Conversations').first().json.conversations[0].last_sent_by.name }}",
+              "value": "={{ $('Code').first().json.page_name }}",
               "type": "string"
             }
           ]
@@ -539,10 +548,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        440,
-        460
+        3456,
+        560
       ],
-      "id": "b0d97c57-1516-490b-b6a3-3d975cb8e39a",
+      "id": "f790da8c-c9f7-404a-88b0-f1428e2fb431",
       "name": "Edit Fields"
     },
     {
@@ -552,10 +561,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -480,
-        460
+        2420,
+        560
       ],
-      "id": "6a5cd106-ec60-4361-a579-cd324f7a82f7",
+      "id": "2f2e66b1-9911-46f8-96a1-4fc7f99dd0de",
       "name": "Combine Messages"
     }
   ],
@@ -795,17 +804,22 @@
           }
         ]
       ]
+    },
+    "Call OpenRouter API": {
+      "main": [
+        []
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "768308e2-6150-40b1-b344-a674d2aacf50",
+  "versionId": "d5c0cc4d-3691-4976-9781-8dda7e337c5b",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "c2a0bcdfc4175b5524650dddd831852085f112c77cfd3dad108ac82f512097d5"
+    "instanceId": "dd6bea42c9f6a2952a06b21cbc14b1b448ce2abdf6625e8b1530d08863ea3e7f"
   },
-  "id": "2SUKNJzl8YOkkvUs",
+  "id": "hiNnnE7eKl7jXvn6",
   "tags": []
 }
