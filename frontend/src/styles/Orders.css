@@ -1,16 +1,42 @@
 .orders-container {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  padding: 0px;
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+  background-color: #fff;
+  width: 100%;
+}
+
+.main-content {
+  background-color: #fff;
+  min-height: 100vh;
+  padding: 20px !important;
+  margin-left: 250px; /* Chiều rộng của sidebar */
+  transition: margin-left 0.3s ease;
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 60px !important;
+  transition: margin-left 0.3s ease;
+}
+
+.container {
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .card {
   border-radius: 4px;
   margin-bottom: 1rem;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .card-header {
   background-color: #f8f9fa;
   font-weight: 500;
+  padding: 0.75rem 1rem;
 }
 
 .source-select {
@@ -40,7 +66,12 @@
 
 /* Responsive adjustments */
 @media (max-width: 992px) {
-  .orders-container {
-    padding: 10px;
+  .main-content {
+    margin-left: 0;
+    padding: 15px !important;
+  }
+  .main-content.sidebar-collapsed {
+    margin-left: 0px !important;
+    transition: margin-left 0.3s ease;
   }
 } 

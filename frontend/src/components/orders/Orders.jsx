@@ -49,6 +49,8 @@ const Orders = () => {
   const [targetProvince, setTargetProvince] = useState('');
   const [targetDistrict, setTargetDistrict] = useState('');
   const [targetWard, setTargetWard] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [transferAmount, setTransferAmount] = useState('');
 
   useEffect(() => {
     loadOrderSources();
@@ -166,6 +168,47 @@ const Orders = () => {
     setShowOrderDetails(false);
   };
 
+  // Hàm so sánh địa chỉ mới
+  const compareAddress = (str1, str2) => {
+    if (!str1 || !str2) return false;
+
+    // Chuẩn hóa chuỗi
+    const normalize = (str) => {
+      return str.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')  // Bỏ dấu
+        .replace(/đ/g, 'd')
+        .replace(/\s+/g, ' ')             // Chuẩn hóa khoảng trắng
+        .replace(/tp\.|tp|thanh pho/g, '') // Bỏ tiền tố TP
+        .replace(/q\.|quan/g, '')          // Bỏ tiền tố Quận
+        .replace(/p\.|phuong/g, '')        // Bỏ tiền tố Phường
+        .replace(/h\.|huyen/g, '')         // Bỏ tiền tố Huyện
+        .replace(/t\.|thi|thi xa/g, '')    // Bỏ tiền tố Thị
+        .replace(/xa/g, '')                // Bỏ tiền tố Xã
+        .trim();
+    };
+
+    const s1 = normalize(str1);
+    const s2 = normalize(str2);
+
+    // Tính độ tương đồng
+    const similarity = (str1, str2) => {
+      const words1 = str1.split(' ');
+      const words2 = str2.split(' ');
+      
+      // Đếm số từ giống nhau
+      const commonWords = words1.filter(word => 
+        words2.some(w2 => w2.includes(word) || word.includes(w2))
+      );
+
+      // Tính tỷ lệ tương đồng
+      return commonWords.length / Math.max(words1.length, words2.length);
+    };
+
+    const similarityScore = similarity(s1, s2);
+    return similarityScore > 0.5; // Threshold 50% tương đồng
+  };
+
   const handleConfirmOrder = async () => {
     if (selectedOrderIndex !== null && apiResponse) {
       const orderData = apiResponse[selectedOrderIndex];
@@ -175,6 +218,11 @@ const Orders = () => {
         setCustomerPhone(orderData.phone_number || '');
         setCustomerName(orderData.name_customers || '');
         setCustomerAddress(orderData.full_address || '');
+        
+        // Thêm điền tiền đặt cọc vào ô chuyển khoản
+        if (orderData.money_deposit) {
+          setTransferAmount(orderData.money_deposit.toString());
+        }
         
         // Lưu thông tin địa chỉ cần tìm
         setTargetProvince(orderData.province || '');
@@ -196,43 +244,34 @@ const Orders = () => {
           }
         }
 
-        // Hàm helper để so sánh tương đối
-        const fuzzyMatch = (str1, str2) => {
-          if (!str1 || !str2) return false;
-          const s1 = str1.toLowerCase().trim();
-          const s2 = str2.toLowerCase().trim();
-          return s1.includes(s2) || s2.includes(s1);
-        };
-
-        // 1. Lấy và chọn thành phố
-        if (cities.length > 0 && orderData.province) {
-          const cityName = orderData.province.toLowerCase().trim();
-          const matchedCity = cities.find(city => fuzzyMatch(city.name, cityName));
+        // Tự động chọn Tỉnh/Thành phố
+        if (orderData.province && cities.length > 0) {
+          const matchedCity = cities.find(city => 
+            compareAddress(city.name, orderData.province)
+          );
           
           if (matchedCity) {
-            // 2. Lấy danh sách quận/huyện
+            setSelectedCity(matchedCity.id);
+            // Tải quận/huyện của thành phố này
             const districtsData = await getLocations('DISTRICT', parseInt(matchedCity.id));
             setDistricts(districtsData);
-            setSelectedCity(matchedCity.id);
 
-            // 3. Tìm và chọn quận/huyện
-            if (districtsData.length > 0 && orderData.district) {
-              const districtName = orderData.district.toLowerCase().trim();
-              const matchedDistrict = districtsData.find(district => 
-                fuzzyMatch(district.name, districtName)
+            // Tự động chọn Quận/Huyện
+            if (orderData.district) {
+              const matchedDistrict = districtsData.find(district =>
+                compareAddress(district.name, orderData.district)
               );
-
+              
               if (matchedDistrict) {
-                // 4. Lấy danh sách phường/xã
+                setSelectedDistrict(matchedDistrict.id);
+                // Tải phường/xã của quận/huyện này
                 const wardsData = await getLocations('WARD', parseInt(matchedDistrict.id));
                 setWards(wardsData);
-                setSelectedDistrict(matchedDistrict.id);
 
-                // 5. Tìm và chọn phường/xã
-                if (wardsData.length > 0 && orderData.ward) {
-                  const wardName = orderData.ward.toLowerCase().trim();
-                  const matchedWard = wardsData.find(ward => 
-                    fuzzyMatch(ward.name, wardName)
+                // Tự động chọn Phường/Xã
+                if (orderData.ward) {
+                  const matchedWard = wardsData.find(ward =>
+                    compareAddress(ward.name, orderData.ward)
                   );
                   
                   if (matchedWard) {
@@ -247,7 +286,6 @@ const Orders = () => {
         console.error('Lỗi khi điền thông tin đơn hàng:', error);
       }
       
-      // Đóng modal
       setShowOrderDetails(false);
     }
   };
@@ -320,6 +358,68 @@ const Orders = () => {
         setIsSearching(false);
       }
     }
+  };
+
+  const handleProductSelect = (product) => {
+    const newProduct = {
+      id: product.idNhanh,
+      name: product.name,
+      quantity: 1, // Mặc định số lượng là 1
+      price: parseFloat(product.price),
+      total: parseFloat(product.price), // Tổng = giá * số lượng
+    };
+
+    setSelectedProducts(prevProducts => {
+      // Kiểm tra xem sản phẩm đã tồn tại chưa
+      const existingProductIndex = prevProducts.findIndex(p => p.id === product.idNhanh);
+      
+      if (existingProductIndex >= 0) {
+        // Nếu sản phẩm đã tồn tại, tăng số lượng lên 1
+        const updatedProducts = [...prevProducts];
+        updatedProducts[existingProductIndex].quantity += 1;
+        updatedProducts[existingProductIndex].total = 
+          updatedProducts[existingProductIndex].quantity * updatedProducts[existingProductIndex].price;
+        return updatedProducts;
+      } else {
+        // Nếu là sản phẩm mới, thêm vào danh sách
+        return [...prevProducts, newProduct];
+      }
+    });
+
+    setShowSearchResults(false);
+  };
+
+  const handleQuantityChange = (productId, newQuantity) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(product => {
+        if (product.id === productId) {
+          const quantity = Math.max(1, parseInt(newQuantity) || 0); // Đảm bảo số lượng >= 1
+          return {
+            ...product,
+            quantity: quantity,
+            total: quantity * product.price
+          };
+        }
+        return product;
+      })
+    );
+  };
+
+  // Thêm hàm xử lý thay đổi giá
+  const handlePriceChange = (productId, newPrice) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(product => {
+        if (product.id === productId) {
+          const price = Math.max(0, parseFloat(newPrice) || 0); // Đảm bảo giá >= 0
+          return {
+            ...product,
+            price: price,
+            total: product.quantity * price
+          };
+        }
+        return product;
+      })
+    );
   };
 
   return (
@@ -406,7 +506,7 @@ const Orders = () => {
                           </div>
                           <div>
                             <FaWeight className="me-1" /> Cân nặng: {order.weight} kg
-                            <span className="ms-3"><FaRulerVertical className="me-1" /> Chiều cao: {order.height} m</span>
+                            <span className="ms-3"><FaRulerVertical className="me-1" /> Chiều cao: {order.height} cm</span>
                           </div>
                         </div>
                         <div className="text-end">
@@ -506,7 +606,7 @@ const Orders = () => {
                       </tr>
                       <tr>
                         <td className="fw-bold">Chiều cao</td>
-                        <td>{apiResponse[selectedOrderIndex].height} m</td>
+                        <td>{apiResponse[selectedOrderIndex].height} cm</td>
                       </tr>
                       <tr>
                         <td className="fw-bold">Số lượng</td>
@@ -746,6 +846,7 @@ const Orders = () => {
                                 key={product.idNhanh}
                                 action
                                 className="d-flex justify-content-between align-items-center py-2"
+                                onClick={() => handleProductSelect(product)}
                               >
                                 <div className="d-flex flex-column">
                                   <div className="fw-medium">{product.name}</div>
@@ -783,37 +884,68 @@ const Orders = () => {
                   </div>
                   
                   <div className="table-responsive">
-                    <Table bordered hover className="product-table">
+                    <Table bordered hover className="product-table" style={{ minWidth: 'auto' }}>
                       <thead>
                         <tr>
-                          <th style={{width: '30px'}}>
-                            <Form.Check type="checkbox" />
-                          </th>
                           <th>Sản phẩm</th>
-                          <th>SL</th>
-                          <th>T</th>
-                          <th>Giá</th>
-                          <th>T.Tiền <FaChevronDown className="text-danger" /></th>
-                          <th>Giá <FaChevronDown className="text-danger" /></th>
-                          <th>T.Tổng</th>
+                          <th style={{width: '60px'}}>SL</th>
+                          <th style={{width: '120px'}}>Giá</th>
+                          <th style={{width: '120px'}}>Tổng</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td colSpan="8" className="text-center py-3">
-                            Chưa có sản phẩm nào
-                          </td>
-                        </tr>
+                        {selectedProducts.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="text-center py-3">
+                              Chưa có sản phẩm nào
+                            </td>
+                          </tr>
+                        ) : (
+                          selectedProducts.map(product => (
+                            <tr key={product.id}>
+                              <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {product.name}
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  min="1"
+                                  value={product.quantity}
+                                  onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                                  style={{width: '50px', padding: '2px 5px'}}
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  min="0"
+                                  value={product.price}
+                                  onChange={(e) => handlePriceChange(product.id, e.target.value)}
+                                  style={{width: '100px', padding: '2px 5px'}}
+                                  className="text-end"
+                                />
+                              </td>
+                              <td className="text-end" style={{ padding: '0.5rem' }}>
+                                {new Intl.NumberFormat('vi-VN', {
+                                  style: 'currency',
+                                  currency: 'VND'
+                                }).format(product.total)}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan="2" className="fw-bold">Tổng</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
+                          <td className="fw-bold">Tổng</td>
+                          <td>{selectedProducts.reduce((sum, product) => sum + product.quantity, 0)}</td>
+                          <td></td>
+                          <td className="text-end fw-bold">
+                            {new Intl.NumberFormat('vi-VN', {
+                              style: 'currency',
+                              currency: 'VND'
+                            }).format(selectedProducts.reduce((sum, product) => sum + product.total, 0))}
+                          </td>
                         </tr>
                       </tfoot>
                     </Table>
@@ -842,17 +974,7 @@ const Orders = () => {
                         <option>Không cho xem hàng</option>
                       </Form.Select>
                     </Col>
-                    <Col md={5}>
-                      <InputGroup>
-                        <Form.Control 
-                          type="text" 
-                          placeholder="Ngày giao hàng" 
-                        />
-                        <InputGroup.Text>
-                          <FaCalendarAlt />
-                        </InputGroup.Text>
-                      </InputGroup>
-                    </Col>
+                  
                   </Row>
                   
                   <Row className="mb-3 align-items-center">
@@ -871,102 +993,6 @@ const Orders = () => {
                     </Col>
                   </Row>
                   
-                  <Row className="mb-3">
-                    <Col md={3}>
-                      <Form.Check 
-                        type="checkbox" 
-                        id="hvc-promo"
-                        label="Mã khuyến mại HVC" 
-                      />
-                    </Col>
-                    <Col md={3}>
-                      <Form.Check 
-                        type="checkbox" 
-                        id="insurance"
-                        label="Mua bảo hiểm" 
-                      />
-                      <OverlayTrigger
-                        placement="top"
-                        overlay={<Tooltip>Thông tin về bảo hiểm</Tooltip>}
-                      >
-                        <span>
-                          <FaQuestionCircle className="ms-1 text-muted" />
-                        </span>
-                      </OverlayTrigger>
-                    </Col>
-                    <Col md={3}>
-                      <Form.Check 
-                        type="checkbox" 
-                        id="partial-delivery"
-                        label="Giao hàng một phần" 
-                      />
-                      <OverlayTrigger
-                        placement="top"
-                        overlay={<Tooltip>Thông tin về giao hàng một phần</Tooltip>}
-                      >
-                        <span>
-                          <FaQuestionCircle className="ms-1 text-muted" />
-                        </span>
-                      </OverlayTrigger>
-                    </Col>
-                    <Col md={3}>
-                      <Form.Check 
-                        type="checkbox" 
-                        id="fragile"
-                        label="Hàng dễ vỡ" 
-                      />
-                      <OverlayTrigger
-                        placement="top"
-                        overlay={<Tooltip>Thông tin về hàng dễ vỡ</Tooltip>}
-                      >
-                        <span>
-                          <FaQuestionCircle className="ms-1 text-muted" />
-                        </span>
-                      </OverlayTrigger>
-                    </Col>
-                  </Row>
-                  
-                  <div>
-                    <Form.Label>Kích thước</Form.Label>
-                    <Row>
-                      <Col>
-                        <Form.Control type="text" placeholder="KL (gram)" />
-                      </Col>
-                      <Col>
-                        <Form.Control type="text" placeholder="Dài (cm)" />
-                      </Col>
-                      <Col>
-                        <Form.Control type="text" placeholder="Rộng (cm)" />
-                      </Col>
-                      <Col>
-                        <Form.Control type="text" placeholder="Cao (cm)" />
-                      </Col>
-                      <Col xs="auto" className="d-flex align-items-center">
-                        <OverlayTrigger
-                          placement="top"
-                          overlay={<Tooltip>Thông tin về kích thước</Tooltip>}
-                        >
-                          <span>
-                            <FaQuestionCircle className="ms-1 text-muted" />
-                          </span>
-                        </OverlayTrigger>
-                      </Col>
-                    </Row>
-                    <Form.Check 
-                      type="checkbox" 
-                      id="merge-package"
-                      label="Gộp kiện" 
-                      className="mt-2"
-                    />
-                    <OverlayTrigger
-                      placement="top"
-                      overlay={<Tooltip>Thông tin về gộp kiện</Tooltip>}
-                    >
-                      <span>
-                        <FaQuestionCircle className="ms-1 text-muted" />
-                      </span>
-                    </OverlayTrigger>
-                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -986,7 +1012,12 @@ const Orders = () => {
                       <FaExchangeAlt />
                     </Col>
                     <Col>
-                      <Form.Control type="text" placeholder="Tiền chuyển khoản" />
+                      <Form.Control 
+                        type="text" 
+                        placeholder="Tiền chuyển khoản"
+                        value={transferAmount}
+                        onChange={(e) => setTransferAmount(e.target.value)}
+                      />
                     </Col>
                     <Col xs={1}>
                       <OverlayTrigger
