@@ -668,6 +668,25 @@ const Orders = () => {
     try {
       setIsSaving(true);
       
+      // Kiểm tra các trường bắt buộc
+      if (!customerPhone || !customerName || !customerAddress || !selectedCity || !selectedDistrict || !selectedWard) {
+        setApiError('Vui lòng điền đầy đủ thông tin khách hàng và địa chỉ');
+        setTimeout(() => setApiError(''), 3000);
+        return;
+      }
+
+      if (!selectedSource) {
+        setApiError('Vui lòng chọn nguồn đơn hàng');
+        setTimeout(() => setApiError(''), 3000);
+        return;
+      }
+
+      if (selectedProducts.length === 0) {
+        setApiError('Vui lòng chọn ít nhất một sản phẩm');
+        setTimeout(() => setApiError(''), 3000);
+        return;
+      }
+
       // Tìm tên địa chỉ từ ID
       const findCityName = (cityId) => {
         const city = cities.find(c => c.id === Number(cityId));
@@ -696,17 +715,6 @@ const Orders = () => {
       const wardName = findWardName(selectedWard);
       const sourceName = findSourceName(selectedSource);
 
-      console.log('Thông tin đã tìm được:', {
-        cityId: selectedCity,
-        cityName,
-        districtId: selectedDistrict,
-        districtName,
-        wardId: selectedWard,
-        wardName,
-        sourceId: selectedSource,
-        sourceName
-      });
-
       const orderData = {
         customerName: customerName,
         customerMobile: customerPhone,
@@ -728,41 +736,27 @@ const Orders = () => {
         }))
       };
 
-      console.log('Dữ liệu gửi đi sau khi format:', orderData);
-
       const response = await createOrder(orderData);
-      console.log('Phản hồi từ API:', response);
 
-      if (response.code === 1) {
-        toast.success('Tạo đơn hàng thành công!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+      // Kiểm tra response có orderId hay không
+      if (response && response.orderId) {
+        setApiError("Tạo đơn thành công");
+        setTimeout(() => setApiError(''), 3000);
         
-        // Reset form sau khi tạo thành công
-        setCustomerName('');
-        setCustomerPhone('');
-        setCustomerAddress('');
-        setSelectedCity('');
-        setSelectedDistrict('');
-        setSelectedWard('');
-        setSelectedSource('');
-        setTransferAmount('');
-        setShippingFee('');
-        setCustomerNote('');
-        setSelectedProducts([]);
-        setValidated(false);
+        // Đợi 1 giây trước khi reload trang
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        // Nếu không có orderId, xem như thất bại
+        const errorMessage = response?.message || response?.error || 'Có lỗi xảy ra khi tạo đơn hàng';
+        setApiError(errorMessage);
+        setTimeout(() => setApiError(''), 3000);
       }
     } catch (error) {
-      console.error('Lỗi khi tạo đơn hàng:', error);
-      toast.error(error.message || 'Lỗi khi tạo đơn hàng', {
-        position: "top-right",
-        autoClose: 5000,
-      });
+      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đơn hàng';
+      setApiError(errorMessage);
+      setTimeout(() => setApiError(''), 3000);
     } finally {
       setIsSaving(false);
     }
@@ -1654,8 +1648,18 @@ const Orders = () => {
                                 <Form.Control
                                   type="number"
                                   min="0"
+                                  step="1000"
                                   value={product.price}
                                   onChange={(e) => handlePriceChange(product.id, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'ArrowUp') {
+                                      e.preventDefault();
+                                      handlePriceChange(product.id, (product.price || 0) + 1000);
+                                    } else if (e.key === 'ArrowDown') {
+                                      e.preventDefault();
+                                      handlePriceChange(product.id, Math.max(0, (product.price || 0) - 1000));
+                                    }
+                                  }}
                                   style={{width: '100px', padding: '2px 5px'}}
                                   className="text-end"
                                 />

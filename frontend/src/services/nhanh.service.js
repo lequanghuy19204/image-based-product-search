@@ -201,7 +201,6 @@ async function getUsers() {
 
 async function createOrder(orderData) {
   try {
-    console.log('createOrder được gọi với dữ liệu:', orderData);
     
     const userDetails = JSON.parse(localStorage.getItem('userDetails'));
     if (!userDetails?.company_id) {
@@ -209,7 +208,6 @@ async function createOrder(orderData) {
     }
     
     const config = await appConfigService.getAppConfig(userDetails.company_id);
-    console.log('Config từ appConfigService:', config);
     
     if (!config) {
       throw new Error('Không tìm thấy cấu hình Nhanh.vn');
@@ -223,8 +221,6 @@ async function createOrder(orderData) {
       name: product.name,
       price: product.price
     }));
-
-    console.log('Danh sách sản phẩm đã format:', productList);
 
     const requestData = {
       version: config.version || '',
@@ -252,10 +248,7 @@ async function createOrder(orderData) {
       }
     };
 
-    console.log('Dữ liệu gửi đến API:', requestData);
-
     const response = await apiService.post('/api/nhanh/orders/add', requestData);
-    console.log('Phản hồi từ API:', response);
 
     return response.data;
   } catch (error) {
