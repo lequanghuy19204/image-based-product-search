@@ -819,7 +819,7 @@ const Orders = () => {
                   </div>
                 </Card.Header>
                 <Card.Body>
-                  <div ref={searchRef} className="position-relative">
+                  <div ref={searchRef} className="position-relative" style={{ zIndex: 1050 }}>
                     <InputGroup className="mb-3">
                       <InputGroup.Text>
                         <FaSearch />
@@ -833,52 +833,66 @@ const Orders = () => {
                     </InputGroup>
 
                     {showSearchResults && (
-                      <div className="position-absolute w-100 mt-1 shadow bg-white rounded border" 
-                           style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
-                        {isSearching ? (
-                          <div className="p-3 text-center">
-                            Đang tìm kiếm...
-                          </div>
-                        ) : searchResults && searchResults.length > 0 ? (
-                          <ListGroup variant="flush">
-                            {searchResults.map((product) => (
-                              <ListGroup.Item 
-                                key={product.idNhanh}
-                                action
-                                className="d-flex justify-content-between align-items-center py-2"
-                                onClick={() => handleProductSelect(product)}
-                              >
-                                <div className="d-flex flex-column">
-                                  <div className="fw-medium">{product.name}</div>
-                                  <div className="small text-muted">
-                                    {product.code && <span className="me-2">Mã: {product.code}</span>}
-                                    <span>Tồn: {product.inventory.available}</span>
+                      <div className="position-fixed" 
+                           style={{ 
+                             zIndex: 1100,
+                             left: searchRef.current?.getBoundingClientRect().left,
+                             top: searchRef.current?.getBoundingClientRect().bottom,
+                             width: searchRef.current?.offsetWidth,
+                           }}>
+                        <div className="shadow bg-white rounded border" 
+                             style={{ 
+                               maxHeight: '300px',
+                               overflowY: 'auto',
+                               overflowX: 'auto',
+                               width: '100%'
+                             }}>
+                          {isSearching ? (
+                            <div className="p-3 text-center">
+                              Đang tìm kiếm...
+                            </div>
+                          ) : searchResults && searchResults.length > 0 ? (
+                            <ListGroup variant="flush" style={{ maxHeight: '100%', minWidth: 'min-content' }}>
+                              {searchResults.map((product) => (
+                                <ListGroup.Item 
+                                  key={product.idNhanh}
+                                  action
+                                  className="d-flex justify-content-between align-items-center py-2"
+                                  onClick={() => handleProductSelect(product)}
+                                  style={{ minWidth: 'max-content' }}
+                                >
+                                  <div className="d-flex flex-column" style={{ minWidth: '200px' }}>
+                                    <div className="fw-medium text-nowrap">{product.name}</div>
+                                    <div className="small text-muted text-nowrap">
+                                      {product.code && <span className="me-2">Mã: {product.code}</span>}
+                                      <span>Tồn: {product.inventory.available}</span>
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="text-end">
-                                  <div className="text-primary fw-medium">
-                                    {new Intl.NumberFormat('vi-VN', {
-                                      style: 'currency',
-                                      currency: 'VND'
-                                    }).format(product.price)}
-                                  </div>
-                                  {product.wholesalePrice && product.wholesalePrice !== product.price && (
-                                    <small className="text-success">
-                                      Sỉ: {new Intl.NumberFormat('vi-VN', {
+                                  <div className="text-end ms-3" style={{ minWidth: '120px' }}>
+                                    <div className="text-primary fw-medium text-nowrap">
+                                      {new Intl.NumberFormat('vi-VN', {
                                         style: 'currency',
                                         currency: 'VND'
-                                      }).format(product.wholesalePrice)}
-                                    </small>
-                                  )}
-                                </div>
-                              </ListGroup.Item>
-                            ))}
-                          </ListGroup>
-                        ) : (
-                          <div className="p-3 text-center text-muted">
-                            Không tìm thấy sản phẩm
-                          </div>
-                        )}
+                                      }).format(product.price)}
+                                    </div>
+                                    {product.wholesalePrice && product.wholesalePrice !== product.price && (
+                                      <small className="text-success text-nowrap">
+                                        Sỉ: {new Intl.NumberFormat('vi-VN', {
+                                          style: 'currency',
+                                          currency: 'VND'
+                                        }).format(product.wholesalePrice)}
+                                      </small>
+                                    )}
+                                  </div>
+                                </ListGroup.Item>
+                              ))}
+                            </ListGroup>
+                          ) : (
+                            <div className="p-3 text-center text-muted">
+                              Không tìm thấy sản phẩm
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
