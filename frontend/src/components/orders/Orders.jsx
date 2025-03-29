@@ -6,11 +6,13 @@ import {
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
   FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt, FaQuestionCircle, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane, FaCheck,
-  FaWeight, FaRulerVertical, FaMars, FaVenus, FaStore
+  FaWeight, FaRulerVertical, FaMars, FaVenus, FaStore, FaUpload, FaTrash
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
 import { getOrderSources, createOrderFromConversation, getLocations, searchProducts, getUsers } from '../../services/nhanh.service';
+import ImageUploading from 'react-images-uploading';
+import { apiService } from '../../services/api.service';
 
 const Orders = () => {
   // console.log('nhanhService methods:', Object.keys(nhanhService));
@@ -51,6 +53,13 @@ const Orders = () => {
   const [targetWard, setTargetWard] = useState('');
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [transferAmount, setTransferAmount] = useState('');
+  const [images, setImages] = useState([]);
+  const [imageUrl, setImageUrl] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [imageSearchResults, setImageSearchResults] = useState([]);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const [showImageSearchModal, setShowImageSearchModal] = useState(false);
+  const [selectedImageProduct, setSelectedImageProduct] = useState(null);
 
   useEffect(() => {
     loadOrderSources();
@@ -422,6 +431,71 @@ const Orders = () => {
     );
   };
 
+  const handleImageUrl = async (url) => {
+    setImageUrl(url);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Không thể tải ảnh');
+      setPreviewUrl(url);
+      setImages([]);
+    } catch (error) {
+      console.error('Lỗi:', error);
+      setApiError('URL ảnh không hợp lệ');
+      setTimeout(() => setApiError(''), 3000);
+      setPreviewUrl('');
+    }
+  };
+
+  const handleImageSearch = async () => {
+    if ((!images.length && !previewUrl) || imageSearchLoading) return;
+    
+    setImageSearchLoading(true);
+    try {
+      const formData = new FormData();
+      
+      if (images.length > 0) {
+        const imageFile = await fetch(images[0].data_url).then(r => r.blob());
+        formData.append('file', imageFile, 'image.jpg');
+      } else if (previewUrl) {
+        const response = await fetch(previewUrl);
+        if (!response.ok) throw new Error('Không thể tải ảnh từ URL');
+        const blob = await response.blob();
+        formData.append('file', blob, 'image.jpg');
+      }
+
+      const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+      formData.append('company_id', userDetails.company_id);
+      formData.append('top_k', '8');
+
+      const response = await apiService.postFormData('/api/images/search', formData);
+      setImageSearchResults(response.results);
+    } catch (error) {
+      setApiError(error.message);
+      setTimeout(() => setApiError(''), 3000);
+    } finally {
+      setImageSearchLoading(false);
+    }
+  };
+
+  const handleProductImageHover = async (productId) => {
+    try {
+      setImageSearchLoading(true);
+      const productDetails = await apiService.getProductDetails(productId);
+      setSelectedImageProduct(productDetails);
+      setShowImageSearchModal(true);
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+    } finally {
+      setImageSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (images.length > 0 || previewUrl) {
+      handleImageSearch();
+    }
+  }, [images, previewUrl]);
+
   return (
     <div className="layout-container">
       <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
@@ -562,6 +636,161 @@ const Orders = () => {
             </Card.Body>
           </Card>
 
+          {/* Thêm phần tìm kiếm ảnh sau phần API Integration Card */}
+          <Card className="mb-3 shadow-sm">
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <div>
+                <FaSearch className="me-2" /> Tìm kiếm bằng hình ảnh
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <div className="mb-3">
+                <InputGroup>
+                  <Form.Control
+                    type="text"
+                    placeholder="Nhập URL ảnh..."
+                    value={imageUrl}
+                    onChange={(e) => handleImageUrl(e.target.value)}
+                  />
+                  <Button 
+                    variant="outline-primary"
+                    onClick={() => handleImageUrl(imageUrl)}
+                    disabled={!imageUrl}
+                  >
+                    <FaSearch className="me-1" /> Xem trước
+                  </Button>
+                </InputGroup>
+              </div>
+
+              <ImageUploading
+                multiple={false}
+                value={images}
+                onChange={(imageList) => {
+                  setImages(imageList);
+                  setPreviewUrl('');
+                  setImageUrl('');
+                }}
+                maxNumber={1}
+                dataURLKey="data_url"
+                acceptType={['jpg', 'jpeg', 'png']}
+              >
+                {({
+                  imageList,
+                  onImageUpload,
+                  onImageRemove,
+                  isDragging,
+                  dragProps
+                }) => (
+                  <div className="upload-area p-4 text-center">
+                    {!imageList.length && !previewUrl ? (
+                      <div 
+                        className={`upload-placeholder border-2 border-dashed rounded p-5 
+                          ${isDragging ? 'bg-light' : ''}`}
+                        {...dragProps}
+                      >
+                        <Button
+                          variant="outline-primary"
+                          size="lg"
+                          className="mb-3"
+                          onClick={onImageUpload}
+                        >
+                          <FaUpload className="me-2" />
+                          Tải ảnh lên
+                        </Button>
+                        <p className="text-muted mb-0">
+                          Kéo thả hoặc nhấp để tải ảnh (JPG, JPEG, PNG)
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="position-relative d-inline-block">
+                        <img 
+                          src={imageList[0]?.data_url || previewUrl}
+                          alt="Preview" 
+                          className="img-fluid rounded"
+                          style={{ maxHeight: '150px' }}
+                        />
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="position-absolute top-0 end-0 m-2"
+                          onClick={() => {
+                            if (imageList.length) onImageRemove(0);
+                            setPreviewUrl('');
+                            setImageUrl('');
+                          }}
+                        >
+                          <FaTrash />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </ImageUploading>
+
+              {/* Thêm nút tìm kiếm */}
+              <div className="text-center mt-3">
+                <Button
+                  variant="primary"
+                  onClick={handleImageSearch}
+                  disabled={imageSearchLoading || (!images.length && !previewUrl)}
+                >
+                  {imageSearchLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Đang tìm kiếm...
+                    </>
+                  ) : (
+                    <>
+                      <FaSearch className="me-2" />
+                      Tìm kiếm
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Hiển thị thông báo lỗi nếu có */}
+              {apiError && (
+                <div className="alert alert-danger mt-3">
+                  {apiError}
+                </div>
+              )}
+
+              {/* Kết quả tìm kiếm ảnh */}
+              {imageSearchResults.length > 0 && (
+                <div className="search-results mt-4">
+                  <h6 className="mb-3">Kết quả tìm kiếm: {imageSearchResults.length} ảnh</h6>
+                  <Row>
+                    {imageSearchResults.map((item, index) => (
+                      <Col key={index} md={3} className="mb-4">
+                        <Card className="h-100">
+                          <div 
+                            className="card-img-container cursor-pointer"
+                            onClick={() => handleProductImageHover(item.product_id)}
+                          >
+                            <Card.Img
+                              variant="top"
+                              src={item.image_url}
+                              alt={item.product_name}
+                            />
+                          </div>
+                          <Card.Body>
+                            <Card.Title as="h6">{item.product_name}</Card.Title>
+                            <Card.Text className="text-muted small mb-1">
+                              Mã SP: {item.product_code}
+                            </Card.Text>
+                            <Card.Text className="text-primary fw-bold mb-1">
+                              {item.price ? `${item.price.toLocaleString()}đ` : '0đ'}
+                            </Card.Text>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+
           {/* Modal hiển thị chi tiết đơn hàng */}
           {selectedOrderIndex !== null && apiResponse && (
             <Modal show={showOrderDetails} onHide={handleCloseDetails} size="lg">
@@ -654,6 +883,60 @@ const Orders = () => {
               </Modal.Footer>
             </Modal>
           )}
+
+          {/* Modal chi tiết sản phẩm */}
+          <Modal 
+            show={showImageSearchModal} 
+            onHide={() => setShowImageSearchModal(false)}
+            size="md"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Chi tiết sản phẩm</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {imageSearchLoading ? (
+                <div className="text-center">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Đang tải...</span>
+                  </div>
+                </div>
+              ) : selectedImageProduct && (
+                <div className="product-detail">
+                  <h5>{selectedImageProduct.product_name}</h5>
+                  <p className="text-muted small">Mã SP: {selectedImageProduct.product_code}</p>
+                  <p className="text-primary h5 mb-3">
+                    {selectedImageProduct.price.toLocaleString()}đ
+                  </p>
+                  
+                  <div className="product-images-grid mb-3">
+                    {selectedImageProduct.image_urls.map((url, index) => (
+                      <img 
+                        key={index}
+                        src={url} 
+                        alt={`Ảnh ${index + 1}`}
+                        className="product-detail-image"
+                      />
+                    ))}
+                  </div>
+
+                  {selectedImageProduct.brand && (
+                    <p className="mb-2">
+                      <strong>Thương hiệu:</strong> {selectedImageProduct.brand}
+                    </p>
+                  )}
+                  {selectedImageProduct.description && (
+                    <div className="mb-2">
+                      <strong>Mô tả:</strong>
+                      <p className="small">{selectedImageProduct.description}</p>
+                    </div>
+                  )}
+                  <p className="text-muted small mb-0">
+                    Ngày tạo: {selectedImageProduct.created_at}
+                  </p>
+                </div>
+              )}
+            </Modal.Body>
+          </Modal>
 
           <Row>
             {/* Cột trái - 70% */}
