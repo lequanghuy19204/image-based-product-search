@@ -66,6 +66,7 @@ const Orders = () => {
   const [customSize, setCustomSize] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [customerNote, setCustomerNote] = useState('');
+  const [shippingFee, setShippingFee] = useState('');
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -281,6 +282,11 @@ const Orders = () => {
         // Thêm điền tiền đặt cọc vào ô chuyển khoản
         if (orderData.money_deposit) {
           setTransferAmount(orderData.money_deposit.toString());
+        }
+
+        // Thêm điền phí vận chuyển
+        if (orderData.shipping_fee) {
+          setShippingFee(orderData.shipping_fee.toString());
         }
 
         // Tạo ghi chú khách hàng với format: Giới tính - Chiều cao - Cân nặng
@@ -557,14 +563,10 @@ const Orders = () => {
     
     if (selectedImageProduct) {
       try {
-        // Tạo search term với format: tên sản phẩm - màu - size
         const searchTerm = `${selectedImageProduct.product_name} - ${color} - ${size}`;
-        
-        // Gọi API searchProducts
         const response = await searchProducts(searchTerm);
         
         if (response?.products) {
-          // Lấy sản phẩm đầu tiên từ kết quả tìm kiếm
           const firstProduct = Object.values(response.products)[0];
           
           if (firstProduct) {
@@ -582,8 +584,16 @@ const Orders = () => {
             };
             
             setSelectedProducts(prev => [...prev, newProduct]);
+
+            const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${firstProduct.name} - SL:${quantity}`;
+            setCustomerNote(prevNote => {
+              if (prevNote) {
+                return `${prevNote}\n${productNote}`;
+              }
+              return productNote;
+            });
+
           } else {
-            // Nếu không tìm thấy sản phẩm, hiển thị thông báo lỗi
             setApiError('Không tìm thấy sản phẩm phù hợp');
             setTimeout(() => setApiError(''), 3000);
           }
@@ -1574,13 +1584,11 @@ const Orders = () => {
                       <Form.Label>Phí ship bảo khách</Form.Label>
                     </Col>
                     <Col md={5}>
-                      <Form.Control type="text" />
-                    </Col>
-                    <Col md={3}>
-                      <Form.Check 
-                        type="checkbox" 
-                        id="hvc-fee"
-                        label="Lấy theo phí HVC" 
+                      <Form.Control 
+                        type="number"
+                        placeholder="Phí ship báo khách" 
+                        value={shippingFee}
+                        onChange={(e) => setShippingFee(e.target.value)}
                       />
                     </Col>
                   </Row>
