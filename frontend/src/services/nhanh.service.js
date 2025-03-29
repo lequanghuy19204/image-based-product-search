@@ -199,13 +199,83 @@ async function getUsers() {
   }
 }
 
+async function createOrder(orderData) {
+  try {
+    console.log('createOrder được gọi với dữ liệu:', orderData);
+    
+    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
+    if (!userDetails?.company_id) {
+      throw new Error('Không tìm thấy thông tin công ty');
+    }
+    
+    const config = await appConfigService.getAppConfig(userDetails.company_id);
+    console.log('Config từ appConfigService:', config);
+    
+    if (!config) {
+      throw new Error('Không tìm thấy cấu hình Nhanh.vn');
+    }
+
+    // Tạo danh sách sản phẩm theo format yêu cầu
+    const productList = orderData.products.map(product => ({
+      id: Math.floor(10000000 + Math.random() * 90000000).toString(),
+      idNhanh: product.idNhanh,
+      quantity: product.quantity,
+      name: product.name,
+      price: product.price
+    }));
+
+    console.log('Danh sách sản phẩm đã format:', productList);
+
+    const requestData = {
+      version: config.version || '',
+      appId: config.appId || '',
+      businessId: config.businessId || '',
+      accessToken: config.accessToken || '',
+      data: {
+        id: Math.floor(10000000 + Math.random() * 90000000).toString(),
+        depotId: config.depotId,
+        customerName: orderData.customerName,
+        customerMobile: orderData.customerMobile,
+        customerAddress: orderData.customerAddress,
+        customerCityName: orderData.cityName,
+        customerDistrictName: orderData.districtName,
+        customerWardLocationName: orderData.wardName,
+        statusCode: "New",
+        trafficSource: orderData.trafficSource,
+        moneyTransfer: orderData.moneyTransfer,
+        allowTest: 1,
+        saleId: orderData.saleId,
+        carrierId: orderData.selfShipping ? 12 : null,
+        customerShipFee: orderData.shippingFee,
+        description: orderData.description,
+        productList: productList
+      }
+    };
+
+    console.log('Dữ liệu gửi đến API:', requestData);
+
+    const response = await apiService.post('/api/nhanh/orders/add', requestData);
+    console.log('Phản hồi từ API:', response);
+
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi chi tiết khi tạo đơn hàng:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
+    throw error;
+  }
+}
+
 // Export tất cả các hàm một lần ở cuối file
 export {
   getOrderSources,
   createOrderFromConversation,
   getLocations,
   searchProducts,
-  getUsers
+  getUsers,
+  createOrder
 };
 
 // Giữ lại nhanhService cho khả năng tương thích ngược
@@ -214,5 +284,6 @@ export const nhanhService = {
   createOrderFromConversation,
   getLocations,
   searchProducts,
-  getUsers
+  getUsers,
+  createOrder
 }; 

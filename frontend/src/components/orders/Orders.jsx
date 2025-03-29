@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Container, Row, Col, Form, InputGroup, Button, Table, 
-  Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal
+  Card, Dropdown, OverlayTrigger, Tooltip, Alert, ListGroup, Modal, Spinner
 } from 'react-bootstrap';
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
@@ -10,9 +10,10 @@ import {
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
-import { getOrderSources, createOrderFromConversation, getLocations, searchProducts, getUsers } from '../../services/nhanh.service';
+import { getOrderSources, createOrderFromConversation, getLocations, searchProducts, getUsers, createOrder } from '../../services/nhanh.service';
 import ImageUploading from 'react-images-uploading';
 import { apiService } from '../../services/api.service';
+import { toast } from 'react-hot-toast';
 
 const Orders = () => {
   // console.log('nhanhService methods:', Object.keys(nhanhService));
@@ -67,6 +68,8 @@ const Orders = () => {
   const [quantity, setQuantity] = useState(1);
   const [customerNote, setCustomerNote] = useState('');
   const [shippingFee, setShippingFee] = useState('');
+  const [selfShipping, setSelfShipping] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -86,6 +89,18 @@ const Orders = () => {
         if (response?.users) {
           const staffArray = Object.values(response.users);
           setStaffList(staffArray);
+          
+          // Lấy staff_code từ userDetails cache
+          const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+          const staffCode = userDetails.staff_code;
+          
+          // Nếu có staff_code, tìm và tự động chọn nhân viên tương ứng
+          if (staffCode) {
+            const matchedStaff = staffArray.find(staff => staff.id === staffCode);
+            if (matchedStaff) {
+              setSelectedStaff(matchedStaff.id);
+            }
+          }
         }
       } catch (error) {
         console.error('Lỗi khi lấy danh sách nhân viên:', error);
@@ -622,6 +637,135 @@ const Orders = () => {
     setSelectedProducts(prevProducts => 
       prevProducts.filter(product => product.id !== productId)
     );
+  };
+
+  // Thêm useEffect để tự động chọn nhân viên khi danh sách được tải
+  useEffect(() => {
+    if (staffList.length > 0) {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const staffCode = userDetails.staff_code;
+      if (staffCode) {
+        const matchedStaff = staffList.find(staff => staff.id === staffCode);
+        if (matchedStaff) {
+          setSelectedStaff(matchedStaff.id);
+        }
+      }
+    }
+  }, [staffList]);
+
+  // Tính tổng tiền từ các sản phẩm đã chọn
+  const totalProductsAmount = selectedProducts.reduce((sum, product) => sum + product.total, 0);
+  
+  // Tính số tiền thu khách
+  const calculateCollectAmount = () => {
+    const shippingFeeNum = Number(shippingFee) || 0;
+    const transferAmountNum = Number(transferAmount) || 0;
+    const collectAmount = totalProductsAmount + shippingFeeNum - transferAmountNum;
+    return collectAmount;
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSaving(true);
+      
+      // Tìm tên địa chỉ từ ID
+      const findCityName = (cityId) => {
+        const city = cities.find(c => c.id === Number(cityId));
+        return city ? city.name : '';
+      };
+
+      const findDistrictName = (districtId) => {
+        const district = districts.find(d => d.id === Number(districtId));
+        return district ? district.name : '';
+      };
+
+      const findWardName = (wardId) => {
+        const ward = wards.find(w => w.id === Number(wardId));
+        return ward ? ward.name : '';
+      };
+
+      // Thêm hàm tìm tên nguồn đơn hàng
+      const findSourceName = (sourceId) => {
+        const source = orderSources.find(s => s.id === Number(sourceId));
+        return source ? source.name : '';
+      };
+
+      // Lấy tên địa chỉ và nguồn đơn hàng
+      const cityName = findCityName(selectedCity);
+      const districtName = findDistrictName(selectedDistrict);
+      const wardName = findWardName(selectedWard);
+      const sourceName = findSourceName(selectedSource);
+
+      console.log('Thông tin đã tìm được:', {
+        cityId: selectedCity,
+        cityName,
+        districtId: selectedDistrict,
+        districtName,
+        wardId: selectedWard,
+        wardName,
+        sourceId: selectedSource,
+        sourceName
+      });
+
+      const orderData = {
+        customerName: customerName,
+        customerMobile: customerPhone,
+        customerAddress: customerAddress,
+        cityName: cityName,
+        districtName: districtName,
+        wardName: wardName,
+        trafficSource: sourceName, // Sử dụng tên nguồn thay vì ID
+        moneyTransfer: Number(transferAmount) || 0,
+        saleId: Number(selectedStaff) || null,
+        selfShipping: selfShipping,
+        shippingFee: Number(shippingFee) || 0,
+        description: customerNote,
+        products: selectedProducts.map(product => ({
+          idNhanh: product.id,
+          quantity: product.quantity,
+          name: product.name,
+          price: product.price
+        }))
+      };
+
+      console.log('Dữ liệu gửi đi sau khi format:', orderData);
+
+      const response = await createOrder(orderData);
+      console.log('Phản hồi từ API:', response);
+
+      if (response.code === 1) {
+        toast.success('Tạo đơn hàng thành công!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        
+        // Reset form sau khi tạo thành công
+        setCustomerName('');
+        setCustomerPhone('');
+        setCustomerAddress('');
+        setSelectedCity('');
+        setSelectedDistrict('');
+        setSelectedWard('');
+        setSelectedSource('');
+        setTransferAmount('');
+        setShippingFee('');
+        setCustomerNote('');
+        setSelectedProducts([]);
+        setValidated(false);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tạo đơn hàng:', error);
+      toast.error(error.message || 'Lỗi khi tạo đơn hàng', {
+        position: "top-right",
+        autoClose: 5000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -1567,6 +1711,8 @@ const Orders = () => {
                         type="checkbox" 
                         id="self-shipping"
                         label="Tự vận chuyển" 
+                        checked={selfShipping}
+                        onChange={(e) => setSelfShipping(e.target.checked)}
                       />
                     </Col>
                     <Col md={5}>
@@ -1580,7 +1726,7 @@ const Orders = () => {
                   </Row>
                   
                   <Row className="mb-3 align-items-center">
-                    <Col md={4}>
+                    <Col xs="auto">
                       <Form.Label>Phí ship bảo khách</Form.Label>
                     </Col>
                     <Col md={5}>
@@ -1636,18 +1782,6 @@ const Orders = () => {
               {/* 2.3 Khối tùy chọn giao hàng */}
               <Card className="mb-3 shadow-sm">
                 <Card.Body>
-                  <Form.Group className="mb-3">
-                    <Dropdown>
-                      <Dropdown.Toggle variant="light" className="w-100 text-start">
-                        Giao hàng tận nhà
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu className="w-100">
-                        <Dropdown.Item>Giao hàng tận nhà</Dropdown.Item>
-                        <Dropdown.Item>Khách đến lấy</Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </Form.Group>
-                  
                   <InputGroup className="mb-3">
                     <InputGroup.Text>
                       <FaUser />
@@ -1662,7 +1796,10 @@ const Orders = () => {
                         <option disabled>Đang tải...</option>
                       ) : (
                         staffList.map(staff => (
-                          <option key={staff.id} value={staff.id}>
+                          <option 
+                            key={staff.id} 
+                            value={staff.id}
+                          >
                             {staff.id} {staff.fullName || staff.username} {staff.roleName ? `(${staff.roleName})` : ''}
                           </option>
                         ))
@@ -1672,55 +1809,44 @@ const Orders = () => {
                   
                   <Row className="mb-3">
                     <Col>
-                      <Dropdown>
-                        <Dropdown.Toggle variant="light" className="w-100 text-start">
-                          Mới
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu className="w-100">
-                          <Dropdown.Item>Mới</Dropdown.Item>
-                          <Dropdown.Item>Cũ</Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
+                      <div className="text-success">
+                        Thu khách: <strong>{formatCurrency(calculateCollectAmount())}</strong>
+                      </div>
                     </Col>
-                    <Col xs="auto">
-                      <OverlayTrigger
-                        placement="top"
-                        overlay={<Tooltip>Thông tin về trạng thái đơn hàng</Tooltip>}
-                      >
-                        <span>
-                          <FaQuestionCircle className="text-muted" />
-                        </span>
-                      </OverlayTrigger>
-                    </Col>
-                  </Row>
-                  
-                  <Form.Group className="mb-3">
-                    <Dropdown>
-                      <Dropdown.Toggle variant="light" className="w-100 text-start">
-                        Tiếp tục thêm đơn hàng
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu className="w-100">
-                        <Dropdown.Item>Tiếp tục thêm đơn hàng</Dropdown.Item>
-                        <Dropdown.Item>Kết thúc sau khi lưu</Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </Form.Group>
-                  
-                  <Row className="mb-3">
-                    <Col>
-                      <div className="text-success">Thu khách: <strong>0</strong></div>
-                    </Col>
-                    <Col>
-                      <div className="text-primary">Thu shop: <strong>0</strong></div>
-                    </Col>
+                    {/* <Col>
+                      <div className="text-primary">
+                        Trả shop: <strong>{formatCurrency(totalProductsAmount)}</strong>
+                      </div>
+                    </Col> */}
                   </Row>
                 </Card.Body>
               </Card>
 
               {/* 2.4 Khối nút tác vụ */}
               <div className="d-grid gap-2 mb-3">
-                <Button variant="success" size="lg">
-                  <FaBox className="me-2" /> (F9) Lưu
+                <Button 
+                  variant="success" 
+                  size="lg" 
+                  onClick={handleSaveOrder}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                        className="me-2"
+                      />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <FaBox className="me-2" /> (F9) Lưu
+                    </>
+                  )}
                 </Button>
               </div>
             </Col>
