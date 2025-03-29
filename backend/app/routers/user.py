@@ -87,71 +87,55 @@ async def update_profile(
         
         # Cập nhật thông tin
         update_time = datetime.utcnow()
+        update_data = {
+            "username": profile_data.username,
+            "email": profile_data.email,
+            "updated_at": update_time
+        }
+        
+        # Thêm staff_code vào dữ liệu cập nhật nếu có
+        if profile_data.staff_code is not None:
+            update_data["staff_code"] = profile_data.staff_code
+
         result = await users_collection.update_one(
             {"_id": ObjectId(current_user['sub'])},
-            {
-                "$set": {
-                    "username": profile_data.username,
-                    "email": profile_data.email,
-                    "updated_at": update_time
-                }
-            }
+            {"$set": update_data}
         )
         
         if result.modified_count == 0:
             raise HTTPException(status_code=400, detail="Không thể cập nhật thông tin")
-        
+            
         # Lấy thông tin user sau khi cập nhật
-        pipeline = [
-            {"$match": {"_id": ObjectId(current_user['sub'])}},
-            {
-                "$lookup": {
-                    "from": "companies",
-                    "let": {"companyIdStr": "$company_id"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$eq": ["$_id", {"$toObjectId": "$$companyIdStr"}]
-                                }
-                            }
-                        }
-                    ],
-                    "as": "company"
-                }
-            },
-            {
-                "$unwind": {
-                    "path": "$company",
-                    "preserveNullAndEmptyArrays": True
-                }
-            },
-            {
-                "$project": {
-                    "_id": 1,
-                    "username": 1,
-                    "email": 1,
-                    "role": 1,
-                    "status": 1,
-                    "company_id": 1,
-                    "created_at": {"$toString": "$created_at"},
-                    "updated_at": {"$toString": "$updated_at"},
-                    "company_name": {"$ifNull": ["$company.company_name", None]},
-                    "company_code": {"$ifNull": ["$company.company_code", None]}
-                }
-            }
-        ]
+        updated_user = await users_collection.find_one(
+            {"_id": ObjectId(current_user['sub'])}
+        )
         
-        updated_user = await users_collection.aggregate(pipeline).to_list(1)
         if not updated_user:
             raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-            
-        user_data = updated_user[0]
-        user_data["id"] = str(user_data.pop("_id"))
+
+        # Chuyển đổi ObjectId thành string và format dữ liệu trước khi trả về
+        user_response = {
+            "id": str(updated_user["_id"]),
+            "username": updated_user["username"],
+            "email": updated_user["email"],
+            "role": updated_user["role"],
+            "status": updated_user["status"],
+            "staff_code": updated_user.get("staff_code"),
+            "company_id": str(updated_user["company_id"]) if "company_id" in updated_user else None,
+            "created_at": updated_user["created_at"].isoformat() if "created_at" in updated_user else None,
+            "updated_at": updated_user["updated_at"].isoformat() if "updated_at" in updated_user else None
+        }
+
+        # Lấy thông tin công ty nếu có company_id
+        if "company_id" in updated_user:
+            company = await companies_collection.find_one({"_id": updated_user["company_id"]})
+            if company:
+                user_response["company_name"] = company.get("company_name")
+                user_response["company_code"] = company.get("company_code")
             
         return {
             "message": "Cập nhật thông tin thành công",
-            "user": user_data
+            "user": user_response
         }
         
     except HTTPException as he:

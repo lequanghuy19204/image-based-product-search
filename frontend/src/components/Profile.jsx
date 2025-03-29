@@ -12,6 +12,7 @@ function Profile() {
     role: '',
     company_name: '',
     company_code: '',
+    staff_code: '',
     status: '',
     created_at: '',
     updated_at: ''
@@ -41,7 +42,8 @@ function Profile() {
     try {
       const response = await apiService.put('/api/users/profile', {
         username: profile.username,
-        email: profile.email
+        email: profile.email,
+        staff_code: profile.staff_code
       });
       
       setSuccess('Cập nhật thông tin thành công');
@@ -104,6 +106,20 @@ function Profile() {
               />
               <Form.Text className="text-muted">
                 Địa chỉ email hợp lệ (có thể dùng để đăng nhập)
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Mã nhân viên</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Nhập mã nhân viên"
+                value={profile.staff_code || ''}
+                onChange={(e) => setProfile({...profile, staff_code: e.target.value})}
+                maxLength={20}
+              />
+              <Form.Text className="text-muted">
+                Mã nhân viên có thể để trống
               </Form.Text>
             </Form.Group>
 

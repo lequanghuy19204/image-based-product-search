@@ -49,6 +49,11 @@ class ApiService {
       throw new Error('Có lỗi xảy ra');
     }
 
+    // Đảm bảo staff_code luôn tồn tại trong response
+    if (data && typeof data === 'object') {
+      data.staff_code = data.staff_code || '';
+    }
+
     return data;
   }
 
@@ -321,12 +326,23 @@ class ApiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
-        credentials: 'include'
+        credentials: 'include',
+        mode: 'cors'
       });
 
-      return await this.handleResponse(response);
+      const responseData = await this.handleResponse(response);
+      
+      // Nếu endpoint là profile và có dữ liệu user, cập nhật cache
+      if (endpoint === '/api/users/profile' && responseData?.user) {
+        this.updateUserDetailsCache(responseData.user);
+      }
+
+      return responseData;
     } catch (error) {
       console.error('API request failed:', error);
+      if (error.message === 'Failed to fetch') {
+        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.');
+      }
       throw error;
     }
   }
@@ -587,6 +603,24 @@ class ApiService {
     } catch (error) {
       console.error('Error fetching product details:', error);
       throw error;
+    }
+  }
+
+  updateUserDetailsCache(userData) {
+    try {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const updatedUserDetails = {
+        ...userDetails,
+        username: userData.username,
+        email: userData.email,
+        staff_code: userData.staff_code,
+        company_name: userData.company_name,
+        company_code: userData.company_code,
+        updated_at: userData.updated_at
+      };
+      localStorage.setItem('userDetails', JSON.stringify(updatedUserDetails));
+    } catch (error) {
+      console.error('Error updating user details cache:', error);
     }
   }
 }

@@ -32,6 +32,7 @@ async def get_user_profile(token: dict = Depends(verify_token)):
                     "email": 1,
                     "role": 1,
                     "status": 1,
+                    "staff_code": 1,
                     "company_id": { "$toString": "$company_id" },
                     "created_at": { "$toString": "$created_at" },
                     "updated_at": { "$toString": "$updated_at" },

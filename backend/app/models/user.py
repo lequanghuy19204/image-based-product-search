@@ -73,6 +73,7 @@ class ChangePasswordRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     username: str
     email: EmailStr
+    staff_code: Optional[str] = None
 
 class UserStatusUpdate(BaseModel):
     status: constr(regex='^(active|inactive)$')
@@ -89,6 +90,7 @@ class UserProfileResponse(BaseModel):
     company_id: Optional[str] = None
     company_name: Optional[str] = None
     company_code: Optional[str] = None
+    staff_code: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -103,6 +105,7 @@ class UserProfileResponse(BaseModel):
                 "company_id": "507f1f77bcf86cd799439012",
                 "company_name": "Example Corp",
                 "company_code": "EX123",
+                "staff_code": "NV001",
                 "created_at": "2023-01-01T00:00:00.000Z",
                 "updated_at": "2023-01-01T00:00:00.000Z"
             }
