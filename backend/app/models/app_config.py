@@ -11,6 +11,7 @@ class AppConfigCreate(BaseModel):
     appId: Optional[str] = None
     businessId: Optional[str] = None
     accessToken: Optional[str] = None
+    depotId: Optional[str] = None
 
 class AppConfigResponse(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -20,6 +21,7 @@ class AppConfigResponse(BaseModel):
     appId: Optional[str] = None
     businessId: Optional[str] = None
     accessToken: Optional[str] = None
+    depotId: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

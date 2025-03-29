@@ -33,6 +33,7 @@ async def create_app_config(
             "appId": config_data.appId,
             "businessId": config_data.businessId,
             "accessToken": config_data.accessToken,
+            "depotId": config_data.depotId,
             "created_at": now,
             "updated_at": now
         }
@@ -99,6 +100,7 @@ async def update_app_config(
             "appId": config_data.appId,
             "businessId": config_data.businessId,
             "accessToken": config_data.accessToken,
+            "depotId": config_data.depotId,
             "updated_at": datetime.utcnow()
         }
         

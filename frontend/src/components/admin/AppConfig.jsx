@@ -27,7 +27,8 @@ function AppConfig() {
     version: '',
     appId: '',
     businessId: '',
-    accessToken: ''
+    accessToken: '',
+    depotId: ''
   });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -62,7 +63,8 @@ function AppConfig() {
         version: config.version || '',
         appId: config.appId || '',
         businessId: config.businessId || '',
-        accessToken: config.accessToken || ''
+        accessToken: config.accessToken || '',
+        depotId: config.depotId || ''
       });
       setIsEditing(true);
     } catch (error) {
@@ -132,7 +134,8 @@ function AppConfig() {
         version: '',
         appId: '',
         businessId: '',
-        accessToken: ''
+        accessToken: '',
+        depotId: ''
       });
       setSuccess('Xóa cấu hình thành công!');
     } catch (error) {
@@ -241,6 +244,19 @@ function AppConfig() {
                         value={formData.accessToken}
                         onChange={handleChange}
                         placeholder="Nhập Access Token bổ sung (tùy chọn)"
+                      />
+                    </Col>
+                  </Form.Group>
+
+                  <Form.Group as={Row} className="mb-3">
+                    <Form.Label column sm={3}>Depot ID</Form.Label>
+                    <Col sm={9}>
+                      <Form.Control
+                        type="text"
+                        name="depotId"
+                        value={formData.depotId}
+                        onChange={handleChange}
+                        placeholder="Nhập Depot ID (tùy chọn)"
                       />
                     </Col>
                   </Form.Group>
