@@ -6,7 +6,7 @@ import {
 import { 
   FaUser, FaPhone, FaMapMarkerAlt, FaHome, FaStickyNote, FaBox, FaSearch, FaTruck, FaCalendarAlt, FaPercent,
   FaTicketAlt, FaCreditCard, FaMoneyBillWave, FaExchangeAlt, FaQuestionCircle, FaChevronDown, FaSync, FaLink, FaKey, FaPaperPlane, FaCheck,
-  FaWeight, FaRulerVertical, FaMars, FaVenus, FaStore, FaUpload, FaTrash
+  FaWeight, FaRulerVertical, FaMars, FaVenus, FaStore, FaUpload, FaTrash, FaMinus, FaPlus
 } from 'react-icons/fa';
 import '../../styles/Orders.css';
 import Sidebar from '../common/Sidebar';
@@ -60,6 +60,19 @@ const Orders = () => {
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
   const [showImageSearchModal, setShowImageSearchModal] = useState(false);
   const [selectedImageProduct, setSelectedImageProduct] = useState(null);
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [customColor, setCustomColor] = useState('');
+  const [customSize, setCustomSize] = useState('');
+  const [quantity, setQuantity] = useState(1);
+
+  const COLORS = [
+    'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
+    'XI NHẠT', 'XANH BÍCH', 'XANH CHUỐI', 'XANH BIỂN', 'XANH CỐM', 'XANH KÉT',
+    'ĐỎ ĐÔ', 'ĐỎ TƯƠI', 'HỒNG DÂU', 'HỒNG PHẤN', 'HỒNG SEN', 'CỔ VỊT', 'THIÊN THANH'
+  ];
+
+  const SIZES = ['K1', 'K2', 'K3', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
   useEffect(() => {
     loadOrderSources();
@@ -532,6 +545,38 @@ const Orders = () => {
     }
   }, [images, previewUrl]);
 
+  const handleConfirmProductSelection = () => {
+    const color = customColor || selectedColor;
+    const size = customSize || selectedSize;
+    
+    if (selectedImageProduct) {
+      const newProduct = {
+        id: selectedImageProduct.id,
+        name: `${selectedImageProduct.product_name} - ${color} - ${size}`,
+        quantity: quantity,
+        price: selectedImageProduct.price,
+        total: selectedImageProduct.price * quantity,
+        color: color,
+        size: size
+      };
+      
+      setSelectedProducts(prev => [...prev, newProduct]);
+      setShowImageSearchModal(false);
+      setSelectedColor('');
+      setSelectedSize('');
+      setCustomColor('');
+      setCustomSize('');
+      setQuantity(1);
+    }
+  };
+
+  // Thêm hàm xử lý xóa sản phẩm
+  const handleDeleteProduct = (productId) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.filter(product => product.id !== productId)
+    );
+  };
+
   return (
     <div className="layout-container">
       <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
@@ -795,26 +840,41 @@ const Orders = () => {
               {imageSearchResults.length > 0 && (
                 <div className="search-results mt-4">
                   <h6 className="mb-3">Kết quả tìm kiếm: {imageSearchResults.length} ảnh</h6>
-                  <Row>
+                  <Row className="flex-nowrap overflow-auto g-2">
                     {imageSearchResults.map((item, index) => (
-                      <Col key={index} md={3} className="mb-4">
-                        <Card className="h-100">
+                      <Col key={index} style={{ minWidth: '12.5%', maxWidth: '12.5%' }}>
+                        <Card className="h-100 product-card">
                           <div 
                             className="card-img-container cursor-pointer"
                             onClick={() => handleProductImageHover(item.product_id)}
+                            style={{ 
+                              height: '240px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              backgroundColor: '#f8f9fa'
+                            }}
                           >
                             <Card.Img
                               variant="top"
                               src={item.image_url}
                               alt={item.product_name}
+                              style={{ 
+                                maxHeight: '100%',
+                                width: 'auto',
+                                objectFit: 'contain'
+                              }}
                             />
                           </div>
-                          <Card.Body>
-                            <Card.Title as="h6">{item.product_name}</Card.Title>
-                            <Card.Text className="text-muted small mb-1">
+                          <Card.Body className="p-2">
+                            <Card.Title as="h6" className="text-truncate small mb-1" title={item.product_name}>
+                              {item.product_name}
+                            </Card.Title>
+                            <Card.Text className="text-muted small mb-1 text-truncate" title={`Mã SP: ${item.product_code}`}>
                               Mã SP: {item.product_code}
                             </Card.Text>
-                            <Card.Text className="text-primary fw-bold mb-1">
+                            <Card.Text className="text-primary fw-bold small mb-0">
                               {item.price ? `${item.price.toLocaleString()}đ` : '0đ'}
                             </Card.Text>
                           </Card.Body>
@@ -924,52 +984,198 @@ const Orders = () => {
           <Modal 
             show={showImageSearchModal} 
             onHide={() => setShowImageSearchModal(false)}
-            size="md"
+            size="lg"
+            className="product-detail-modal"
           >
             <Modal.Header closeButton>
               <Modal.Title>Chi tiết sản phẩm</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {imageSearchLoading ? (
-                <div className="text-center">
+                <div className="text-center p-5">
                   <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Đang tải...</span>
                   </div>
                 </div>
               ) : selectedImageProduct && (
-                <div className="product-detail">
-                  <h5>{selectedImageProduct.product_name}</h5>
-                  <p className="text-muted small">Mã SP: {selectedImageProduct.product_code}</p>
-                  <p className="text-primary h5 mb-3">
-                    {selectedImageProduct.price.toLocaleString()}đ
-                  </p>
-                  
-                  <div className="product-images-grid mb-3">
-                    {selectedImageProduct.image_urls.map((url, index) => (
-                      <img 
-                        key={index}
-                        src={url} 
-                        alt={`Ảnh ${index + 1}`}
-                        className="product-detail-image"
-                      />
-                    ))}
-                  </div>
-
-                  {selectedImageProduct.brand && (
-                    <p className="mb-2">
-                      <strong>Thương hiệu:</strong> {selectedImageProduct.brand}
-                    </p>
-                  )}
-                  {selectedImageProduct.description && (
-                    <div className="mb-2">
-                      <strong>Mô tả:</strong>
-                      <p className="small">{selectedImageProduct.description}</p>
+                <Row>
+                  {/* Cột trái - Ảnh sản phẩm */}
+                  <Col md={7}>
+                    <div className="product-images mb-3">
+                      {/* Ảnh chính */}
+                      <div 
+                        className="main-image mb-2"
+                        style={{ 
+                          height: '400px',
+                          backgroundColor: '#f8f9fa',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <img 
+                          src={selectedImageProduct.image_urls[0]} 
+                          alt="Ảnh chính"
+                          style={{ 
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain'
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Ảnh thumbnail */}
+                      <div className="d-flex flex-nowrap overflow-auto gap-2 thumbnail-container">
+                        {selectedImageProduct.image_urls.map((url, index) => (
+                          <div 
+                            key={index}
+                            style={{ 
+                              width: '80px',
+                              height: '80px',
+                              backgroundColor: '#f8f9fa',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1px solid #dee2e6',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                          >
+                            <img 
+                              src={url} 
+                              alt={`Ảnh ${index + 1}`}
+                              style={{ 
+                                maxWidth: '100%',
+                                maxHeight: '100%',
+                                objectFit: 'contain'
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                  <p className="text-muted small mb-0">
-                    Ngày tạo: {selectedImageProduct.created_at}
-                  </p>
-                </div>
+                  </Col>
+
+                  {/* Cột phải - Thông tin sản phẩm */}
+                  <Col md={5}>
+                    <div className="product-info">
+                      <h4 className="mb-2">{selectedImageProduct.product_name}</h4>
+                      <p className="text-muted mb-2">Mã SP: {selectedImageProduct.product_code}</p>
+                      <h3 className="text-primary mb-4">
+                        {selectedImageProduct.price.toLocaleString()}đ
+                      </h3>
+
+                      {/* Chọn màu sắc */}
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Màu sắc</Form.Label>
+                        <InputGroup>
+                          <Form.Select 
+                            value={selectedColor || 'custom'}
+                            onChange={(e) => setSelectedColor(e.target.value)}
+                            className="border-end-0"
+                          >
+                            <option value="custom">Màu khác</option>
+                            {COLORS.map(color => (
+                              <option key={color} value={color}>{color}</option>
+                            ))}
+                          </Form.Select>
+                          {(selectedColor === 'custom' || !selectedColor) && (
+                            <Form.Control
+                              type="text"
+                              placeholder="Nhập màu khác"
+                              value={customColor}
+                              onChange={(e) => setCustomColor(e.target.value)}
+                            />
+                          )}
+                        </InputGroup>
+                      </Form.Group>
+
+                      {/* Chọn kích thước */}
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Kích thước</Form.Label>
+                        <InputGroup>
+                          <Form.Select
+                            value={selectedSize || 'custom'}
+                            onChange={(e) => setSelectedSize(e.target.value)}
+                            className="border-end-0"
+                          >
+                            <option value="custom">Size khác</option>
+                            {SIZES.map(size => (
+                              <option key={size} value={size}>{size}</option>
+                            ))}
+                          </Form.Select>
+                          {(selectedSize === 'custom' || !selectedSize) && (
+                            <Form.Control
+                              type="text"
+                              placeholder="Nhập size khác"
+                              value={customSize}
+                              onChange={(e) => setCustomSize(e.target.value)}
+                            />
+                          )}
+                        </InputGroup>
+                      </Form.Group>
+
+                      {/* Nhập số lượng */}
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Số lượng</Form.Label>
+                        <InputGroup>
+                          <Button 
+                            variant="outline-secondary" 
+                            onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                          >
+                            <FaMinus />
+                          </Button>
+                          <Form.Control
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                            style={{ textAlign: 'center', maxWidth: '80px' }}
+                          />
+                          <Button 
+                            variant="outline-secondary" 
+                            onClick={() => setQuantity(prev => prev + 1)}
+                          >
+                            <FaPlus />
+                          </Button>
+                        </InputGroup>
+                      </Form.Group>
+
+                      {/* Thông tin thêm */}
+                      {selectedImageProduct.brand && (
+                        <div className="mb-3">
+                          <span className="fw-bold">Thương hiệu:</span> {selectedImageProduct.brand}
+                        </div>
+                      )}
+                      
+                      {selectedImageProduct.description && (
+                        <div className="mb-3">
+                          <span className="fw-bold">Mô tả:</span>
+                          <p className="small mt-1">{selectedImageProduct.description}</p>
+                        </div>
+                      )}
+
+                      <div className="text-muted small mb-4">
+                        Ngày tạo: {selectedImageProduct.created_at}
+                      </div>
+
+                      {/* Nút xác nhận */}
+                      <Button 
+                        variant="primary"
+                        size="lg"
+                        className="w-100"
+                        onClick={handleConfirmProductSelection}
+                        disabled={(!selectedColor && !customColor) || (!selectedSize && !customSize)}
+                      >
+                        <FaCheck className="me-2" /> Xác nhận chọn sản phẩm
+                      </Button>
+                    </div>
+                  </Col>
+                </Row>
               )}
             </Modal.Body>
           </Modal>
@@ -1226,12 +1432,13 @@ const Orders = () => {
                           <th style={{width: '60px'}}>SL</th>
                           <th style={{width: '120px'}}>Giá</th>
                           <th style={{width: '120px'}}>Tổng</th>
+                          <th style={{width: '50px'}}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedProducts.length === 0 ? (
                           <tr>
-                            <td colSpan="4" className="text-center py-3">
+                            <td colSpan="5" className="text-center py-3">
                               Chưa có sản phẩm nào
                             </td>
                           </tr>
@@ -1266,6 +1473,16 @@ const Orders = () => {
                                   currency: 'VND'
                                 }).format(product.total)}
                               </td>
+                              <td className="text-center">
+                                <Button 
+                                  variant="link" 
+                                  className="text-danger p-0"
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                  title="Xóa sản phẩm"
+                                >
+                                  <FaTrash />
+                                </Button>
+                              </td>
                             </tr>
                           ))
                         )}
@@ -1281,6 +1498,7 @@ const Orders = () => {
                               currency: 'VND'
                             }).format(selectedProducts.reduce((sum, product) => sum + product.total, 0))}
                           </td>
+                          <td></td>
                         </tr>
                       </tfoot>
                     </Table>
