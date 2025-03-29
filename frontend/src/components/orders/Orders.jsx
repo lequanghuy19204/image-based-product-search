@@ -177,7 +177,6 @@ const Orders = () => {
     setShowOrderDetails(false);
   };
 
-  // Hàm so sánh địa chỉ mới
   const compareAddress = (str1, str2) => {
     if (!str1 || !str2) return false;
 
@@ -200,22 +199,59 @@ const Orders = () => {
     const s1 = normalize(str1);
     const s2 = normalize(str2);
 
-    // Tính độ tương đồng
-    const similarity = (str1, str2) => {
-      const words1 = str1.split(' ');
-      const words2 = str2.split(' ');
-      
-      // Đếm số từ giống nhau
-      const commonWords = words1.filter(word => 
-        words2.some(w2 => w2.includes(word) || word.includes(w2))
-      );
+    // Tính độ tương đồng bằng Levenshtein Distance
+    const levenshteinDistance = (str1, str2) => {
+      const m = str1.length;
+      const n = str2.length;
+      const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
 
-      // Tính tỷ lệ tương đồng
-      return commonWords.length / Math.max(words1.length, words2.length);
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          if (str1[i - 1] === str2[j - 1]) {
+            dp[i][j] = dp[i - 1][j - 1];
+          } else {
+            dp[i][j] = 1 + Math.min(
+              dp[i - 1][j],     // xóa
+              dp[i][j - 1],     // thêm
+              dp[i - 1][j - 1]  // thay thế
+            );
+          }
+        }
+      }
+      return dp[m][n];
     };
 
-    const similarityScore = similarity(s1, s2);
-    return similarityScore > 0.5; // Threshold 50% tương đồng
+    // Tính điểm tương đồng dựa trên nhiều tiêu chí
+    const calculateSimilarity = (str1, str2) => {
+      // 1. So sánh độ dài chuỗi
+      const lengthDiff = Math.abs(str1.length - str2.length);
+      if (lengthDiff > 5) return 0;
+
+      // 2. Tính Levenshtein Distance và chuẩn hóa
+      const maxLength = Math.max(str1.length, str2.length);
+      const levenScore = maxLength > 0 ? 
+        1 - (levenshteinDistance(str1, str2) / maxLength) : 0;
+
+      // 3. So sánh từng từ
+      const words1 = str1.split(' ');
+      const words2 = str2.split(' ');
+      const commonWords = words1.filter(word => 
+        words2.some(w2 => w2 === word)  // Chỉ khớp chính xác
+      );
+      const wordScore = Math.min(words1.length, words2.length) > 0 ?
+        commonWords.length / Math.min(words1.length, words2.length) : 0;
+
+      // 4. Tính điểm tổng hợp (cho trọng số cao hơn cho việc khớp từ)
+      const finalScore = (levenScore * 0.4) + (wordScore * 0.6);
+      
+      return finalScore;
+    };
+
+    const similarityScore = calculateSimilarity(s1, s2);
+    return similarityScore > 0.7; // Tăng ngưỡng lên 70% để chặt chẽ hơn
   };
 
   const handleConfirmOrder = async () => {
@@ -1009,8 +1045,9 @@ const Orders = () => {
                         </InputGroup.Text>
                         <Form.Control 
                           as="textarea" 
-                          rows={2} 
+                          rows={4}
                           placeholder="Ghi chú khách hàng (Để in)" 
+                          style={{ minHeight: '100px' }}
                         />
                       </InputGroup>
                     </Col>
@@ -1080,8 +1117,9 @@ const Orders = () => {
                         </InputGroup.Text>
                         <Form.Control 
                           as="textarea" 
-                          rows={2} 
+                          rows={4}
                           placeholder="Ghi chú chăm sóc khách hàng (Nội bộ)" 
+                          style={{ minHeight: '100px' }}
                         />
                       </InputGroup>
                     </Col>
