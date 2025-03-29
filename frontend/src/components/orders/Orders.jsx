@@ -65,6 +65,7 @@ const Orders = () => {
   const [customColor, setCustomColor] = useState('');
   const [customSize, setCustomSize] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [customerNote, setCustomerNote] = useState('');
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -281,6 +282,11 @@ const Orders = () => {
         if (orderData.money_deposit) {
           setTransferAmount(orderData.money_deposit.toString());
         }
+
+        // Tạo ghi chú khách hàng với format: Giới tính - Chiều cao - Cân nặng
+        const gender = orderData.gender === 'male' ? 'Nam' : 'Nữ';
+        const note = `${gender} - ${orderData.height}cm:${orderData.weight}kg`;
+        setCustomerNote(note);
         
         // Lưu thông tin địa chỉ cần tìm
         setTargetProvince(orderData.province || '');
@@ -545,22 +551,53 @@ const Orders = () => {
     }
   }, [images, previewUrl]);
 
-  const handleConfirmProductSelection = () => {
+  const handleConfirmProductSelection = async () => {
     const color = customColor || selectedColor;
     const size = customSize || selectedSize;
     
     if (selectedImageProduct) {
-      const newProduct = {
-        id: selectedImageProduct.id,
-        name: `${selectedImageProduct.product_name} - ${color} - ${size}`,
-        quantity: quantity,
-        price: selectedImageProduct.price,
-        total: selectedImageProduct.price * quantity,
-        color: color,
-        size: size
-      };
+      try {
+        // Tạo search term với format: tên sản phẩm - màu - size
+        const searchTerm = `${selectedImageProduct.product_name} - ${color} - ${size}`;
+        
+        // Gọi API searchProducts
+        const response = await searchProducts(searchTerm);
+        
+        if (response?.products) {
+          // Lấy sản phẩm đầu tiên từ kết quả tìm kiếm
+          const firstProduct = Object.values(response.products)[0];
+          
+          if (firstProduct) {
+            const newProduct = {
+              id: firstProduct.idNhanh,
+              name: firstProduct.name,
+              quantity: quantity,
+              price: parseFloat(firstProduct.price),
+              total: parseFloat(firstProduct.price) * quantity,
+              color: color,
+              size: size,
+              inventory: firstProduct.inventory,
+              code: firstProduct.code,
+              createdDateTime: firstProduct.createdDateTime
+            };
+            
+            setSelectedProducts(prev => [...prev, newProduct]);
+          } else {
+            // Nếu không tìm thấy sản phẩm, hiển thị thông báo lỗi
+            setApiError('Không tìm thấy sản phẩm phù hợp');
+            setTimeout(() => setApiError(''), 3000);
+          }
+        } else {
+          setApiError('Không tìm thấy sản phẩm phù hợp');
+          setTimeout(() => setApiError(''), 3000);
+        }
+      } catch (error) {
+        console.error('Lỗi khi tìm kiếm sản phẩm:', error);
+        setApiError(error.message || 'Có lỗi xảy ra khi tìm kiếm sản phẩm');
+        setTimeout(() => setApiError(''), 3000);
+      }
       
-      setSelectedProducts(prev => [...prev, newProduct]);
+      // Reset các state
       setShowImageSearchModal(false);
       setSelectedColor('');
       setSelectedSize('');
@@ -1169,7 +1206,7 @@ const Orders = () => {
                         size="lg"
                         className="w-100"
                         onClick={handleConfirmProductSelection}
-                        disabled={(!selectedColor && !customColor) || (!selectedSize && !customSize)}
+                        disabled={(!selectedColor && !customColor)}
                       >
                         <FaCheck className="me-2" /> Xác nhận chọn sản phẩm
                       </Button>
@@ -1254,6 +1291,8 @@ const Orders = () => {
                           rows={4}
                           placeholder="Ghi chú khách hàng (Để in)" 
                           style={{ minHeight: '100px' }}
+                          value={customerNote}
+                          onChange={(e) => setCustomerNote(e.target.value)}
                         />
                       </InputGroup>
                     </Col>
