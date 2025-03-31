@@ -70,6 +70,7 @@ const Orders = () => {
   const [shippingFee, setShippingFee] = useState('');
   const [selfShipping, setSelfShipping] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [success, setSuccess] = useState('');
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -585,6 +586,7 @@ const Orders = () => {
           const firstProduct = Object.values(response.products)[0];
           
           if (firstProduct) {
+            // Tạo object sản phẩm mới
             const newProduct = {
               id: firstProduct.idNhanh,
               name: firstProduct.name,
@@ -598,8 +600,28 @@ const Orders = () => {
               createdDateTime: firstProduct.createdDateTime
             };
             
-            setSelectedProducts(prev => [...prev, newProduct]);
+            // Kiểm tra xem sản phẩm đã tồn tại trong danh sách chưa
+            setSelectedProducts(prevProducts => {
+              const existingProductIndex = prevProducts.findIndex(p => 
+                p.id === firstProduct.idNhanh && 
+                p.color === color && 
+                p.size === size
+              );
 
+              if (existingProductIndex !== -1) {
+                // Nếu sản phẩm đã tồn tại, cập nhật số lượng và tổng tiền
+                const updatedProducts = [...prevProducts];
+                const existingProduct = updatedProducts[existingProductIndex];
+                existingProduct.quantity += quantity;
+                existingProduct.total = existingProduct.quantity * existingProduct.price;
+                return updatedProducts;
+              } else {
+                // Nếu sản phẩm chưa tồn tại, thêm mới vào danh sách
+                return [...prevProducts, newProduct];
+              }
+            });
+
+            // Cập nhật ghi chú
             const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${firstProduct.name} - SL:${quantity}`;
             setCustomerNote(prevNote => {
               if (prevNote) {
@@ -737,23 +759,22 @@ const Orders = () => {
       };
 
       const response = await createOrder(orderData);
+      console.log('Order response:', response);
 
-      // Kiểm tra response có orderId hay không
       if (response && response.orderId) {
-        setApiError("Tạo đơn thành công");
-        setTimeout(() => setApiError(''), 3000);
-        
-        // Đợi 1 giây trước khi reload trang
+        setSuccess('Tạo đơn hàng thành công!');
+        setTimeout(() => setSuccess(''), 3000);
+
         setTimeout(() => {
           window.location.reload();
-        }, 3000);
+        }, 5000);
       } else {
-        // Nếu không có orderId, xem như thất bại
         const errorMessage = response?.message || response?.error || 'Có lỗi xảy ra khi tạo đơn hàng';
         setApiError(errorMessage);
         setTimeout(() => setApiError(''), 3000);
       }
     } catch (error) {
+      console.error('Error details:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tạo đơn hàng';
       setApiError(errorMessage);
       setTimeout(() => setApiError(''), 3000);
@@ -1025,31 +1046,18 @@ const Orders = () => {
               {imageSearchResults.length > 0 && (
                 <div className="search-results mt-4">
                   <h6 className="mb-3">Kết quả tìm kiếm: {imageSearchResults.length} ảnh</h6>
-                  <Row className="flex-nowrap overflow-auto g-2">
+                  <Row className="g-2">
                     {imageSearchResults.map((item, index) => (
-                      <Col key={index} style={{ minWidth: '12.5%', maxWidth: '12.5%' }}>
+                      <Col key={index}>
                         <Card className="h-100 product-card">
                           <div 
                             className="card-img-container cursor-pointer"
                             onClick={() => handleProductImageHover(item.product_id)}
-                            style={{ 
-                              height: '240px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              overflow: 'hidden',
-                              backgroundColor: '#f8f9fa'
-                            }}
                           >
                             <Card.Img
                               variant="top"
                               src={item.image_url}
                               alt={item.product_name}
-                              style={{ 
-                                maxHeight: '100%',
-                                width: 'auto',
-                                objectFit: 'contain'
-                              }}
                             />
                           </div>
                           <Card.Body className="p-2">
@@ -1828,6 +1836,7 @@ const Orders = () => {
 
               {/* 2.4 Khối nút tác vụ */}
               <div className="d-grid gap-2 mb-3">
+                {success && <Alert variant="success">{success}</Alert>}
                 <Button 
                   variant="success" 
                   size="lg" 

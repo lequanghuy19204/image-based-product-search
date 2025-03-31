@@ -108,9 +108,67 @@
 .search-results .row {
   margin-right: -0.5rem;
   margin-left: -0.5rem;
-  padding-bottom: 0.5rem; /* Để hiện scrollbar */
+  padding-bottom: 0.5rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
+.search-results .col {
+  padding: 0 0.5rem;
+}
+
+/* Màn hình lớn (lg) */
+@media (min-width: 1200px) {
+  .search-results .col {
+    min-width: 12.5%; /* 8 sản phẩm một hàng */
+    max-width: 12.5%;
+  }
+}
+
+/* Màn hình trung bình (md) */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .search-results .col {
+    min-width: 16.66%; /* 6 sản phẩm một hàng */
+    max-width: 16.66%;
+  }
+}
+
+/* Màn hình nhỏ (sm) */
+@media (min-width: 576px) and (max-width: 767px) {
+  .search-results .col {
+    min-width: 25%; /* 4 sản phẩm một hàng */
+    max-width: 25%;
+  }
+}
+
+/* Màn hình rất nhỏ (xs) */
+@media (max-width: 575px) {
+  .search-results .col {
+    min-width: 33.33%; /* 3 sản phẩm một hàng */
+    max-width: 33.33%;
+  }
+}
+
+/* Điều chỉnh chiều cao ảnh theo màn hình */
+@media (min-width: 1200px) {
+  .card-img-container {
+    height: 240px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .card-img-container {
+    height: 200px;
+  }
+}
+
+@media (max-width: 767px) {
+  .card-img-container {
+    height: 180px;
+  }
+}
+
+/* Cải thiện scrollbar */
 .search-results .row::-webkit-scrollbar {
   height: 6px;
 }
