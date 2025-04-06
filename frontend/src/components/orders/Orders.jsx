@@ -1393,7 +1393,7 @@ const Orders = () => {
                   </div>
                   <div>
                     <Form.Select 
-                      className="d-inline-block me-2 source-select"
+                      className="d-inline-block me-2 source-select form-select-sm"
                       value={selectedSource}
                       onChange={(e) => setSelectedSource(e.target.value)}
                       disabled={isLoadingSources}
@@ -1412,134 +1412,148 @@ const Orders = () => {
                   </div>
                 </Card.Header>
                 <Card.Body>
-                  <Row>
-                    <Col md={6}>
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaPhone />
-                        </InputGroup.Text>
-                        <Form.Control 
-                          placeholder="Điện thoại"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
-                        />
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaUser />
-                        </InputGroup.Text>
-                        <Form.Control 
-                          placeholder="Tên khách"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                        />
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaHome />
-                        </InputGroup.Text>
-                        <Form.Control 
-                          placeholder="Địa chỉ"
-                          value={customerAddress}
-                          onChange={(e) => setCustomerAddress(e.target.value)}
-                        />
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaStickyNote />
-                        </InputGroup.Text>
-                        <Form.Control 
-                          as="textarea" 
-                          rows={4}
-                          placeholder="Ghi chú khách hàng (Để in)" 
-                          style={{ minHeight: '100px' }}
-                          value={customerNote}
-                          onChange={(e) => setCustomerNote(e.target.value)}
-                        />
-                      </InputGroup>
-                    </Col>
-                    
-                    <Col md={6}>
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaMapMarkerAlt />
-                        </InputGroup.Text>
-                        <Form.Select 
-                          value={selectedCity}
-                          onChange={handleCityChange}
-                          disabled={isLoadingLocations}
-                        >
-                          <option value="">- Chọn thành phố -</option>
-                          {isLoadingLocations ? (
-                            <option value="" disabled>Đang tải...</option>
-                          ) : (
-                            cities && cities.map(city => (
-                              <option key={city.id} value={city.id}>
-                                {city.name}
-                              </option>
-                            ))
-                          )}
-                        </Form.Select>
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaMapMarkerAlt />
-                        </InputGroup.Text>
-                        <Form.Select
-                          value={selectedDistrict}
-                          onChange={handleDistrictChange}
-                          disabled={!selectedCity || isLoadingLocations}
-                        >
-                          <option value="">- Quận huyện -</option>
-                          {districts.map(district => (
-                            <option key={district.id} value={district.id}>
-                              {district.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaMapMarkerAlt />
-                        </InputGroup.Text>
-                        <Form.Select
-                          value={selectedWard}
-                          onChange={(e) => setSelectedWard(e.target.value)}
-                          disabled={!selectedDistrict || isLoadingLocations}
-                        >
-                          <option value="">- Phường xã -</option>
-                          {wards.map(ward => (
-                            <option key={ward.id} value={ward.id}>
-                              {ward.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      </InputGroup>
-                      
-                      <InputGroup className="mb-3">
-                        <InputGroup.Text>
-                          <FaStickyNote />
-                        </InputGroup.Text>
-                        <Form.Control 
-                          as="textarea" 
-                          rows={4}
-                          placeholder="Ghi chú chăm sóc khách hàng (Nội bộ)" 
-                          style={{ minHeight: '100px' }}
-                        />
-                      </InputGroup>
-                    </Col>
-                  </Row>
+                  <div className="customer-tables-container">
+                    <Row>
+                      {/* Cột 1 - Thông tin khách hàng */}
+                      <Col lg={6}>
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaPhone className="text-primary" />
+                          </Col>
+                          <Col>
+                            <Form.Control 
+                              type="text"
+                              placeholder="Số điện thoại" 
+                              value={customerPhone}
+                              onChange={(e) => setCustomerPhone(e.target.value)}
+                              className="form-control-sm"
+                            />
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaUser className="text-success" />
+                          </Col>
+                          <Col>
+                            <Form.Control 
+                              type="text"
+                              placeholder="Tên khách hàng"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              className="form-control-sm"
+                            />
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaHome className="text-info" />
+                          </Col>
+                          <Col>
+                            <Form.Control 
+                              type="text"
+                              placeholder="Địa chỉ"
+                              value={customerAddress}
+                              onChange={(e) => setCustomerAddress(e.target.value)}
+                              className="form-control-sm"
+                            />
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-start">
+                          <Col xs={2} className="text-center">
+                            <FaStickyNote className="text-success" />
+                          </Col>
+                          <Col>
+                            <Form.Control 
+                              as="textarea" 
+                              rows={4}
+                              placeholder="Ghi chú khách hàng (Để in)" 
+                              value={customerNote}
+                              onChange={(e) => setCustomerNote(e.target.value)}
+                              className="form-control-sm"
+                            />
+                          </Col>
+                        </Row>
+                      </Col>
+
+                      {/* Cột 2 - Thông tin địa chỉ */}
+                      <Col lg={6}>
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaMapMarkerAlt className="text-danger" />
+                          </Col>
+                          <Col>
+                            <Form.Select 
+                              value={selectedCity}
+                              onChange={handleCityChange}
+                              disabled={isLoadingLocations}
+                              className="form-control-sm"
+                            >
+                              <option value="">- Chọn thành phố -</option>
+                              {cities.map(city => (
+                                <option key={city.id} value={city.id}>{city.name}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaMapMarkerAlt className="text-warning" />
+                          </Col>
+                          <Col>
+                            <Form.Select
+                              value={selectedDistrict}
+                              onChange={handleDistrictChange}
+                              disabled={!selectedCity || isLoadingLocations}
+                              className="form-control-sm"
+                            >
+                              <option value="">- Quận huyện -</option>
+                              {districts.map(district => (
+                                <option key={district.id} value={district.id}>{district.name}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-center">
+                          <Col xs={2} className="text-center">
+                            <FaMapMarkerAlt className="text-info" />
+                          </Col>
+                          <Col>
+                            <Form.Select
+                              value={selectedWard}
+                              onChange={(e) => setSelectedWard(e.target.value)}
+                              disabled={!selectedDistrict || isLoadingLocations}
+                              className="form-control-sm"
+                            >
+                              <option value="">- Phường xã -</option>
+                              {wards.map(ward => (
+                                <option key={ward.id} value={ward.id}>{ward.name}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                        </Row>
+
+                        <Row className="mb-3 align-items-start">
+                          <Col xs={2} className="text-center">
+                            <FaStickyNote className="text-secondary" />
+                          </Col>
+                          <Col>
+                            <Form.Control 
+                              as="textarea" 
+                              rows={4}
+                              placeholder="Ghi chú nội bộ" 
+                              className="form-control-sm"
+                            />
+                          </Col>
+                        </Row>
+                      </Col>
+                    </Row>
+                  </div>
                 </Card.Body>
-                <Card.Footer className="text-center">
-                  <Button variant="light" size="sm">
-                    <FaChevronDown />
-                  </Button>
-                </Card.Footer>
               </Card>
 
               {/* 1.2 Khối sản phẩm */}
@@ -1726,67 +1740,105 @@ const Orders = () => {
                   <FaTruck className="me-2" /> Vận chuyển
                 </Card.Header>
                 <Card.Body>
-                  <Row className="mb-3">
-                    <Col>
-                      <div className="d-flex gap-3">
-                        <Form.Check 
-                          type="radio" 
-                          id="self-shipping"
-                          name="shipping-type"
-                          label="Tự vận chuyển" 
-                          checked={selfShipping}
-                          onChange={(e) => {
-                            setSelfShipping(true);
-                            setSelectedCarrier('');
-                            setHvcShippingFee(''); // Reset phí HVC
-                            setShippingCost(''); // Reset shipping cost
-                          }}
-                        />
-                        <Form.Check 
-                          type="radio" 
-                          id="ghtk-shipping"
-                          name="shipping-type"
-                          label="Giao hàng tiết kiệm" 
-                          checked={selectedCarrier === 'ghtk'}
-                          onChange={(e) => {
-                            setSelfShipping(false);
-                            setSelectedCarrier('ghtk');
-                            setShippingCost('30000');
-                            setHvcShippingFee('30000'); // Chỉ tự động điền phí HVC
-                          }}
-                        />
-                      </div>
-                    </Col>
-                  </Row>
+                  <Table borderless responsive className="shipping-table align-middle mb-0">
+                    <tbody>
+                      {/* Phương thức vận chuyển */}
+                      <tr>
+                        <td className="shipping-label">
+                          <div className="fw-medium">
+                            Phương thức vận chuyển
+                          </div>
+                        </td>
+                        <td className="shipping-content">
+                          <div className="shipping-methods">
+                            <Form.Check 
+                              type="radio" 
+                              id="self-shipping"
+                              name="shipping-type"
+                              label={
+                                <div className="d-flex align-items-center">
+                                  <FaTruck className="me-2 text-primary" />
+                                  <span>Tự vận chuyển</span>
+                                </div>
+                              }
+                              checked={selfShipping}
+                              onChange={(e) => {
+                                setSelfShipping(true);
+                                setSelectedCarrier('');
+                                setHvcShippingFee('');
+                                setShippingCost('');
+                              }}
+                            />
+                            <Form.Check 
+                              type="radio" 
+                              id="ghtk-shipping"
+                              name="shipping-type"
+                              label={
+                                <div className="d-flex align-items-center">
+                                  <img 
+                                    src="https://carrier.nvncdn.com/carrier/carr_1692349563_929.png"
+                                    alt="GHTK"
+                                    style={{ height: '20px', marginRight: '8px' }}
+                                  />
+                                  <span>Giao hàng tiết kiệm</span>
+                                </div>
+                              }
+                              checked={selectedCarrier === 'ghtk'}
+                              onChange={(e) => {
+                                setSelfShipping(false);
+                                setSelectedCarrier('ghtk');
+                                setShippingCost('30000');
+                                setHvcShippingFee('30000');
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
 
-                  <Row className="mb-3 align-items-center">
-                    <Col xs="auto">
-                      <Form.Label>Phí ship báo khách</Form.Label>
-                    </Col>
-                    <Col md={5}>
-                      <Form.Control 
-                        type="number"
-                        placeholder="Phí ship báo khách" 
-                        value={shippingFee}
-                        onChange={(e) => setShippingFee(e.target.value)}
-                      />
-                    </Col>
-                  </Row>
+                      {/* Phí ship báo khách */}
+                      <tr>
+                        <td className="shipping-label">
+                          <div className="d-flex align-items-center fw-medium">
+                            <FaMoneyBillWave className="me-2 text-success" />
+                            Phí ship báo khách
+                          </div>
+                        </td>
+                        <td className="shipping-content">
+                          <InputGroup className="shipping-fee-input">
+                            <Form.Control 
+                              type="number"
+                              placeholder="Nhập phí ship báo khách" 
+                              value={shippingFee}
+                              onChange={(e) => setShippingFee(e.target.value)}
+                            />
+                            <InputGroup.Text>VNĐ</InputGroup.Text>
+                          </InputGroup>
+                        </td>
+                      </tr>
 
-                  <Row className="mb-3 align-items-center">
-                    <Col xs="auto">
-                      <Form.Label>Phí ship HVC</Form.Label>
-                    </Col>
-                    <Col md={5}>
-                      <Form.Control 
-                        type="number"
-                        placeholder="Phí ship HVC" 
-                        value={hvcShippingFee}
-                        onChange={(e) => setHvcShippingFee(e.target.value)}
-                        disabled={selectedCarrier === 'ghtk'} // Disable khi chọn GHTK
-                      />
-                    </Col>
-                  </Row>
+                      {/* Phí ship HVC */}
+                      <tr>
+                        <td className="shipping-label">
+                          <div className="d-flex align-items-center fw-medium">
+                            <FaMoneyBillWave className="me-2 text-danger" />
+                            Phí ship HVC
+                          </div>
+                        </td>
+                        <td className="shipping-content">
+                          <InputGroup className="shipping-fee-input">
+                            <Form.Control 
+                              type="number"
+                              placeholder="Nhập phí ship HVC" 
+                              value={hvcShippingFee}
+                              onChange={(e) => setHvcShippingFee(e.target.value)}
+                              disabled={selectedCarrier === 'ghtk'}
+                            />
+                            <InputGroup.Text>VNĐ</InputGroup.Text>
+                          </InputGroup>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </Table>
                 </Card.Body>
               </Card>
             </Col>
