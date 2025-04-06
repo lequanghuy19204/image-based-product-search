@@ -71,6 +71,10 @@ const Orders = () => {
   const [selfShipping, setSelfShipping] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [selectedCarrier, setSelectedCarrier] = useState('');
+  const [shippingCost, setShippingCost] = useState('');
+  const [hvcShippingFee, setHvcShippingFee] = useState('');
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -79,6 +83,10 @@ const Orders = () => {
   ];
 
   const SIZES = ['K1', 'K2', 'K3', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+
+  const carriers = [
+    { id: 'ghtk', name: 'Giao Hàng Tiết Kiệm', image: 'https://carrier.nvncdn.com/carrier/carr_1692349563_929.png', cost: '30000' },
+  ];
 
   useEffect(() => {
     loadOrderSources();
@@ -682,7 +690,8 @@ const Orders = () => {
   const calculateCollectAmount = () => {
     const shippingFeeNum = Number(shippingFee) || 0;
     const transferAmountNum = Number(transferAmount) || 0;
-    const collectAmount = totalProductsAmount + shippingFeeNum - transferAmountNum;
+    const discountNum = Number(discount) || 0;
+    const collectAmount = totalProductsAmount + shippingFeeNum - transferAmountNum - discountNum;
     return collectAmount;
   };
 
@@ -1717,29 +1726,42 @@ const Orders = () => {
                   <FaTruck className="me-2" /> Vận chuyển
                 </Card.Header>
                 <Card.Body>
-                  <Row className="align-items-center mb-3">
-                    <Col xs="auto">
-                      <Form.Check 
-                        type="checkbox" 
-                        id="self-shipping"
-                        label="Tự vận chuyển" 
-                        checked={selfShipping}
-                        onChange={(e) => setSelfShipping(e.target.checked)}
-                      />
+                  <Row className="mb-3">
+                    <Col>
+                      <div className="d-flex gap-3">
+                        <Form.Check 
+                          type="radio" 
+                          id="self-shipping"
+                          name="shipping-type"
+                          label="Tự vận chuyển" 
+                          checked={selfShipping}
+                          onChange={(e) => {
+                            setSelfShipping(true);
+                            setSelectedCarrier('');
+                            setHvcShippingFee(''); // Reset phí HVC
+                            setShippingCost(''); // Reset shipping cost
+                          }}
+                        />
+                        <Form.Check 
+                          type="radio" 
+                          id="ghtk-shipping"
+                          name="shipping-type"
+                          label="Giao hàng tiết kiệm" 
+                          checked={selectedCarrier === 'ghtk'}
+                          onChange={(e) => {
+                            setSelfShipping(false);
+                            setSelectedCarrier('ghtk');
+                            setShippingCost('30000');
+                            setHvcShippingFee('30000'); // Chỉ tự động điền phí HVC
+                          }}
+                        />
+                      </div>
                     </Col>
-                    <Col md={5}>
-                      <Form.Select>
-                        <option>Cho xem, không thử hàng</option>
-                        <option>Cho xem, cho thử</option>
-                        <option>Không cho xem hàng</option>
-                      </Form.Select>
-                    </Col>
-                  
                   </Row>
-                  
+
                   <Row className="mb-3 align-items-center">
                     <Col xs="auto">
-                      <Form.Label>Phí ship bảo khách</Form.Label>
+                      <Form.Label>Phí ship báo khách</Form.Label>
                     </Col>
                     <Col md={5}>
                       <Form.Control 
@@ -1750,7 +1772,21 @@ const Orders = () => {
                       />
                     </Col>
                   </Row>
-                  
+
+                  <Row className="mb-3 align-items-center">
+                    <Col xs="auto">
+                      <Form.Label>Phí ship HVC</Form.Label>
+                    </Col>
+                    <Col md={5}>
+                      <Form.Control 
+                        type="number"
+                        placeholder="Phí ship HVC" 
+                        value={hvcShippingFee}
+                        onChange={(e) => setHvcShippingFee(e.target.value)}
+                        disabled={selectedCarrier === 'ghtk'} // Disable khi chọn GHTK
+                      />
+                    </Col>
+                  </Row>
                 </Card.Body>
               </Card>
             </Col>
@@ -1765,6 +1801,31 @@ const Orders = () => {
                   </div>
                 </Card.Header>
                 <Card.Body>
+                  {/* Thêm ô nhập chiết khấu */}
+                  <Row className="mb-3 align-items-center">
+                    <Col xs={2} className="text-center">
+                      <FaPercent />
+                    </Col>
+                    <Col>
+                      <Form.Control 
+                        type="text" 
+                        placeholder="Chiết khấu"
+                        value={discount}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
+                    </Col>
+                    <Col xs={1}>
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={<Tooltip>Số tiền chiết khấu</Tooltip>}
+                      >
+                        <span>
+                          <FaQuestionCircle className="text-muted" />
+                        </span>
+                      </OverlayTrigger>
+                    </Col>
+                  </Row>
+                  
                   <Row className="mb-3 align-items-center">
                     <Col xs={2} className="text-center">
                       <FaExchangeAlt />
@@ -1788,6 +1849,8 @@ const Orders = () => {
                       </OverlayTrigger>
                     </Col>
                   </Row>
+
+                  
                 </Card.Body>
               </Card>
 
