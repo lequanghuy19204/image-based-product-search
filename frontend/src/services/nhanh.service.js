@@ -149,6 +149,7 @@ async function searchProducts(searchTerm) {
       name: searchTerm
     });
 
+    console.log('Response from search products:', response.data);
     return response.data;
   } catch (error) {
     console.error('Lỗi chi tiết khi tìm kiếm sản phẩm:', {
@@ -222,6 +223,9 @@ async function createOrder(orderData) {
       price: product.price
     }));
 
+    // Xác định carrierId dựa vào phương thức vận chuyển
+    const carrierId = orderData.selfShipping ? 12 : 8; // 12 cho tự vận chuyển, 8 cho GHTK
+
     const requestData = {
       version: config.version || '',
       appId: config.appId || '',
@@ -236,15 +240,19 @@ async function createOrder(orderData) {
         customerCityName: orderData.cityName,
         customerDistrictName: orderData.districtName,
         customerWardLocationName: orderData.wardName,
-        statusCode: "New",
+        status: "New",
         trafficSource: orderData.trafficSource,
         moneyTransfer: orderData.moneyTransfer,
+        moneyDiscount: orderData.moneyDiscount,
         allowTest: 1,
         saleId: orderData.saleId,
-        carrierId: orderData.selfShipping ? 12 : null,
+        carrierId: carrierId,
         customerShipFee: orderData.shippingFee,
         description: orderData.description,
-        productList: productList
+        productList: productList,
+        sendCarrierType: 2,
+        carrierAccountId: 7074,
+        carrierServiceCode: "road"
       }
     };
 

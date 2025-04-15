@@ -68,13 +68,14 @@ const Orders = () => {
   const [quantity, setQuantity] = useState(1);
   const [customerNote, setCustomerNote] = useState('');
   const [shippingFee, setShippingFee] = useState('');
-  const [selfShipping, setSelfShipping] = useState(false);
+  const [selfShipping, setSelfShipping] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [discount, setDiscount] = useState('');
   const [selectedCarrier, setSelectedCarrier] = useState('');
   const [shippingCost, setShippingCost] = useState('');
-  const [hvcShippingFee, setHvcShippingFee] = useState('');
+  const [isShippingGHTK, setIsShippingGHTK] = useState(false); 
+  const [shippingFeeLoading, setShippingFeeLoading] = useState(false); 
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -84,9 +85,6 @@ const Orders = () => {
 
   const SIZES = ['K1', 'K2', 'K3', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
-  const carriers = [
-    { id: 'ghtk', name: 'Giao Hàng Tiết Kiệm', image: 'https://carrier.nvncdn.com/carrier/carr_1692349563_929.png', cost: '30000' },
-  ];
 
   useEffect(() => {
     loadOrderSources();
@@ -312,10 +310,16 @@ const Orders = () => {
         if (orderData.shipping_fee) {
           setShippingFee(orderData.shipping_fee.toString());
         }
+        
+        // Thêm điền giảm giá nếu có
+        if (orderData.money_discount) {
+          setDiscount(orderData.money_discount.toString());
+        }
 
         // Tạo ghi chú khách hàng với format: Giới tính - Chiều cao - Cân nặng
         const gender = orderData.gender === 'male' ? 'Nam' : 'Nữ';
-        const note = `${gender} - ${orderData.height}cm:${orderData.weight}kg`;
+        let note = `${gender} - ${orderData.height}cm:${orderData.weight}kg; `;
+        
         setCustomerNote(note);
         
         // Lưu thông tin địa chỉ cần tìm
@@ -591,27 +595,32 @@ const Orders = () => {
         const response = await searchProducts(searchTerm);
         
         if (response?.products) {
-          const firstProduct = Object.values(response.products)[0];
+          // Tìm sản phẩm khớp với tên chính xác (không phân biệt hoa thường)
+          const searchTermNormalized = searchTerm.toLowerCase().trim();
+          const matchedProduct = Object.values(response.products).find(product => {
+            const productNameNormalized = product.name.toLowerCase().trim();
+            return productNameNormalized === searchTermNormalized;
+          });
           
-          if (firstProduct) {
+          if (matchedProduct) {
             // Tạo object sản phẩm mới
             const newProduct = {
-              id: firstProduct.idNhanh,
-              name: firstProduct.name,
+              id: matchedProduct.idNhanh,
+              name: matchedProduct.name,
               quantity: quantity,
-              price: parseFloat(firstProduct.price),
-              total: parseFloat(firstProduct.price) * quantity,
+              price: parseFloat(matchedProduct.price),
+              total: parseFloat(matchedProduct.price) * quantity,
               color: color,
               size: size,
-              inventory: firstProduct.inventory,
-              code: firstProduct.code,
-              createdDateTime: firstProduct.createdDateTime
+              inventory: matchedProduct.inventory,
+              code: matchedProduct.code,
+              createdDateTime: matchedProduct.createdDateTime
             };
             
             // Kiểm tra xem sản phẩm đã tồn tại trong danh sách chưa
             setSelectedProducts(prevProducts => {
               const existingProductIndex = prevProducts.findIndex(p => 
-                p.id === firstProduct.idNhanh && 
+                p.id === matchedProduct.idNhanh && 
                 p.color === color && 
                 p.size === size
               );
@@ -630,7 +639,7 @@ const Orders = () => {
             });
 
             // Cập nhật ghi chú
-            const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${firstProduct.name} - SL:${quantity}`;
+            const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${matchedProduct.name} - SL:${quantity}`;
             setCustomerNote(prevNote => {
               if (prevNote) {
                 return `${prevNote}\n${productNote}`;
@@ -753,8 +762,9 @@ const Orders = () => {
         cityName: cityName,
         districtName: districtName,
         wardName: wardName,
-        trafficSource: sourceName, // Sử dụng tên nguồn thay vì ID
+        trafficSource: sourceName,
         moneyTransfer: Number(transferAmount) || 0,
+        moneyDiscount: Number(discount) || 0,
         saleId: Number(selectedStaff) || null,
         selfShipping: selfShipping,
         shippingFee: Number(shippingFee) || 0,
@@ -878,6 +888,14 @@ const Orders = () => {
                             <FaWeight className="me-1" /> Cân nặng: {order.weight} kg
                             <span className="ms-3"><FaRulerVertical className="me-1" /> Chiều cao: {order.height} cm</span>
                           </div>
+                          {/* Thêm hiển thị tags */}
+                          {order.tags_text && order.tags_text.length > 0 && (
+                            <div className="mt-1">
+                              {order.tags_text.map((tag, tagIndex) => (
+                                <span key={tagIndex} className="badge bg-info me-1">{tag}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="text-end">
                           <div>
@@ -897,9 +915,11 @@ const Orders = () => {
                           <div>
                             Đặt cọc: {formatCurrency(order.money_deposit)}
                           </div>
-                          
+                          <div>
+                            Giảm giá: {formatCurrency(order.money_discount)}
+                          </div>
                           <div className="fw-bold">
-                            Tổng: {formatCurrency(parseInt(order.order_price) + parseInt(order.shipping_fee || 0))}
+                            Tổng: {formatCurrency(parseInt(order.order_price) + parseInt(order.shipping_fee || 0) - parseInt(order.money_discount || 0))}
                           </div>
                         </div>
                         {selectedOrderIndex === index && (
@@ -1148,6 +1168,18 @@ const Orders = () => {
                         <td>{apiResponse[selectedOrderIndex].color || 'Không có'}</td>
                       </tr>
                       <tr>
+                        <td className="fw-bold">Tags</td>
+                        <td>
+                          {apiResponse[selectedOrderIndex].tags_text && apiResponse[selectedOrderIndex].tags_text.length > 0 ? (
+                            apiResponse[selectedOrderIndex].tags_text.map((tag, tagIndex) => (
+                              <span key={tagIndex} className="badge bg-info me-1">{tag}</span>
+                            ))
+                          ) : (
+                            'Không có'
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
                         <td className="fw-bold">Giá đơn hàng</td>
                         <td>{formatCurrency(apiResponse[selectedOrderIndex].order_price)}</td>
                       </tr>
@@ -1160,8 +1192,19 @@ const Orders = () => {
                         <td>{formatCurrency(apiResponse[selectedOrderIndex].money_deposit || 0)}</td>
                       </tr>
                       <tr>
+                        <td className="fw-bold">Giảm giá</td>
+                        <td>{formatCurrency(apiResponse[selectedOrderIndex].money_discount)}</td>
+                      </tr>
+                      
+                      <tr>
                         <td className="fw-bold">Tổng cộng</td>
-                        <td className="fw-bold">{formatCurrency(parseInt(apiResponse[selectedOrderIndex].order_price) + parseInt(apiResponse[selectedOrderIndex].shipping_fee))}</td>
+                        <td className="fw-bold">
+                          {formatCurrency(
+                            parseInt(apiResponse[selectedOrderIndex].order_price) + 
+                            parseInt(apiResponse[selectedOrderIndex].shipping_fee || 0) - 
+                            parseInt(apiResponse[selectedOrderIndex].money_discount || 0)
+                          )}
+                        </td>
                       </tr>
                       <tr>
                         <td className="fw-bold">Tên trang</td>
@@ -1469,6 +1512,7 @@ const Orders = () => {
                             <Form.Control 
                               as="textarea" 
                               rows={4}
+                              style={{height: '100px'}}
                               placeholder="Ghi chú khách hàng (Để in)" 
                               value={customerNote}
                               onChange={(e) => setCustomerNote(e.target.value)}
@@ -1545,6 +1589,7 @@ const Orders = () => {
                             <Form.Control 
                               as="textarea" 
                               rows={4}
+                              style={{height: '100px'}}
                               placeholder="Ghi chú nội bộ" 
                               className="form-control-sm"
                             />
@@ -1736,109 +1781,98 @@ const Orders = () => {
 
               {/* 1.3 Khối vận chuyển */}
               <Card className="mb-3 shadow-sm">
-                <Card.Header>
-                  <FaTruck className="me-2" /> Vận chuyển
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <FaTruck className="me-2" /> Vận chuyển
+                  </div>
                 </Card.Header>
                 <Card.Body>
-                  <Table borderless responsive className="shipping-table align-middle mb-0">
-                    <tbody>
-                      {/* Phương thức vận chuyển */}
-                      <tr>
-                        <td className="shipping-label">
-                          <div className="fw-medium">
-                            Phương thức vận chuyển
-                          </div>
-                        </td>
-                        <td className="shipping-content">
-                          <div className="shipping-methods">
-                            <Form.Check 
-                              type="radio" 
-                              id="self-shipping"
-                              name="shipping-type"
-                              label={
-                                <div className="d-flex align-items-center">
-                                  <FaTruck className="me-2 text-primary" />
-                                  <span>Tự vận chuyển</span>
-                                </div>
-                              }
-                              checked={selfShipping}
-                              onChange={(e) => {
-                                setSelfShipping(true);
-                                setSelectedCarrier('');
-                                setHvcShippingFee('');
-                                setShippingCost('');
-                              }}
-                            />
-                            <Form.Check 
-                              type="radio" 
-                              id="ghtk-shipping"
-                              name="shipping-type"
-                              label={
-                                <div className="d-flex align-items-center">
-                                  <img 
-                                    src="https://carrier.nvncdn.com/carrier/carr_1692349563_929.png"
-                                    alt="GHTK"
-                                    style={{ height: '20px', marginRight: '8px' }}
-                                  />
-                                  <span>Giao hàng tiết kiệm</span>
-                                </div>
-                              }
-                              checked={selectedCarrier === 'ghtk'}
-                              onChange={(e) => {
-                                setSelfShipping(false);
-                                setSelectedCarrier('ghtk');
-                                setShippingCost('30000');
-                                setHvcShippingFee('30000');
-                              }}
-                            />
-                          </div>
-                        </td>
-                      </tr>
+                  {/* Phương thức vận chuyển */}
+                  <Row className="mb-3 align-items-center">
+                    <Col xs={2} className="text-center">
+                      <FaTruck className="text-primary" />
+                    </Col>
+                    <Col>
+                      <div className="d-flex">
+                        <Form.Check 
+                          type="radio" 
+                          id="ghtk-shipping"
+                          name="shipping-type"
+                          className="me-3"
+                          label={
+                            <div className="d-flex align-items-center">
+                              <img 
+                                src="https://carrier.nvncdn.com/carrier/carr_1692349563_929.png"
+                                alt="GHTK"
+                                style={{ height: '20px', marginRight: '8px' }}
+                              />
+                              <span>Giao hàng tiết kiệm</span>
+                            </div>
+                          }
+                          checked={isShippingGHTK}
+                          onChange={(e) => {
+                            setSelfShipping(false);
+                            setIsShippingGHTK(true);
+                          }}
+                        />
+                        <Form.Check 
+                          type="radio" 
+                          id="self-shipping"
+                          name="shipping-type"
+                          label={
+                            <div className="d-flex align-items-center">
+                              <FaTruck className="me-2 text-primary" />
+                              <span>Tự vận chuyển</span>
+                            </div>
+                          }
+                          checked={selfShipping}
+                          onChange={(e) => {
+                            setSelfShipping(true);
+                            setIsShippingGHTK(false);
+                          }}
+                        />
+                      </div>
+                    </Col>
+                    <Col xs={1}>
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={<Tooltip>Chọn phương thức vận chuyển</Tooltip>}
+                      >
+                        <span>
+                          <FaQuestionCircle className="text-muted" />
+                        </span>
+                      </OverlayTrigger>
+                    </Col>
+                  </Row>
 
-                      {/* Phí ship báo khách */}
-                      <tr>
-                        <td className="shipping-label">
-                          <div className="d-flex align-items-center fw-medium">
-                            <FaMoneyBillWave className="me-2 text-success" />
-                            Phí ship báo khách
-                          </div>
-                        </td>
-                        <td className="shipping-content">
-                          <InputGroup className="shipping-fee-input">
-                            <Form.Control 
-                              type="number"
-                              placeholder="Nhập phí ship báo khách" 
-                              value={shippingFee}
-                              onChange={(e) => setShippingFee(e.target.value)}
-                            />
-                            <InputGroup.Text>VNĐ</InputGroup.Text>
-                          </InputGroup>
-                        </td>
-                      </tr>
+                  {/* Phí ship báo khách */}
+                  <Row className="mb-3 align-items-center">
+                    <Col xs={2} className="text-center">
+                      <FaMoneyBillWave className="text-success" />
+                    </Col>
+                    <Col>
+                      <InputGroup>
+                        <Form.Control 
+                          type="number"
+                          placeholder="Phí ship báo khách" 
+                          value={shippingFee}
+                          onChange={(e) => setShippingFee(e.target.value)}
+                        />
+                        <InputGroup.Text>VNĐ</InputGroup.Text>
+                      </InputGroup>
+                    </Col>
+                    <Col xs={1}>
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={<Tooltip>Phí ship sẽ báo cho khách hàng</Tooltip>}
+                      >
+                        <span>
+                          <FaQuestionCircle className="text-muted" />
+                        </span>
+                      </OverlayTrigger>
+                    </Col>
+                  </Row>
 
-                      {/* Phí ship HVC */}
-                      <tr>
-                        <td className="shipping-label">
-                          <div className="d-flex align-items-center fw-medium">
-                            <FaMoneyBillWave className="me-2 text-danger" />
-                            Phí ship HVC
-                          </div>
-                        </td>
-                        <td className="shipping-content">
-                          <InputGroup className="shipping-fee-input">
-                            <Form.Control 
-                              type="number"
-                              placeholder="Nhập phí ship HVC" 
-                              value={hvcShippingFee}
-                              onChange={(e) => setHvcShippingFee(e.target.value)}
-                              disabled={selectedCarrier === 'ghtk'}
-                            />
-                            <InputGroup.Text>VNĐ</InputGroup.Text>
-                          </InputGroup>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </Table>
                 </Card.Body>
               </Card>
             </Col>
