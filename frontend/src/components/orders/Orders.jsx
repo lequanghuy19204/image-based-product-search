@@ -16,7 +16,6 @@ import { apiService } from '../../services/api.service';
 import { toast } from 'react-hot-toast';
 
 const Orders = () => {
-  // console.log('nhanhService methods:', Object.keys(nhanhService));
   const [validated, setValidated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
@@ -185,7 +184,18 @@ const Orders = () => {
     setSelectedOrderIndex(null);
 
     try {
-      const response = await createOrderFromConversation(conversationLink);
+      // Lấy danh sách nguồn đơn hàng nếu chưa có
+      let sources = orderSources;
+      if (!sources || sources.length === 0) {
+        sources = await getOrderSources();
+        setOrderSources(sources);
+      }
+      
+      // Chuyển đổi danh sách nguồn thành mảng tên
+      const sourceNames = sources.map(source => source.name);
+      
+      // Gọi API với danh sách tên nguồn đơn hàng
+      const response = await createOrderFromConversation(conversationLink, sourceNames);
       
       setApiResponse(response);
       // Nếu chỉ có một kết quả, tự động chọn
@@ -214,29 +224,46 @@ const Orders = () => {
     setShowOrderDetails(false);
   };
 
-  const compareAddress = (str1, str2) => {
-    if (!str1 || !str2) return false;
+  // Thay thế hàm compareAddress cũ bằng các hàm mới
+  const calculateSimilarityScore = (str1, str2) => {
+    if (!str1 || !str2) return 0;
 
-    // Chuẩn hóa chuỗi
-    const normalize = (str) => {
+    // Chuẩn hóa chuỗi giữ nguyên tiền tố
+    const normalizeWithPrefix = (str) => {
       return str.toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')  // Bỏ dấu
+        .replace(/[\u0300-\u036f]/g, '')
         .replace(/đ/g, 'd')
-        .replace(/\s+/g, ' ')             // Chuẩn hóa khoảng trắng
-        .replace(/tp\.|tp|thanh pho/g, '') // Bỏ tiền tố TP
-        .replace(/q\.|quan/g, '')          // Bỏ tiền tố Quận
-        .replace(/p\.|phuong/g, '')        // Bỏ tiền tố Phường
-        .replace(/h\.|huyen/g, '')         // Bỏ tiền tố Huyện
-        .replace(/t\.|thi|thi xa/g, '')    // Bỏ tiền tố Thị
-        .replace(/xa/g, '')                // Bỏ tiền tố Xã
+        .replace(/\s+/g, ' ')
         .trim();
     };
 
-    const s1 = normalize(str1);
-    const s2 = normalize(str2);
+    // Chuẩn hóa chuỗi loại bỏ tiền tố
+    const normalizeNoPrefix = (str) => {
+      return str.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/\s+/g, ' ')
+        .replace(/tp\.|tp|thanh pho/g, '')
+        .replace(/q\.|quan/g, '')
+        .replace(/p\.|phuong/g, '')
+        .replace(/h\.|huyen/g, '')
+        .replace(/t\.|thi|thi xa/g, '')
+        .replace(/xa/g, '')
+        .trim();
+    };
 
-    // Tính độ tương đồng bằng Levenshtein Distance
+    const s1WithPrefix = normalizeWithPrefix(str1);
+    const s2WithPrefix = normalizeWithPrefix(str2);
+    const s1NoPrefix = normalizeNoPrefix(str1);
+    const s2NoPrefix = normalizeNoPrefix(str2);
+
+    // Kiểm tra khớp chính xác
+    if (s1WithPrefix === s2WithPrefix) return 1.0;
+    if (s1NoPrefix === s2NoPrefix) return 0.95;
+
+    // Tính Levenshtein Distance
     const levenshteinDistance = (str1, str2) => {
       const m = str1.length;
       const n = str2.length;
@@ -251,9 +278,9 @@ const Orders = () => {
             dp[i][j] = dp[i - 1][j - 1];
           } else {
             dp[i][j] = 1 + Math.min(
-              dp[i - 1][j],     // xóa
-              dp[i][j - 1],     // thêm
-              dp[i - 1][j - 1]  // thay thế
+              dp[i - 1][j],
+              dp[i][j - 1],
+              dp[i - 1][j - 1]
             );
           }
         }
@@ -261,34 +288,57 @@ const Orders = () => {
       return dp[m][n];
     };
 
-    // Tính điểm tương đồng dựa trên nhiều tiêu chí
-    const calculateSimilarity = (str1, str2) => {
-      // 1. So sánh độ dài chuỗi
-      const lengthDiff = Math.abs(str1.length - str2.length);
-      if (lengthDiff > 5) return 0;
+    // Tính điểm từ Levenshtein Distance
+    const maxLength = Math.max(s1NoPrefix.length, s2NoPrefix.length);
+    const levenScore = maxLength > 0 ? 
+      1 - (levenshteinDistance(s1NoPrefix, s2NoPrefix) / maxLength) : 0;
 
-      // 2. Tính Levenshtein Distance và chuẩn hóa
-      const maxLength = Math.max(str1.length, str2.length);
-      const levenScore = maxLength > 0 ? 
-        1 - (levenshteinDistance(str1, str2) / maxLength) : 0;
+    // So sánh từng từ
+    const words1 = s1NoPrefix.split(' ');
+    const words2 = s2NoPrefix.split(' ');
+    const commonWords = words1.filter(word => words2.includes(word));
+    const wordScore = Math.min(words1.length, words2.length) > 0 ?
+      commonWords.length / Math.min(words1.length, words2.length) : 0;
 
-      // 3. So sánh từng từ
-      const words1 = str1.split(' ');
-      const words2 = str2.split(' ');
-      const commonWords = words1.filter(word => 
-        words2.some(w2 => w2 === word)  // Chỉ khớp chính xác
-      );
-      const wordScore = Math.min(words1.length, words2.length) > 0 ?
-        commonWords.length / Math.min(words1.length, words2.length) : 0;
+    // Điểm đặc biệt cho trường hợp có chứa đầy đủ
+    let containmentScore = 0;
+    if (s1NoPrefix.includes(s2NoPrefix)) {
+      containmentScore = s2NoPrefix.length / s1NoPrefix.length;
+    } else if (s2NoPrefix.includes(s1NoPrefix)) {
+      containmentScore = s1NoPrefix.length / s2NoPrefix.length;
+    }
 
-      // 4. Tính điểm tổng hợp (cho trọng số cao hơn cho việc khớp từ)
-      const finalScore = (levenScore * 0.4) + (wordScore * 0.6);
+    // Tính điểm tổng hợp với trọng số
+    const finalScore = (levenScore * 0.3) + (wordScore * 0.4) + (containmentScore * 0.3);
+    
+    return finalScore;
+  };
+
+  // Hàm tìm kiếm địa chỉ phù hợp nhất
+  const findBestMatch = (items, searchTerm) => {
+    if (!items || !items.length || !searchTerm) return null;
+
+    let bestMatch = null;
+    let bestScore = 0;
+
+    items.forEach(item => {
+      const score = calculateSimilarityScore(item.name, searchTerm);
+      // console.log(`So sánh "${item.name}" với "${searchTerm}" - Điểm: ${score.toFixed(2)}`);
       
-      return finalScore;
-    };
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
+      }
+    });
 
-    const similarityScore = calculateSimilarity(s1, s2);
-    return similarityScore > 0.7; // Tăng ngưỡng lên 70% để chặt chẽ hơn
+    // Chỉ trả về kết quả nếu đạt ngưỡng tối thiểu
+    return bestScore > 0.6 ? { match: bestMatch, score: bestScore } : null;
+  };
+
+  // Giữ lại hàm compareAddress cũ để đảm bảo tương thích ngược (nếu có code khác đang sử dụng)
+  const compareAddress = (str1, str2) => {
+    const result = calculateSimilarityScore(str1, str2);
+    return result > 0.7; // Giữ ngưỡng 0.7 để tương thích với code cũ
   };
 
   const handleConfirmOrder = async () => {
@@ -317,10 +367,44 @@ const Orders = () => {
         }
 
         // Tạo ghi chú khách hàng với format: Giới tính - Chiều cao - Cân nặng
-        const gender = orderData.gender === 'male' ? 'Nam' : 'Nữ';
-        let note = `${gender} - ${orderData.height}cm:${orderData.weight}kg; `;
-        
-        setCustomerNote(note);
+        // Chỉ thêm thông tin nếu không phải null
+        let physicalInfo = '';
+
+        // Thêm giới tính nếu có
+        if (orderData.gender) {
+          const gender = orderData.gender === 'male' ? 'Nam' : 'Nữ';
+          physicalInfo += gender;
+        }
+
+        // Thêm chiều cao nếu có
+        if (orderData.height) {
+          // Nếu đã có giới tính, thêm dấu gạch nối
+          if (physicalInfo) physicalInfo += ' - ';
+          physicalInfo += `${orderData.height}cm`;
+        }
+
+        // Thêm cân nặng nếu có
+        if (orderData.weight) {
+          // Nếu đã có thông tin trước đó, thêm dấu hai chấm
+          if (physicalInfo) {
+            // Kiểm tra xem có chiều cao hay không để quyết định dùng dấu hai chấm hay gạch nối
+            physicalInfo += orderData.height ? ':' : ' - ';
+          }
+          physicalInfo += `${orderData.weight}kg`;
+        }
+
+        // Thêm dấu chấm phẩy ở cuối nếu có thông tin
+        if (physicalInfo) physicalInfo += '; ';
+
+        // Thêm vào ghi chú hiện tại thay vì ghi đè
+        if (physicalInfo) {
+          setCustomerNote(prevNote => {
+            if (prevNote) {
+              return `${prevNote}\n${physicalInfo}`;
+            }
+            return physicalInfo;
+          });
+        }
         
         // Lưu thông tin địa chỉ cần tìm
         setTargetProvince(orderData.province || '');
@@ -331,48 +415,74 @@ const Orders = () => {
         if (orderData.name_page && orderSources.length > 0) {
           const pageName = orderData.name_page.toLowerCase().trim();
           
-          // Tìm nguồn đơn hàng có tên gần giống nhất
-          const matchedSource = orderSources.find(source => {
-            const sourceName = source.name.toLowerCase().trim();
-            return sourceName.includes(pageName) || pageName.includes(sourceName);
-          });
+          // Ưu tiên tìm theo source_order nếu có
+          if (orderData.source_order && orderSources.length > 0) {
+            const sourceName = orderData.source_order.toLowerCase().trim();
+            const matchedSource = orderSources.find(source => {
+              const sourceNameLower = source.name.toLowerCase().trim();
+              return sourceNameLower.includes(sourceName) || sourceName.includes(sourceNameLower);
+            });
+            
+            if (matchedSource) {
+              setSelectedSource(matchedSource.id);
+            } else {
+              // Nếu không tìm thấy theo source_order, tìm theo name_page
+              const fallbackSource = orderSources.find(source => {
+                const sourceNameLower = source.name.toLowerCase().trim();
+                return sourceNameLower.includes(pageName) || pageName.includes(sourceNameLower);
+              });
+              
+              if (fallbackSource) {
+                setSelectedSource(fallbackSource.id);
+              }
+            }
+          } else {
+            // Nếu không có source_order, tìm theo name_page
+            const matchedSource = orderSources.find(source => {
+              const sourceName = source.name.toLowerCase().trim();
+              return sourceName.includes(pageName) || pageName.includes(sourceName);
+            });
 
-          if (matchedSource) {
-            setSelectedSource(matchedSource.id);
+            if (matchedSource) {
+              setSelectedSource(matchedSource.id);
+            }
           }
         }
 
-        // Tự động chọn Tỉnh/Thành phố
+        // Tự động chọn Tỉnh/Thành phố bằng thuật toán mới
         if (orderData.province && cities.length > 0) {
-          const matchedCity = cities.find(city => 
-            compareAddress(city.name, orderData.province)
-          );
+          const bestCityMatch = findBestMatch(cities, orderData.province);
           
-          if (matchedCity) {
+          if (bestCityMatch) {
+            const matchedCity = bestCityMatch.match;
+            console.log(`Đã tìm thấy thành phố phù hợp: ${matchedCity.name} (Độ chính xác: ${bestCityMatch.score.toFixed(2)})`);
+            
             setSelectedCity(matchedCity.id);
             // Tải quận/huyện của thành phố này
             const districtsData = await getLocations('DISTRICT', parseInt(matchedCity.id));
             setDistricts(districtsData);
 
-            // Tự động chọn Quận/Huyện
-            if (orderData.district) {
-              const matchedDistrict = districtsData.find(district =>
-                compareAddress(district.name, orderData.district)
-              );
+            // Tự động chọn Quận/Huyện bằng thuật toán mới
+            if (orderData.district && districtsData.length > 0) {
+              const bestDistrictMatch = findBestMatch(districtsData, orderData.district);
               
-              if (matchedDistrict) {
+              if (bestDistrictMatch) {
+                const matchedDistrict = bestDistrictMatch.match;
+                console.log(`Đã tìm thấy quận/huyện phù hợp: ${matchedDistrict.name} (Độ chính xác: ${bestDistrictMatch.score.toFixed(2)})`);
+                
                 setSelectedDistrict(matchedDistrict.id);
                 // Tải phường/xã của quận/huyện này
                 const wardsData = await getLocations('WARD', parseInt(matchedDistrict.id));
                 setWards(wardsData);
 
-                // Tự động chọn Phường/Xã
-                if (orderData.ward) {
-                  const matchedWard = wardsData.find(ward =>
-                    compareAddress(ward.name, orderData.ward)
-                  );
+                // Tự động chọn Phường/Xã bằng thuật toán mới
+                if (orderData.ward && wardsData.length > 0) {
+                  const bestWardMatch = findBestMatch(wardsData, orderData.ward);
                   
-                  if (matchedWard) {
+                  if (bestWardMatch) {
+                    const matchedWard = bestWardMatch.match;
+                    console.log(`Đã tìm thấy phường/xã phù hợp: ${matchedWard.name} (Độ chính xác: ${bestWardMatch.score.toFixed(2)})`);
+                    
                     setSelectedWard(matchedWard.id);
                   }
                 }
@@ -639,7 +749,7 @@ const Orders = () => {
             });
 
             // Cập nhật ghi chú
-            const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${matchedProduct.name} - SL:${quantity}`;
+            const productNote = `${selectedImageProduct.product_code || 'N/A'} - ${matchedProduct.name} - SL:${quantity};`;
             setCustomerNote(prevNote => {
               if (prevNote) {
                 return `${prevNote}\n${productNote}`;
@@ -888,6 +998,11 @@ const Orders = () => {
                             <FaWeight className="me-1" /> Cân nặng: {order.weight} kg
                             <span className="ms-3"><FaRulerVertical className="me-1" /> Chiều cao: {order.height} cm</span>
                           </div>
+                          {order.source_order && (
+                            <div>
+                              <FaTicketAlt className="me-1" /> {order.source_order}
+                            </div>
+                          )}
                           {/* Thêm hiển thị tags */}
                           {order.tags_text && order.tags_text.length > 0 && (
                             <div className="mt-1">
@@ -905,6 +1020,7 @@ const Orders = () => {
                           <div>
                             <FaStore className="me-1" /> {order.name_page}
                           </div>
+                          
                           <div className="fw-bold">
                             Giá: {formatCurrency(order.order_price)}
                           </div>
@@ -1209,6 +1325,10 @@ const Orders = () => {
                       <tr>
                         <td className="fw-bold">Tên trang</td>
                         <td>{apiResponse[selectedOrderIndex].name_page}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-bold">Nguồn đơn hàng</td>
+                        <td>{apiResponse[selectedOrderIndex].source_order || 'Không có'}</td>
                       </tr>
                     </tbody>
                   </Table>

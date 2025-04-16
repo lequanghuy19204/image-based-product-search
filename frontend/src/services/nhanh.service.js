@@ -42,7 +42,7 @@ async function getOrderSources() {
   }
 }
 
-async function createOrderFromConversation(conversationLink) {
+async function createOrderFromConversation(conversationLink, sourceNames = []) {
   try {
     if (!conversationLink) {
       throw new Error('Vui lòng nhập Link hội thoại');
@@ -64,7 +64,8 @@ async function createOrderFromConversation(conversationLink) {
     const webhookUrl = import.meta.env.VITE_WEBHOOK_URL;
     const webhookData = [{
       conversation_link: conversationLink,
-      access_token: config.access_token
+      access_token: config.access_token,
+      source_names: sourceNames // Thêm danh sách tên nguồn đơn hàng
     }];
 
     const response = await fetch(webhookUrl, {
@@ -81,6 +82,7 @@ async function createOrderFromConversation(conversationLink) {
     }
 
     const data = await response.json();
+    console.log('Response from create order from conversation:', data);
     return data;
 
   } catch (error) {
