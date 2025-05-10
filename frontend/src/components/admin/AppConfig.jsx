@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, Spinner, InputGroup, Badge, Card } from 'react-bootstrap';
 import { appConfigService } from '../../services/app-config.service';
 import Sidebar from '../common/Sidebar';
+import { 
+  FaKey, FaEye, FaEyeSlash, FaTag, FaPalette, FaRuler, 
+  FaCog, FaStore, FaSync, FaTrash, FaSave, FaPlus
+} from 'react-icons/fa';
 import '../../styles/AppConfig.css';
 
 function AppConfig() {
@@ -28,9 +32,17 @@ function AppConfig() {
     appId: '',
     businessId: '',
     accessToken: '',
-    depotId: ''
+    depotId: '',
+    product_names: [],
+    colors: [],
+    sizes: []
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [showPancakeToken, setShowPancakeToken] = useState(false);
+  const [showNhanhToken, setShowNhanhToken] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [newColor, setNewColor] = useState('');
+  const [newSize, setNewSize] = useState('');
 
   // Lấy thông tin user từ localStorage
   useEffect(() => {
@@ -64,7 +76,10 @@ function AppConfig() {
         appId: config.appId || '',
         businessId: config.businessId || '',
         accessToken: config.accessToken || '',
-        depotId: config.depotId || ''
+        depotId: config.depotId || '',
+        product_names: config.product_names || [],
+        colors: config.colors || [],
+        sizes: config.sizes || []
       });
       setIsEditing(true);
     } catch (error) {
@@ -135,7 +150,10 @@ function AppConfig() {
         appId: '',
         businessId: '',
         accessToken: '',
-        depotId: ''
+        depotId: '',
+        product_names: [],
+        colors: [],
+        sizes: []
       });
       setSuccess('Xóa cấu hình thành công!');
     } catch (error) {
@@ -145,146 +163,416 @@ function AppConfig() {
     }
   };
 
+  const addProductName = () => {
+    if (newProductName.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        product_names: [...prev.product_names, newProductName.trim()]
+      }));
+      setNewProductName('');
+    }
+  };
+
+  const addColor = () => {
+    if (newColor.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        colors: [...prev.colors, newColor.trim()]
+      }));
+      setNewColor('');
+    }
+  };
+
+  const addSize = () => {
+    if (newSize.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        sizes: [...prev.sizes, newSize.trim()]
+      }));
+      setNewSize('');
+    }
+  };
+
+  const removeProductName = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      product_names: prev.product_names.filter((_, i) => i !== index)
+    }));
+  };
+
+  const removeColor = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      colors: prev.colors.filter((_, i) => i !== index)
+    }));
+  };
+
+  const removeSize = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleEnterKey = (e, actionFn) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      actionFn();
+    }
+  };
+
   return (
-    <div className="app-config-container">
+    <div className="layout-container">
       <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
-      <div className={`main-content ${sidebarOpen ? 'sidebar-open' : ''}`}>
-        <Container className="py-4">
-          <h2 className="mb-4">Cấu hình Ứng dụng</h2>
+      
+      <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
+        <Container className="config-container py-3">
+          <h2 className="text-center mb-4">Cấu hình Ứng dụng</h2>
 
-          {error && <Alert variant="danger">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
+          {error && (
+            <Alert variant="danger" className="animate__fadeIn mb-3">
+              {error}
+            </Alert>
+          )}
+          
+          {success && (
+            <Alert variant="success" className="animate__fadeIn mb-3">
+              {success}
+            </Alert>
+          )}
 
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">{isEditing ? 'Chỉnh sửa cấu hình' : 'Tạo cấu hình mới'}</h5>
-            </Card.Header>
-            <Card.Body>
-              {loading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" />
-                </div>
-              ) : (
-                <Form onSubmit={handleSubmit}>
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Công ty</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        value={userDetails?.company_name || ''}
-                        disabled
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-3 text-muted">Đang tải dữ liệu...</p>
+            </div>
+          ) : (
+            <Form onSubmit={handleSubmit}>
+              <input type="hidden" name="company_id" value={formData.company_id} />
+              
+              <Row>
+                {/* Cột trái - Cấu hình API */}
+                <Col lg={6} className="mb-3">
+                  {/* Pancake */}
+                  <Card className="mb-3 shadow-sm">
+                    <Card.Header>
+                      <div className="card-header-icon">
+                        <FaCog className="text-primary" />
+                      </div>
+                      <span>Cấu hình Pancake</span>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Access Token (Pancake)</Form.Label>
+                        <InputGroup>
+                          <InputGroup.Text>
+                            <FaKey />
+                          </InputGroup.Text>
+                          <Form.Control
+                            type={showPancakeToken ? "text" : "password"}
+                            name="access_token"
+                            value={formData.access_token}
+                            onChange={handleChange}
+                            required
+                            placeholder="Nhập access token"
+                          />
+                          <Button 
+                            variant="outline-secondary"
+                            onClick={() => setShowPancakeToken(!showPancakeToken)}
+                          >
+                            {showPancakeToken ? <FaEyeSlash /> : <FaEye />}
+                          </Button>
+                        </InputGroup>
+                      </Form.Group>
+                    </Card.Body>
+                  </Card>
+
+                  {/* Nhanh.vn */}
+                  <Card className="shadow-sm">
+                    <Card.Header>
+                      <div className="card-header-icon">
+                        <FaStore className="text-success" />
+                      </div>
+                      <span>Cấu hình Nhanh.vn</span>
+                    </Card.Header>
+                    <Card.Body>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Version</Form.Label>
+                        <Form.Control
+                          type="text"
+                          name="version"
+                          value={formData.version}
+                          onChange={handleChange}
+                          placeholder="Nhập version (tùy chọn)"
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>App ID</Form.Label>
+                        <Form.Control
+                          type="text"
+                          name="appId"
+                          value={formData.appId}
+                          onChange={handleChange}
+                          placeholder="Nhập App ID (tùy chọn)"
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Business ID</Form.Label>
+                        <Form.Control
+                          type="text"
+                          name="businessId"
+                          value={formData.businessId}
+                          onChange={handleChange}
+                          placeholder="Nhập Business ID (tùy chọn)"
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Access Token (Nhanh.vn)</Form.Label>
+                        <InputGroup>
+                          <InputGroup.Text>
+                            <FaKey />
+                          </InputGroup.Text>
+                          <Form.Control
+                            type={showNhanhToken ? "text" : "password"}
+                            name="accessToken"
+                            value={formData.accessToken}
+                            onChange={handleChange}
+                            placeholder="Nhập Access Token (tùy chọn)"
+                          />
+                          <Button 
+                            variant="outline-secondary"
+                            onClick={() => setShowNhanhToken(!showNhanhToken)}
+                          >
+                            {showNhanhToken ? <FaEyeSlash /> : <FaEye />}
+                          </Button>
+                        </InputGroup>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Depot ID</Form.Label>
+                        <Form.Control
+                          type="text"
+                          name="depotId"
+                          value={formData.depotId}
+                          onChange={handleChange}
+                          placeholder="Nhập Depot ID (tùy chọn)"
+                        />
+                      </Form.Group>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                
+                {/* Cột phải - Cấu hình Dữ liệu */}
+                <Col lg={6}>
+                  {/* Tên sản phẩm */}
+                  <Card className="mb-3">
+                    <Card.Header>
+                      <div className="card-icon">
+                        <FaTag className="text-info" />
+                      </div>
+                      Tên sản phẩm
+                    </Card.Header>
+                    <Card.Body>
+                      <div className="mb-3">
+                        <InputGroup>
+                          <Form.Control
+                            type="text"
+                            value={newProductName}
+                            onChange={(e) => setNewProductName(e.target.value)}
+                            placeholder="Nhập tên sản phẩm"
+                            onKeyDown={(e) => handleEnterKey(e, addProductName)}
+                          />
+                          <Button 
+                            variant="outline-primary" 
+                            onClick={addProductName}
+                            className="add-btn"
+                          >
+                            <FaPlus className="me-1" />Thêm
+                          </Button>
+                        </InputGroup>
+                      </div>
+                      <div className="tag-container">
+                        {formData.product_names.length === 0 ? (
+                          <div className="empty-message">
+                            Chưa có tên sản phẩm nào
+                          </div>
+                        ) : (
+                          formData.product_names.map((name, index) => (
+                            <Badge 
+                              key={index} 
+                              bg="secondary" 
+                              className="tag-item"
+                            >
+                              {name}
+                              <span 
+                                className="ms-2 remove-tag" 
+                                onClick={() => removeProductName(index)}
+                              >
+                                &times;
+                              </span>
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                  
+                  {/* Màu sắc */}
+                  <Card className="mb-3 shadow-sm">
+                    <Card.Header>
+                      <div className="card-header-icon">
+                        <FaPalette className="text-warning" />
+                      </div>
+                      <span>Màu sắc</span>
+                    </Card.Header>
+                    <Card.Body>
+                      <div className="mb-3">
+                        <InputGroup>
+                          <Form.Control
+                            type="text"
+                            value={newColor}
+                            onChange={(e) => setNewColor(e.target.value)}
+                            placeholder="Nhập màu sắc"
+                            onKeyDown={(e) => handleEnterKey(e, addColor)}
+                          />
+                          <Button 
+                            variant="outline-primary" 
+                            onClick={addColor}
+                            className="add-btn"
+                          >
+                            <FaPlus className="me-1" /> Thêm
+                          </Button>
+                        </InputGroup>
+                      </div>
+                      <div className="tag-container">
+                        {formData.colors.length === 0 ? (
+                          <div className="text-muted w-100 text-center d-flex align-items-center justify-content-center">
+                            Chưa có màu sắc nào
+                          </div>
+                        ) : (
+                          formData.colors.map((color, index) => (
+                            <Badge 
+                              key={index} 
+                              bg="secondary" 
+                              className="tag-item"
+                            >
+                              {color}
+                              <span 
+                                className="ms-2 remove-tag" 
+                                onClick={() => removeColor(index)}
+                              >
+                                &times;
+                              </span>
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                  
+                  {/* Kích cỡ */}
+                  <Card className="mb-3 shadow-sm">
+                    <Card.Header>
+                      <div className="card-header-icon">
+                        <FaRuler className="text-danger" />
+                      </div>
+                      <span>Kích cỡ</span>
+                    </Card.Header>
+                    <Card.Body>
+                      <div className="mb-3">
+                        <InputGroup>
+                          <Form.Control
+                            type="text"
+                            value={newSize}
+                            onChange={(e) => setNewSize(e.target.value)}
+                            placeholder="Nhập kích cỡ"
+                            onKeyDown={(e) => handleEnterKey(e, addSize)}
+                          />
+                          <Button 
+                            className="add-btn"
+                            variant="outline-primary" 
+                            onClick={addSize}
+                            
+                          >
+                            <FaPlus className="me-1" /> Thêm
+                          </Button>
+                        </InputGroup>
+                      </div>
+                      <div className="tag-container">
+                        {formData.sizes.length === 0 ? (
+                          <div className="text-muted w-100 text-center d-flex align-items-center justify-content-center">
+                            Chưa có kích cỡ nào
+                          </div>
+                        ) : (
+                          formData.sizes.map((size, index) => (
+                            <Badge 
+                              key={index} 
+                              bg="secondary" 
+                              className="tag-item"
+                            >
+                              {size}
+                              <span 
+                                className="ms-2 remove-tag" 
+                                onClick={() => removeSize(index)}
+                              >
+                                &times;
+                              </span>
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              <div className="d-flex justify-content-center gap-3 mt-4">
+                {isEditing && (
+                  <Button 
+                    variant="outline-danger" 
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="px-4"
+                  >
+                    <FaTrash className="me-2" /> Xóa cấu hình
+                  </Button>
+                )}
+                <Button 
+                  variant="primary" 
+                  type="submit"
+                  disabled={loading}
+                  className="px-4"
+                >
+                  {loading ? (
+                    <>
+                      <Spinner
+                        as="span"
+                        animation="border"
+                        size="sm"
+                        role="status"
+                        aria-hidden="true"
+                        className="me-2"
                       />
-                      <Form.Control
-                        type="hidden"
-                        name="company_id"
-                        value={formData.company_id}
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Access Token (Pancake)</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="access_token"
-                        value={formData.access_token}
-                        onChange={handleChange}
-                        required
-                        placeholder="Nhập access token"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Version</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="version"
-                        value={formData.version}
-                        onChange={handleChange}
-                        placeholder="Nhập version (tùy chọn)"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>App ID</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="appId"
-                        value={formData.appId}
-                        onChange={handleChange}
-                        placeholder="Nhập App ID (tùy chọn)"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Business ID</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="businessId"
-                        value={formData.businessId}
-                        onChange={handleChange}
-                        placeholder="Nhập Business ID (tùy chọn)"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Access Token (Nhanh.vn)</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="accessToken"
-                        value={formData.accessToken}
-                        onChange={handleChange}
-                        placeholder="Nhập Access Token bổ sung (tùy chọn)"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <Form.Group as={Row} className="mb-3">
-                    <Form.Label column sm={3}>Depot ID</Form.Label>
-                    <Col sm={9}>
-                      <Form.Control
-                        type="text"
-                        name="depotId"
-                        value={formData.depotId}
-                        onChange={handleChange}
-                        placeholder="Nhập Depot ID (tùy chọn)"
-                      />
-                    </Col>
-                  </Form.Group>
-
-                  <div className="d-flex justify-content-end gap-2">
-                    {isEditing && (
-                      <Button 
-                        variant="danger" 
-                        onClick={handleDelete}
-                        disabled={loading}
-                      >
-                        Xóa cấu hình
-                      </Button>
-                    )}
-                    <Button 
-                      variant="primary" 
-                      type="submit"
-                      disabled={loading}
-                    >
-                      {isEditing ? 'Cập nhật' : 'Tạo mới'}
-                    </Button>
-                  </div>
-                </Form>
-              )}
-            </Card.Body>
-          </Card>
+                      Đang xử lý...
+                    </>
+                  ) : isEditing ? (
+                    <>
+                      <FaSync className="me-2" /> Cập nhật
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="me-2" /> Tạo mới
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Form>
+          )}
         </Container>
-      </div>
+      </main>
     </div>
   );
 }

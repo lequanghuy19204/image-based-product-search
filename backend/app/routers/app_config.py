@@ -34,6 +34,9 @@ async def create_app_config(
             "businessId": config_data.businessId,
             "accessToken": config_data.accessToken,
             "depotId": config_data.depotId,
+            "product_names": config_data.product_names or [],
+            "colors": config_data.colors or [],
+            "sizes": config_data.sizes or [],
             "created_at": now,
             "updated_at": now
         }
@@ -101,6 +104,9 @@ async def update_app_config(
             "businessId": config_data.businessId,
             "accessToken": config_data.accessToken,
             "depotId": config_data.depotId,
+            "product_names": config_data.product_names,
+            "colors": config_data.colors,
+            "sizes": config_data.sizes,
             "updated_at": datetime.utcnow()
         }
         
