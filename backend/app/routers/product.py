@@ -38,6 +38,8 @@ async def create_product(
             "image_urls": product_data.image_urls or [],
             "created_by": ObjectId(current_user["sub"]),  # Chuyển string thành ObjectId
             "created_by_name": user.get("username", "Unknown"),
+            "colors": product_data.colors or "",  # Thêm trường colors
+            "creator_name": product_data.creator_name or "",  # Thêm trường creator_name
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
@@ -166,7 +168,9 @@ async def get_products(
                 "updated_at": 1,
                 "company_id": {"$toString": "$company_id"},
                 "created_by": {"$toString": "$created_by"},
-                "created_by_name": 1
+                "created_by_name": 1,
+                "colors": 1,  # Thêm trường colors
+                "creator_name": 1  # Thêm trường creator_name
             }
         })
 
@@ -177,18 +181,20 @@ async def get_products(
         formatted_products = []
         for product in products:
             formatted_product = {
-                "id": product["_id"],  # Đã được chuyển thành string từ $project
+                "id": product["_id"],
                 "product_name": product["product_name"],
                 "product_code": product["product_code"],
                 "brand": product.get("brand", ""),
                 "description": product.get("description", ""),
                 "price": product["price"],
                 "image_urls": product.get("image_urls", []),
-                "created_by": product["created_by"],  # Đã được chuyển thành string từ $project
+                "created_by": product["created_by"],
                 "created_by_name": product.get("created_by_name", ""),
+                "colors": product.get("colors", ""),  # Thêm trường colors
+                "creator_name": product.get("creator_name", ""),  # Thêm trường creator_name
                 "created_at": product["created_at"].isoformat() if isinstance(product["created_at"], datetime) else product["created_at"],
                 "updated_at": product["updated_at"].isoformat() if isinstance(product["updated_at"], datetime) else product["updated_at"],
-                "company_id": product["company_id"]  # Đã được chuyển thành string từ $project
+                "company_id": product["company_id"]
             }
             formatted_products.append(formatted_product)
 
@@ -262,6 +268,8 @@ async def update_product(
             "description": product_data.description or "",
             "price": product_data.price,
             "image_urls": list(new_images),
+            "colors": product_data.colors or product_doc.get("colors", ""),  # Cập nhật hoặc giữ nguyên colors
+            "creator_name": product_data.creator_name or product_doc.get("creator_name", ""),  # Cập nhật hoặc giữ nguyên creator_name
             "updated_at": datetime.utcnow()
         }
         
@@ -334,7 +342,7 @@ async def get_product_by_id(
 
         # Format response
         formatted_product = {
-            "_id": str(product["_id"]),  # Đổi từ id thành _id
+            "_id": str(product["_id"]),
             "product_name": product["product_name"],
             "product_code": product["product_code"],
             "brand": product.get("brand", ""),
@@ -343,6 +351,8 @@ async def get_product_by_id(
             "image_urls": product.get("image_urls", []),
             "created_by": str(product["created_by"]),
             "created_by_name": product.get("created_by_name", ""),
+            "colors": product.get("colors", ""),  # Thêm trường colors
+            "creator_name": product.get("creator_name", ""),  # Thêm trường creator_name
             "created_at": product["created_at"].isoformat() if isinstance(product["created_at"], datetime) else product["created_at"],
             "updated_at": product["updated_at"].isoformat() if isinstance(product["updated_at"], datetime) else product["updated_at"],
             "company_id": str(product["company_id"])

@@ -414,14 +414,17 @@ class ApiService {
         throw new Error('Không tìm thấy thông tin công ty');
       }
 
+      // Đảm bảo các trường có giá trị mặc định nếu trống
       const formattedData = {
-        product_name: productData.product_name,
-        product_code: productData.product_code,
+        product_name: productData.product_name || "",
+        product_code: productData.product_code || "",
         brand: productData.brand || "",
         description: productData.description || "",
-        price: parseFloat(productData.price),
+        price: parseFloat(productData.price || 0),
         company_id: userDetails.company_id.toString(),
-        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : []
+        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : [],
+        colors: productData.colors || "",
+        creator_name: productData.creator_name || ""
       };
 
       const response = await this.post('/api/products', formattedData);
@@ -443,14 +446,16 @@ class ApiService {
       throw new Error('Bạn không có quyền cập nhật sản phẩm');
     }
     try {
-      // Chuẩn bị dữ liệu theo đúng format
+      // Chuẩn bị dữ liệu theo đúng format, đảm bảo các trường có giá trị mặc định
       const updateData = {
-        product_name: productData.product_name,
-        product_code: productData.product_code,
+        product_name: productData.product_name || "",
+        product_code: productData.product_code || "",
         brand: productData.brand || "",
         description: productData.description || "",
-        price: parseFloat(productData.price),
-        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : []
+        price: parseFloat(productData.price || 0),
+        image_urls: Array.isArray(productData.image_urls) ? productData.image_urls : [],
+        colors: productData.colors || "",
+        creator_name: productData.creator_name || ""
       };
 
       const response = await this.put(`/api/products/${productId}`, updateData);

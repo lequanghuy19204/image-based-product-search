@@ -12,6 +12,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
     brand: '',
     description: '',
     price: '',
+    colors: '',
+    creator_name: '',
   };
 
   const [formData, setFormData] = useState(initialData || initialFormState);
@@ -40,6 +42,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
         brand: initialData.brand || '',
         description: initialData.description || '',
         price: initialData.price || '',
+        colors: initialData.colors || '',
+        creator_name: initialData.creator_name || '',
       });
 
       // Chuyển đổi URLs thành đối tượng ảnh
@@ -66,15 +70,8 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.product_name?.trim()) {
-        newErrors.product_name = 'Tên sản phẩm là bắt buộc';
-    }
-    if (!formData.product_code?.trim()) {
-        newErrors.product_code = 'Mã sản phẩm là bắt buộc';
-    }
-    if (!formData.price || formData.price <= 0) {
-        newErrors.price = 'Giá sản phẩm phải lớn hơn 0';
-    }
+    
+    // Chỉ giữ lại kiểm tra ảnh
     if (!images.length) {
         newErrors.images = 'Cần ít nhất 1 ảnh sản phẩm';
     }
@@ -110,16 +107,18 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
             url => !existingUrls.includes(url)
         ) || [];
 
-        // Tạo product data
+        // Tạo product data với giá trị mặc định cho các trường không nhập
         const productData = {
-            product_name: formData.product_name.trim(),
-            product_code: formData.product_code.trim(),
+            product_name: formData.product_name?.trim() || '',
+            product_code: formData.product_code?.trim() || '',
             brand: formData.brand?.trim() || '',
             description: formData.description?.trim() || '',
-            price: parseFloat(formData.price),
+            price: parseFloat(formData.price) || 0,
             company_id: JSON.parse(localStorage.getItem('userDetails')).company_id,
             image_urls: allImageUrls,
-            deleted_images: deletedImages // Thêm thông tin về ảnh đã xóa
+            deleted_images: deletedImages, // Thêm thông tin về ảnh đã xóa
+            colors: formData.colors?.trim() || '',
+            creator_name: formData.creator_name?.trim() || '',
         };
 
         await onSubmit(productData);
@@ -145,7 +144,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
       <form onSubmit={handleSubmit}>
         <Modal.Body>
           <div className="mb-3">
-            <label className="form-label">Tên sản phẩm *</label>
+            <label className="form-label">Tên sản phẩm</label>
             <input
               type="text"
               className={`form-control ${errors.product_name ? 'is-invalid' : ''}`}
@@ -159,7 +158,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Mã sản phẩm *</label>
+            <label className="form-label">Mã sản phẩm</label>
             <input
               type="text"
               className={`form-control ${errors.product_code ? 'is-invalid' : ''}`}
@@ -184,7 +183,7 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Giá *</label>
+            <label className="form-label">Giá</label>
             <input
               type="number"
               className={`form-control ${errors.price ? 'is-invalid' : ''}`}
@@ -217,6 +216,30 @@ function ProductDialog({ show, onHide, onSubmit, initialData = null }) {
               rows="3"
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Màu sắc</label>
+            <input
+              type="text"
+              className="form-control"
+              name="colors"
+              value={formData.colors || ''}
+              onChange={(e) => setFormData({...formData, colors: e.target.value})}
+              placeholder="VD: Đỏ, Xanh, Vàng..."
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Người tạo</label>
+            <input
+              type="text"
+              className="form-control"
+              name="creator_name"
+              value={formData.creator_name || ''}
+              onChange={(e) => setFormData({...formData, creator_name: e.target.value})}
+              placeholder="Tên người tạo sản phẩm"
             />
           </div>
 

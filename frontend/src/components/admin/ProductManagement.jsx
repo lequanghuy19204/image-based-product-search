@@ -578,9 +578,12 @@ function ProductManagement() {
                     <th className="image-column">Hình ảnh</th>
                     <th className="code-column" style={{minWidth: '120px'}}>Mã sản phẩm</th>
                     <th className="brand-column" style={{minWidth: '115px'}}>Thương hiệu</th>
+                    <th className="colors-column" style={{minWidth: '100px'}}>Màu sắc</th>
                     <th className="price-column" style={{minWidth: '100px'}}>Giá</th>
                     <th className="notes-column">Ghi chú</th>
+                    <th className="creator-original-column" style={{minWidth: '100px'}}>Người tạo SP</th>
                     <th className="creator-column" style={{minWidth: '100px'}}>Người tạo</th>
+                    
                     {/* Chỉ hiển thị cột thao tác cho admin */}
                     {isAdmin() && (
                       <th className="actions-column text-center" style={{minWidth: '100px'}}>Thao tác</th>
@@ -623,6 +626,7 @@ function ProductManagement() {
                         </div>
                       </td>
                       <td style={{minWidth: '115px'}}>{product.brand || '-'}</td>
+                      <td style={{minWidth: '100px'}}>{product.colors || '-'}</td>
                       <td style={{minWidth: '100px'}}>
                         {new Intl.NumberFormat('vi-VN', { 
                           style: 'currency',
@@ -633,6 +637,11 @@ function ProductManagement() {
                         <p className="notes-column">{product.description || '-'}</p>
                       </td>
                       <td>
+                        <div className="creator-original-info">
+                          <div>{product.creator_name || '-'}</div>
+                        </div>
+                      </td>
+                      <td>
                         <div className="creator-info">
                           <div>{product.created_by_name}</div>
                           <div className="text-muted small">
@@ -640,6 +649,7 @@ function ProductManagement() {
                           </div>
                         </div>
                       </td>
+                      
                       {/* Chỉ hiển thị cột thao tác cho admin */}
                       {isAdmin() && (
                         <td>

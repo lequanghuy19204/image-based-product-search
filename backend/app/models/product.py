@@ -15,6 +15,8 @@ class ProductCreate(BaseModel):
     image_urls: List[str]
     features: Optional[List[List[float]]] = None
     image_hashes: Optional[List[str]] = None
+    colors: Optional[str] = None
+    creator_name: Optional[str] = None
 
     @validator('company_id')
     def validate_object_id(cls, v):
@@ -35,6 +37,8 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = None
     image_urls: Optional[List[str]] = None
     deleted_images: Optional[List[str]] = None
+    colors: Optional[str] = None
+    creator_name: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -48,9 +52,12 @@ class ProductResponse(BaseModel):
     price: float
     company_id: str
     created_by: str
+    created_by_name: str
     created_at: datetime
     updated_at: datetime
     image_urls: List[str]
+    colors: Optional[str] = None
+    creator_name: Optional[str] = None
 
     class Config:
         populate_by_name = True
