@@ -310,7 +310,7 @@
   width: auto;
   height: 110px; /* Chiều cao cố định */
   flex-shrink: 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .product-table-image img {

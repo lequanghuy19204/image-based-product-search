@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -11,12 +11,20 @@ import {
   ZoomOut as ZoomOutIcon,
   ZoomIn as ZoomInIcon,
   ContentCopy as ContentCopyIcon,
+  Fullscreen as FullscreenIcon,
+  RotateLeft as RotateLeftIcon,
+  RotateRight as RotateRightIcon,
+  FlipSharp as FlipHorizontalIcon,
+  SwapVert as FlipVerticalIcon,
+  RestartAlt as ResetIcon,
+  PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import Sidebar from '../common/Sidebar';
 import '../../styles/ProductManagement.css';
 import { apiService } from '../../services/api.service';
 import ProductDialog from './ProductDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import ImageViewer from '../common/ImageViewer';
 
 
 function ProductManagement() {
@@ -31,7 +39,7 @@ function ProductManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [user, setUser] = useState(null);
   const [isDataStale, setIsDataStale] = useState(false);
   const [companyId, setCompanyId] = useState(null);
@@ -45,6 +53,13 @@ function ProductManagement() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [isHorizontalFlipped, setIsHorizontalFlipped] = useState(false);
+  const [isVerticalFlipped, setIsVerticalFlipped] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showImageInfo, setShowImageInfo] = useState(true);
+  const imageRef = useRef(null);
+  const playTimerRef = useRef(null);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [sortField, setSortField] = useState('created_at');
@@ -53,6 +68,11 @@ function ProductManagement() {
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState('code');
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [currentImagesArray, setCurrentImagesArray] = useState([]);
+  const [selectedProductForViewer, setSelectedProductForViewer] = useState(null);
 
   // Sau đó là các hàm xử lý
   const handleToggleSidebar = () => {
@@ -340,26 +360,26 @@ function ProductManagement() {
 
   // Hàm xử lý click vào ảnh
   const handleImageClick = (imageUrl, product, index) => {
-    setSelectedImage(imageUrl);
-    setCurrentProduct(product);
-    setCurrentImageIndex(index);
-    setZoomLevel(1);
-    setImageModalOpen(true);
+    setSelectedImageIndex(index);
+    setCurrentImagesArray(product.image_urls || []);
+    setSelectedProductForViewer(product);
+    setImageViewerOpen(true);
   };
 
   // Hàm xử lý zoom bằng scroll chuột
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY * -0.01;
-    const newZoom = Math.min(Math.max(zoomLevel + delta, 1), 3);
+    const newZoom = Math.min(Math.max(zoomLevel + delta, 0.1), 5);
     setZoomLevel(newZoom);
   };
 
   // Hàm xử lý zoom bằng nút
   const handleZoom = (direction) => {
     setZoomLevel(prev => {
-      if (direction === 'in' && prev < 3) return prev + 0.5;
-      if (direction === 'out' && prev > 1) return prev - 0.5;
+      if (direction === 'in') return Math.min(prev + 0.5, 5);
+      if (direction === 'out') return Math.max(prev - 0.5, 0.1);
+      if (direction === 'reset') return 1;
       return prev;
     });
   };
@@ -377,9 +397,11 @@ function ProductManagement() {
 
   // Hàm điều hướng ảnh
   const handleNavigate = (direction) => {
-    if (!currentProduct?.image_urls) return;
+    if (!currentProduct?.image_urls || currentProduct.image_urls.length <= 1) return;
     
-    setZoomLevel(1); // Reset zoom khi chuyển ảnh
+    // Reset các trạng thái transform khi chuyển ảnh
+    resetImageTransform();
+    
     if (direction === 'next') {
       setCurrentImageIndex(prev => 
         prev < currentProduct.image_urls.length - 1 ? prev + 1 : 0
@@ -396,6 +418,122 @@ function ProductManagement() {
       ]);
     }
   };
+
+  // Hàm xử lý quay ảnh
+  const handleRotate = (direction) => {
+    setRotation(prev => {
+      if (direction === 'left') return (prev - 90) % 360;
+      if (direction === 'right') return (prev + 90) % 360;
+      return prev;
+    });
+  };
+
+  // Hàm xử lý lật ảnh
+  const handleFlip = (direction) => {
+    if (direction === 'horizontal') {
+      setIsHorizontalFlipped(prev => !prev);
+    } else if (direction === 'vertical') {
+      setIsVerticalFlipped(prev => !prev);
+    }
+  };
+
+  // Hàm reset tất cả transform
+  const resetImageTransform = () => {
+    setZoomLevel(1);
+    setRotation(0);
+    setIsHorizontalFlipped(false);
+    setIsVerticalFlipped(false);
+  };
+
+  // Hàm bắt đầu/dừng slideshow
+  const toggleSlideshow = () => {
+    if (isPlaying) {
+      clearInterval(playTimerRef.current);
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      playTimerRef.current = setInterval(() => {
+        handleNavigate('next');
+      }, 3000);
+    }
+  };
+
+  // Xử lý phím tắt
+  useEffect(() => {
+    if (!imageModalOpen) return;
+
+    const handleKeyDown = (e) => {
+      e.preventDefault();
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          handleNavigate('prev');
+          break;
+        case 'ArrowRight':
+          handleNavigate('next');
+          break;
+        case 'ArrowUp':
+          handleZoom('in');
+          break;
+        case 'ArrowDown':
+          handleZoom('out');
+          break;
+        case 'r':
+          handleRotate('right');
+          break;
+        case 'l':
+          handleRotate('left');
+          break;
+        case 'h':
+          handleFlip('horizontal');
+          break;
+        case 'v':
+          handleFlip('vertical');
+          break;
+        case 'Escape':
+          closeImageViewer();
+          break;
+        case '0':
+          resetImageTransform();
+          break;
+        case 'c':
+          handleCopyUrl();
+          break;
+        case 'p':
+          toggleSlideshow();
+          break;
+        case 'i':
+          setShowImageInfo(prev => !prev);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [imageModalOpen, currentImageIndex, currentProduct, zoomLevel, rotation, isHorizontalFlipped, isVerticalFlipped, isPlaying]);
+
+  // Dừng slideshow khi đóng modal
+  const closeImageViewer = () => {
+    if (isPlaying) {
+      clearInterval(playTimerRef.current);
+      setIsPlaying(false);
+    }
+    setImageModalOpen(false);
+    resetImageTransform();
+  };
+
+  // Xóa interval khi unmount
+  useEffect(() => {
+    return () => {
+      if (playTimerRef.current) {
+        clearInterval(playTimerRef.current);
+      }
+    };
+  }, []);
 
   // Cải tiến hàm tải lại dữ liệu
   const handleRefresh = async (force = false) => {
@@ -466,6 +604,49 @@ function ProductManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Hàm lấy tên file từ URL
+  const getFileNameFromUrl = (url) => {
+    if (!url) return '';
+    try {
+      const pathname = new URL(url).pathname;
+      return pathname.split('/').pop();
+    } catch (error) {
+      console.error('Không thể phân tích URL:', error);
+      return url.split('/').pop() || '';
+    }
+  };
+
+  // Hàm lấy kích thước ảnh
+  const getImageDimensions = (url) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = () => {
+        resolve({ width: 0, height: 0 });
+      };
+      img.src = url;
+    });
+  };
+
+  // Lấy kích thước ảnh khi chọn ảnh mới
+  useEffect(() => {
+    if (selectedImage && imageModalOpen) {
+      getImageDimensions(selectedImage).then((dimensions) => {
+        setImageDimensions(dimensions);
+      });
+    }
+  }, [selectedImage, imageModalOpen]);
+
+  // Hàm đóng ImageViewer
+  const handleCloseImageViewer = () => {
+    setImageViewerOpen(false);
+    setSelectedImageIndex(0);
+    setCurrentImagesArray([]);
+    setSelectedProductForViewer(null);
   };
 
   return (
@@ -598,7 +779,12 @@ function ProductManagement() {
                       <td style={{minWidth: '400px'}}>
                         <div className="product-images-container">
                           {product.image_urls && product.image_urls.map((img, index) => (
-                            <div key={index} className="product-table-image">
+                            <div 
+                              key={index} 
+                              className="product-table-image" 
+                              style={{ cursor: 'pointer' }} 
+                              onClick={() => handleImageClick(img, product, index)}
+                            >
                               <div className="image-placeholder">
                                 <div className="spinner-border spinner-border-sm" role="status">
                                   <span className="visually-hidden">Đang tải...</span>
@@ -611,10 +797,6 @@ function ProductManagement() {
                                 loading="lazy"
                                 onLoad={(e) => {
                                   e.target.previousSibling.style.display = 'none';
-                                }}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleImageClick(img, product, index);
                                 }}
                               />
                             </div>
@@ -693,11 +875,12 @@ function ProductManagement() {
                     className="form-select"
                     value={rowsPerPage}
                     onChange={handleChangeRowsPerPage}
+                    style={{minWidth: '60px'}}
                   >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
+                    <option value={20}>20</option>
                     <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
                   </select>
                   <span>sản phẩm mỗi trang</span>
                 </div>
@@ -715,15 +898,75 @@ function ProductManagement() {
                 >
                   <PrevIcon fontSize="small" />
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    className={`btn btn-sm ${pageNum === currentPage ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => handlePageChange(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
+                
+                {(() => {
+                  // Số lượng trang hiển thị ở hai bên trang hiện tại
+                  const siblingCount = 2;
+                  // Luôn hiển thị trang đầu và cuối
+                  const showFirst = true;
+                  const showLast = true;
+                  
+                  // Mảng chứa các trang sẽ hiển thị
+                  let pages = [];
+                  
+                  // Thêm trang đầu
+                  if (showFirst && totalPages > 0) {
+                    pages.push(1);
+                  }
+                  
+                  // Tính toán phạm vi trang cần hiển thị
+                  let startPage = Math.max(2, currentPage - siblingCount);
+                  let endPage = Math.min(totalPages - 1, currentPage + siblingCount);
+                  
+                  // Thêm dấu "..." sau trang đầu nếu cần
+                  if (startPage > 2) {
+                    pages.push('ellipsis-start');
+                  }
+                  
+                  // Thêm các trang ở giữa
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                  }
+                  
+                  // Thêm dấu "..." trước trang cuối nếu cần
+                  if (endPage < totalPages - 1) {
+                    pages.push('ellipsis-end');
+                  }
+                  
+                  // Thêm trang cuối
+                  if (showLast && totalPages > 1) {
+                    pages.push(totalPages);
+                  }
+                  
+                  // Loại bỏ các giá trị trùng lặp
+                  pages = [...new Set(pages)];
+                  
+                  // Render các nút trang
+                  return pages.map((pageNum, index) => {
+                    if (pageNum === 'ellipsis-start' || pageNum === 'ellipsis-end') {
+                      return (
+                        <button 
+                          key={pageNum} 
+                          className="btn btn-sm btn-outline-secondary disabled"
+                          disabled
+                        >
+                          ...
+                        </button>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`btn btn-sm ${pageNum === currentPage ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => handlePageChange(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  });
+                })()}
+                
                 <button 
                   className="btn btn-outline-primary btn-sm"
                   onClick={() => handlePageChange(currentPage + 1)}
@@ -782,87 +1025,15 @@ function ProductManagement() {
         </DialogActions>
       </Dialog>
 
-      {/* Image Modal */}
-      {imageModalOpen && (
-        <div 
-          className="image-modal"
-          onClick={() => {
-            setImageModalOpen(false);
-            setZoomLevel(1);
-          }}
-        >
-          <button 
-            className="modal-close-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setImageModalOpen(false);
-              setZoomLevel(1);
-            }}
-          >
-            <CloseIcon />
-          </button>
-
-          {currentProduct?.image_urls?.length > 1 && (
-            <>
-              <button 
-                className="modal-nav-button prev" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNavigate('prev');
-                }}
-              >
-                <PrevIcon />
-              </button>
-              <button 
-                className="modal-nav-button next"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNavigate('next');
-                }}
-              >
-                <NextIcon />
-              </button>
-            </>
-          )}
-
-          <div 
-            className="image-modal-content"
-            onClick={e => e.stopPropagation()}
-            onWheel={handleWheel}
-          >
-            <img
-              src={selectedImage}
-              alt="Selected product"
-              style={{ transform: `scale(${zoomLevel})` }}
-            />
-          </div>
-
-          <div className="image-modal-controls">
-            <div className="modal-zoom-controls">
-              <button 
-                onClick={() => handleZoom('out')}
-                disabled={zoomLevel <= 1}
-              >
-                <ZoomOutIcon />
-              </button>
-              <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
-              <button 
-                onClick={() => handleZoom('in')}
-                disabled={zoomLevel >= 3}
-              >
-                <ZoomInIcon />
-              </button>
-            </div>
-            <button 
-              className="copy-url-button"
-              onClick={handleCopyUrl}
-            >
-              <ContentCopyIcon className="me-2" />
-              Sao chép URL
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ImageViewer component */}
+      <ImageViewer
+        show={imageViewerOpen}
+        onClose={handleCloseImageViewer}
+        images={currentImagesArray}
+        startIndex={selectedImageIndex}
+        productCode={selectedProductForViewer?.product_code || ''}
+        productName={selectedProductForViewer?.product_name || ''}
+      />
 
       {/* Copy Notification */}
       {showCopyNotification && (

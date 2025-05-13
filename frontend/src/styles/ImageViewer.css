@@ -1,0 +1,91 @@
+.image-viewer-container {
+  position: fixed;
+  z-index: -9999;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.images-container {
+  display: none;
+}
+
+/* Override một số style của ViewerJS */
+.viewer-container {
+  z-index: 9999;
+}
+
+.viewer-toolbar > .viewer-button {
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin: 0 5px;
+}
+
+.viewer-toolbar > .viewer-button:hover {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.viewer-title {
+  font-size: 14px;
+  padding: 8px 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+}
+
+.viewer-navbar {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.viewer-tooltip {
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 3px;
+  padding: 5px 10px;
+}
+
+
+.viewer-player {
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+/* Fix lỗi focus và nav */
+.viewer-button:focus {
+  outline: none;
+}
+
+.viewer-button[data-viewer-action] {
+  cursor: pointer;
+}
+
+.viewer-canvas img {
+  transition: transform 0.3s ease;
+}
+
+/* Thêm đường viền khi focus vào các nút trong viewer */
+.viewer-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Định style cho nút close */
+.viewer-close {
+  position: absolute !important;
+  top: 15px !important;
+  right: 15px !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1 !important;
+}
+
+/* Thêm style cho inert */
+.viewer-container[inert] {
+  display: none !important;
+}
