@@ -271,7 +271,9 @@ function ProductManagement() {
         description: productData.description || "",
         price: parseFloat(productData.price),
         company_id: userDetails.company_id,
-        image_urls: productData.image_urls || []
+        image_urls: productData.image_urls || [],
+        colors: productData.colors || "",
+        creator_name: productData.creator_name || ""
       };
 
       // Gọi API tạo sản phẩm

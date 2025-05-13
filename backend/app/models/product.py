@@ -13,7 +13,6 @@ class ProductCreate(BaseModel):
     price: float
     company_id: str
     image_urls: List[str]
-    features: Optional[List[List[float]]] = None
     image_hashes: Optional[List[str]] = None
     colors: Optional[str] = None
     creator_name: Optional[str] = None

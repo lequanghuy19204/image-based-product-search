@@ -42,10 +42,9 @@ async def search_similar_images(
         if user_company_id != company_id:
             raise HTTPException(status_code=403, detail="Không có quyền truy cập")
 
-        # Lấy tất cả ảnh của company có features
+        # Lấy tất cả ảnh của company có image_hash
         images_cursor = images_collection.find({
             "company_id": ObjectId(company_id),
-            "features": {"$exists": True, "$ne": []},
             "image_hash": {"$exists": True}
         })
         images_data = await images_cursor.to_list(None)
@@ -57,8 +56,11 @@ async def search_similar_images(
                 "message": "Không có ảnh để so sánh trong hệ thống"
             }
 
-        # Tìm kiếm ảnh tương tự kết hợp cả features và hash
-        results = search_engine.find_similar_images_combined(image_content, images_data, top_k)
+        # Xây dựng index cho tìm kiếm
+        search_engine.build_index(images_data)
+        
+        # Tìm kiếm ảnh tương tự chỉ dựa trên hash
+        results = search_engine.find_similar_images_from_bytes(image_content, top_k)
 
         # Lấy thông tin sản phẩm cho mỗi kết quả
         enriched_results = []

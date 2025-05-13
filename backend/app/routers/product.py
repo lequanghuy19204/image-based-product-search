@@ -38,8 +38,8 @@ async def create_product(
             "image_urls": product_data.image_urls or [],
             "created_by": ObjectId(current_user["sub"]),  # Chuyển string thành ObjectId
             "created_by_name": user.get("username", "Unknown"),
-            "colors": product_data.colors or "",  # Thêm trường colors
-            "creator_name": product_data.creator_name or "",  # Thêm trường creator_name
+            "colors": product_data.colors or "",
+            "creator_name": product_data.creator_name or "",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
@@ -53,15 +53,14 @@ async def create_product(
             try:
                 image_tasks = []
                 for url in product_data.image_urls:
-                    features, image_hash = process_image(url)
-                    if features and image_hash:
+                    _, image_hash = process_image(url)
+                    if image_hash:
                         image_tasks.append({
                             "image_url": url,
                             "company_id": ObjectId(product_data.company_id),
                             "product_id": ObjectId(product_id),
                             "uploaded_by": ObjectId(current_user["sub"]),
                             "created_at": datetime.utcnow(),
-                            "features": features,
                             "image_hash": image_hash
                         })
 
@@ -244,15 +243,14 @@ async def update_product(
         # Xử lý ảnh mới
         for image_url in added_images:
             try:
-                features, image_hash = process_image(image_url)
-                if features is not None and image_hash is not None:
+                _, image_hash = process_image(image_url)
+                if image_hash is not None:
                     await images_collection.insert_one({
                         "image_url": image_url,
                         "company_id": product_doc["company_id"],  # Giữ nguyên ObjectId
                         "product_id": ObjectId(product_id),
                         "uploaded_by": ObjectId(current_user["sub"]),
                         "created_at": datetime.utcnow(),
-                        "features": features.tolist() if hasattr(features, 'tolist') else features,
                         "image_hash": image_hash
                     })
                     logger.info(f"Added new image to images collection: {image_url}")

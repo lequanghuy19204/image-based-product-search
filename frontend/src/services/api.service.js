@@ -273,8 +273,6 @@ class ApiService {
       
       // Xóa metadata cache
       localStorage.removeItem(`products_metadata_${company_id}`);
-      
-      console.log('Đã xóa cache sản phẩm của company:', company_id);
     } catch (error) {
       console.error('Error clearing product cache:', error);
     }

@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-05-13 00:54:43",
+  "total_products": 1,
+  "results": [
+    {
+      "found": true,
+      "page": 261,
+      "row": 20,
+      "product_info": {
+        "code": "CP_x6244",
+        "brand": "Tommy",
+        "note": "CU",
+        "color": "",
+        "creator": "Mkt phương",
+        "image_count": 1,
+        "image_urls": [
+          "https://storage.googleapis.com/chapel2024-298f4.firebasestorage.app/products/0ij4crlf0bmyxrwgw2yolcxkwq0h9wfwucur8hov.jpeg"
+        ]
+      }
+    }
+  ]
+}
