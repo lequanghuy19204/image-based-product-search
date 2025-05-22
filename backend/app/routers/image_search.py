@@ -25,7 +25,7 @@ def normalize_percentage(value):
 async def search_similar_images(
     file: UploadFile = File(..., description="Ảnh cần tìm kiếm"),
     company_id: str = Form(..., min_length=1),
-    top_k: int = Form(10, ge=1, le=20),  # Mặc định là 10 ảnh
+    top_k: int = 10,
     current_user: dict = Depends(verify_token)
 ):
     try:
@@ -59,8 +59,8 @@ async def search_similar_images(
         # Xây dựng index cho tìm kiếm
         search_engine.build_index(images_data)
         
-        # Tìm kiếm ảnh tương tự chỉ dựa trên hash
-        results = search_engine.find_similar_images_from_bytes(image_content, top_k)
+        # Tìm kiếm ảnh tương tự
+        results = search_engine.find_similar_images_from_bytes(image_content, int(top_k))
 
         # Lấy thông tin sản phẩm cho mỗi kết quả
         enriched_results = []
@@ -76,8 +76,14 @@ async def search_similar_images(
                 product = product_cache[product_id]
 
             if product:
+                # Tính độ tương đồng từ hamming_distance
+                # Giá trị hamming_distance càng thấp thì độ tương đồng càng cao
+                # Giả sử max hamming_distance là khoảng 1024 (32 features * 32 bytes * 8 bits)
+                similarity = max(0, 100 - (result['hamming_distance'] / 10.24))
+                
                 enriched_results.append({
                     **result,
+                    'similarity': round(similarity, 2),  # Đổi từ hamming_distance sang similarity percentage
                     'product_name': product.get('product_name', ''),
                     'product_code': product.get('product_code', ''),
                     'price': float(product.get('price', 0)),
@@ -87,7 +93,7 @@ async def search_similar_images(
 
         return {
             "total": len(enriched_results),
-            "results": enriched_results[:top_k]
+            "results": enriched_results[:int(top_k)]
         }
 
     except Exception as e:

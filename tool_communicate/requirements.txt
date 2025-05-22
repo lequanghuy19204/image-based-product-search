@@ -1,8 +1,0 @@
-pip install playwright
-playwright install
-
-Mã SP           Trang      Hàng
-CP_x3839        142        9
-CP_x4632        181        19
-CP_x5433        221        18
-CP_x6244        261        20

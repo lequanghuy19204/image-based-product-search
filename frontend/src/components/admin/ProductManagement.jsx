@@ -374,15 +374,6 @@ function ProductManagement() {
     setZoomLevel(newZoom);
   };
 
-  // Hàm xử lý zoom bằng nút
-  const handleZoom = (direction) => {
-    setZoomLevel(prev => {
-      if (direction === 'in') return Math.min(prev + 0.5, 5);
-      if (direction === 'out') return Math.max(prev - 0.5, 0.1);
-      if (direction === 'reset') return 1;
-      return prev;
-    });
-  };
 
   // Hàm xử lý copy URL
   const handleCopyUrl = async () => {
@@ -471,12 +462,6 @@ function ProductManagement() {
           break;
         case 'ArrowRight':
           handleNavigate('next');
-          break;
-        case 'ArrowUp':
-          handleZoom('in');
-          break;
-        case 'ArrowDown':
-          handleZoom('out');
           break;
         case 'r':
           handleRotate('right');
@@ -828,9 +813,6 @@ function ProductManagement() {
                       <td>
                         <div className="creator-info">
                           <div>{product.created_by_name}</div>
-                          <div className="text-muted small">
-                            {new Date(product.created_at).toLocaleDateString('vi-VN')}
-                          </div>
                         </div>
                       </td>
                       

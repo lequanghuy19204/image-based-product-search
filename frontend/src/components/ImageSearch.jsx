@@ -253,6 +253,9 @@ function ImageSearch() {
                       <p className="card-text text-primary fw-bold mb-1">
                         {item.price ? `${item.price.toLocaleString()}đ` : '0đ'}
                       </p>
+                      <p className="card-text text-muted small mb-1">
+                        {item.similarity.toFixed(2)}%
+                      </p>
                     </div>
                   </div>
                 </div>

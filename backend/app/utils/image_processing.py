@@ -1,9 +1,11 @@
 from PIL import Image
-import imagehash
 import requests
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import cv2
+import numpy as np
+import faiss
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -16,36 +18,67 @@ def download_image(url):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        return Image.open(BytesIO(response.content))
+        return response.content
     except Exception as e:
         logger.error(f"Error downloading image from {url}: {str(e)}")
         return None
 
-def calculate_hash(image_url):
-    """Tính phash của ảnh"""
+def calculate_orb_hash(image_bytes):
+    """Tính ORB feature vector và mã hóa thành 64-bit hash"""
     try:
-        img = download_image(image_url)
+        # Chuyển bytes thành ảnh OpenCV
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         if img is None:
             return None
             
-        # Chuyển đổi ảnh RGBA sang RGB nếu cần
-        if img.mode == 'RGBA':
-            img = img.convert('RGB')
+        # Resize ảnh để đảm bảo tính nhất quán
+        img = cv2.resize(img, (256, 256))
+        
+        # Khởi tạo ORB detector với số lượng features giới hạn
+        orb = cv2.ORB_create(nfeatures=32)
+        
+        # Tính toán các keypoints và descriptors
+        keypoints, descriptors = orb.detectAndCompute(img, None)
+        
+        if descriptors is None or len(descriptors) == 0:
+            logger.warning("No ORB descriptors found in image")
+            return None
             
-        # Resize ảnh nhỏ hơn trước khi tính hash để tăng tốc độ
-        img = img.resize((32, 32), Image.NEAREST)
-        return str(imagehash.phash(img))
+        # Nếu số lượng features quá nhỏ, thì không đủ đặc trưng cho so sánh
+        if len(descriptors) < 10:
+            logger.warning(f"Only {len(descriptors)} ORB descriptors found - not enough for matching")
+            return None
+            
+        # Lấy 32 descriptors đầu tiên hoặc padding nếu thiếu
+        if len(descriptors) < 32:
+            # Padding nếu có ít hơn 32 descriptors
+            padding = np.zeros((32 - len(descriptors), 32), dtype=np.uint8)
+            descriptors = np.vstack([descriptors, padding])
+        else:
+            # Lấy 32 descriptors
+            descriptors = descriptors[:32]
+            
+        # Chuyển đổi numpy array thành binary string để lưu vào database
+        binary_descriptors = descriptors.tobytes()
+        
+        return binary_descriptors
     except Exception as e:
-        logger.error(f"Error calculating hash: {str(e)}")
+        logger.error(f"Error calculating ORB hash: {str(e)}")
         return None
 
 def process_image(image_url):
-    """Xử lý ảnh và tính phash"""
+    """Xử lý ảnh và tính ORB feature hash"""
     try:
-        # Chỉ tính hash của ảnh
-        image_hash = calculate_hash(image_url)
+        # Tải ảnh
+        image_bytes = download_image(image_url)
+        if image_bytes is None:
+            return None, None
+            
+        # Tính ORB features hash
+        orb_hash = calculate_orb_hash(image_bytes)
         
-        return None, image_hash
+        return None, orb_hash
     except Exception as e:
         logger.error(f"Error processing image {image_url}: {str(e)}")
         return None, None 

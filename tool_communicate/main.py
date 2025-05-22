@@ -73,11 +73,17 @@ def get_user_input():
             last_start_row = last_browser_config.get("start_row", 1)
             start_row = int(input(f"Nhập hàng bắt đầu xử lý trên trang {start_page} (mặc định: {last_start_row}): ") or str(last_start_row))
             
+            # Thêm tùy chọn chọn hàng kết thúc trên trang cuối
+            end_row = 0  # 0 nghĩa là xử lý tất cả các hàng
+            last_end_row = last_browser_config.get("end_row", 0)
+            end_row = int(input(f"Nhập hàng kết thúc xử lý trên trang {end_page} (0 = tất cả, mặc định: {last_end_row}): ") or str(last_end_row))
+            
             browser_config = {
                 "start_page": max(1, start_page),
                 "end_page": max(start_page, end_page),
                 "max_products": browser_max_products,
-                "start_row": max(1, start_row)  # Thêm thông tin hàng bắt đầu
+                "start_row": max(1, start_row),  # Thêm thông tin hàng bắt đầu
+                "end_row": max(0, end_row)       # Thêm thông tin hàng kết thúc
             }
             
             browser_configs.append(browser_config)
@@ -332,6 +338,36 @@ def login_to_multiple_sites(browser_id=1, browser_config=None):
             chapel_page.wait_for_url("**/quan-ly-san-pham", timeout=10000)
             chapel_page.wait_for_load_state("networkidle")
             print("Đã chuyển sang trang Sản phẩm thành công")
+
+            # ===== CHỌN HIỂN THỊ 100 SẢN PHẨM MỖI TRANG =====
+            try:
+                print("Đang thay đổi số lượng sản phẩm hiển thị mỗi trang...")
+                # Click vào dropdown chọn số lượng
+                chapel_page.wait_for_selector('div.v-select__slot', timeout=5000)
+                chapel_page.click('div.v-select__slot')
+                time.sleep(1)
+                
+                # Đợi menu hiển thị và click vào option 100
+                try:
+                    chapel_page.wait_for_selector('.v-menu__content.menuable__content__active', timeout=5000)
+                    # Tìm và click phần tử có text là "100"
+                    chapel_page.click('.v-list-item .v-list-item__title:has-text("100")')
+                    print("Đã chọn hiển thị 100 sản phẩm mỗi trang")
+                except Exception as e:
+                    print(f"Không thể tìm thấy tùy chọn 100 bằng text: {str(e)}")
+                    # Thử cách khác - click vào phần tử thứ 5 trong danh sách (thường là 100)
+                    try:
+                        chapel_page.click('.v-menu__content.menuable__content__active .v-list-item:nth-child(5)')
+                        print("Đã chọn phần tử thứ 5 trong danh sách (có thể là 100)")
+                    except Exception as e2:
+                        print(f"Không thể chọn phần tử thứ 5: {str(e2)}")
+                
+                # Đợi trang tải lại sau khi thay đổi số lượng hiển thị
+                chapel_page.wait_for_load_state("networkidle")
+                time.sleep(2)
+            except Exception as e:
+                print(f"Lỗi khi thay đổi số lượng sản phẩm mỗi trang: {str(e)}")
+                print("Tiếp tục với số lượng mặc định")
             
             # ===== SẮP XẾP BẢNG THEO MÃ SẢN PHẨM =====
             print("Đang sắp xếp bảng theo mã sản phẩm...")
@@ -389,6 +425,11 @@ def login_to_multiple_sites(browser_id=1, browser_config=None):
                                 time.sleep(1)
                         current_page = start_page
                         print(f"Đã di chuyển đến trang {start_page}")
+                        
+                        # Đợi thêm 20 giây để trang load nội dung
+                        print(f"Đợi 30 giây để trang {start_page} load nội dung đầy đủ...")
+                        chapel_page.wait_for_timeout(30000)
+                        print(f"Đã hoàn thành thời gian đợi, tiếp tục xử lý trang {start_page}")
                     except Exception as e:
                         print(f"Lỗi khi di chuyển đến trang bắt đầu: {str(e)}")
                         print("Tiếp tục từ trang hiện tại")
@@ -427,6 +468,16 @@ def login_to_multiple_sites(browser_id=1, browser_config=None):
                                 print(f"Còn lại {len(rows)} hàng sau khi bỏ qua")
                             else:
                                 print(f"Cảnh báo: Hàng bắt đầu ({start_row}) lớn hơn tổng số hàng ({len(rows)}), xử lý tất cả hàng")
+                        
+                        # Áp dụng hàng kết thúc nếu đang ở trang kết thúc
+                        end_row = browser_config.get("end_row", 0)
+                        if current_page == end_page and end_row > 0:
+                            if end_row <= len(rows):
+                                print(f"Chỉ xử lý {end_row} hàng đầu tiên trên trang kết thúc theo cấu hình")
+                                rows = rows[:end_row]
+                                print(f"Còn lại {len(rows)} hàng sau khi áp dụng giới hạn")
+                            else:
+                                print(f"Hàng kết thúc ({end_row}) lớn hơn tổng số hàng ({len(rows)}), xử lý tất cả hàng")
                     except Exception as e:
                         print(f"Lỗi khi tìm hàng trong bảng: {str(e)}")
                         rows = []
@@ -679,7 +730,8 @@ def login_to_multiple_sites(browser_id=1, browser_config=None):
                         "processed_count": processed_count,
                         "browser_id": browser_id,
                         "last_page": current_page,
-                        "start_row": browser_config.get("start_row", 1)  # Lưu thông tin hàng bắt đầu
+                        "start_row": browser_config.get("start_row", 1),  # Lưu thông tin hàng bắt đầu
+                        "end_row": browser_config.get("end_row", 0)       # Lưu thông tin hàng kết thúc
                     }, f, ensure_ascii=False, indent=2)
                 print(f"Đã lưu tiến trình cho Browser {browser_id}: Sản phẩm cuối = {last_product}, Số lượng = {processed_count}")
                 

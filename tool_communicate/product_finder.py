@@ -208,6 +208,35 @@ def find_products(page, product_codes, start_page=1):
     """Tìm nhiều sản phẩm cùng lúc, kiểm tra mỗi trang một lần để tìm tất cả sản phẩm"""
     print(f"\n===== TÌM KIẾM {len(product_codes)} MÃ SẢN PHẨM =====")
     
+    # Thêm code để chọn hiển thị 100 sản phẩm mỗi trang
+    try:
+        print("Đang thay đổi số lượng sản phẩm hiển thị mỗi trang...")
+        # Click vào dropdown chọn số lượng
+        page.wait_for_selector('div.v-select__slot', timeout=5000)
+        page.click('div.v-select__slot')
+        time.sleep(1)
+        
+        # Đợi menu hiển thị và chọn giá trị 100
+        # Sử dụng text thay vì ID
+        try:
+            page.wait_for_selector('.v-menu__content.menuable__content__active', timeout=5000)
+            # Tìm và click phần tử có text là "100"
+            page.click('.v-list-item .v-list-item__title:has-text("100")')
+            print("Đã chọn hiển thị 100 sản phẩm mỗi trang")
+        except Exception as e:
+            print(f"Không thể tìm thấy tùy chọn 100: {str(e)}")
+            # Thử cách khác - click vào phần tử thứ 5 trong danh sách (thường là 100)
+            try:
+                page.click('.v-menu__content.menuable__content__active .v-list-item:nth-child(5)')
+                print("Đã chọn phần tử thứ 5 trong danh sách (có thể là 100)")
+            except:
+                print("Không thể chọn phần tử thứ 5")
+        
+        time.sleep(2)  # Đợi trang tải lại
+    except Exception as e:
+        print(f"Lỗi khi thay đổi số lượng sản phẩm mỗi trang: {str(e)}")
+        print("Tiếp tục với số lượng mặc định")
+    
     # Sắp xếp bảng theo mã sản phẩm để dễ tìm kiếm
     try:
         print("Đang sắp xếp bảng theo mã sản phẩm...")
@@ -588,5 +617,7 @@ def main():
         if 'playwright' in locals() and playwright:
             playwright.stop()
 
+if __name__ == "__main__":
+    main() 
 if __name__ == "__main__":
     main() 
