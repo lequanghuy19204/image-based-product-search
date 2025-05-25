@@ -151,7 +151,6 @@ async function searchProducts(searchTerm) {
       name: searchTerm
     });
 
-    console.log('Response from search products:', response.data);
     return response.data;
   } catch (error) {
     console.error('Lỗi chi tiết khi tìm kiếm sản phẩm:', {

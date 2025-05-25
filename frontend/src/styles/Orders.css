@@ -114,14 +114,14 @@
 }
 
 .search-results .col {
-  padding: 0 0.5rem;
+  padding: 0 0.1rem;
 }
 
 /* Màn hình lớn (lg) */
 @media (min-width: 1200px) {
   .search-results .col {
-    min-width: 12.5%; /* 8 sản phẩm một hàng */
-    max-width: 12.5%;
+    min-width: 16.66%; /* 6 sản phẩm một hàng */
+    max-width: 16.66%;
   }
 }
 

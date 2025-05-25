@@ -14,6 +14,9 @@ import { getOrderSources, createOrderFromConversation, getLocations, searchProdu
 import ImageUploading from 'react-images-uploading';
 import { apiService } from '../../services/api.service';
 import { toast } from 'react-hot-toast';
+import ImageViewer from '../common/ImageViewer';
+import { appConfigService } from '../../services/app-config.service';
+import { cacheService } from '../../services/cache.service';
 
 const Orders = () => {
   const [validated, setValidated] = useState(false);
@@ -75,6 +78,9 @@ const Orders = () => {
   const [shippingCost, setShippingCost] = useState('');
   const [isShippingGHTK, setIsShippingGHTK] = useState(false); 
   const [shippingFeeLoading, setShippingFeeLoading] = useState(false); 
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState([]);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   const COLORS = [
     'ĐEN', 'TRẮNG', 'XANH', 'XANH LÁ', 'XÁM TIÊU', 'HỒNG ĐẬM', 'HỒNG NHẠT',
@@ -84,6 +90,53 @@ const Orders = () => {
 
   const SIZES = ['K1', 'K2', 'K3', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
+  const [productNames, setProductNames] = useState([]);
+  const [colorOptions, setColorOptions] = useState([]);
+  const [sizeOptions, setSizeOptions] = useState([]);
+  const [selectedProductName, setSelectedProductName] = useState('');
+  const [customProductName, setCustomProductName] = useState('');
+
+  useEffect(() => {
+    const fetchAppConfig = async () => {
+      try {
+        const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+        if (!userDetails.company_id) return;
+
+        // Kiểm tra cache trước
+        const cacheKey = `app_config_${userDetails.company_id}`;
+        const cachedConfig = cacheService.get(cacheKey);
+        
+        if (cachedConfig) {
+          // Sử dụng dữ liệu từ cache
+          setProductNames(cachedConfig.product_names || []);
+          setColorOptions(cachedConfig.colors || []);
+          setSizeOptions(cachedConfig.sizes || []);
+        } else {
+          // Lấy dữ liệu từ API
+          const config = await appConfigService.getAppConfig(userDetails.company_id);
+          
+          // Lưu vào state
+          setProductNames(config.product_names || []);
+          setColorOptions(config.colors || []);
+          setSizeOptions(config.sizes || []);
+          
+          // Lưu vào cache
+          cacheService.set(cacheKey, {
+            product_names: config.product_names || [],
+            colors: config.colors || [],
+            sizes: config.sizes || []
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy cấu hình:', error);
+        // Sử dụng dữ liệu mặc định nếu có lỗi
+        setColorOptions(COLORS);
+        setSizeOptions(SIZES);
+      }
+    };
+
+    fetchAppConfig();
+  }, []);
 
   useEffect(() => {
     loadOrderSources();
@@ -698,10 +751,11 @@ const Orders = () => {
   const handleConfirmProductSelection = async () => {
     const color = customColor || selectedColor;
     const size = customSize || selectedSize;
+    const productName = customProductName || selectedProductName || selectedImageProduct.product_name;
     
     if (selectedImageProduct) {
       try {
-        const searchTerm = `${selectedImageProduct.product_name} - ${color} - ${size}`;
+        const searchTerm = `${productName} - ${color} - ${size}`;
         const response = await searchProducts(searchTerm);
         
         if (response?.products) {
@@ -777,6 +831,8 @@ const Orders = () => {
       setSelectedSize('');
       setCustomColor('');
       setCustomSize('');
+      setSelectedProductName('');
+      setCustomProductName('');
       setQuantity(1);
     }
   };
@@ -910,6 +966,13 @@ const Orders = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Thêm hàm xử lý khi click vào ảnh
+  const handleImageClick = (images, index) => {
+    setViewerImages(images);
+    setViewerStartIndex(index);
+    setViewerOpen(true);
   };
 
   return (
@@ -1369,7 +1432,8 @@ const Orders = () => {
                     <div className="product-images mb-3">
                       {/* Ảnh chính */}
                       <div 
-                        className="main-image mb-2"
+                        className="main-image mb-2 cursor-pointer"
+                        onClick={() => handleImageClick(selectedImageProduct.image_urls, 0)}
                         style={{ 
                           height: '400px',
                           backgroundColor: '#f8f9fa',
@@ -1397,6 +1461,8 @@ const Orders = () => {
                         {selectedImageProduct.image_urls.map((url, index) => (
                           <div 
                             key={index}
+                            className="cursor-pointer"
+                            onClick={() => handleImageClick(selectedImageProduct.image_urls, index)}
                             style={{ 
                               width: '80px',
                               height: '80px',
@@ -1434,7 +1500,32 @@ const Orders = () => {
                         {selectedImageProduct.price.toLocaleString()}đ
                       </h3>
 
-                      {/* Chọn màu sắc */}
+                      {/* Thêm trường chọn tên sản phẩm */}
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Tên sản phẩm</Form.Label>
+                        <InputGroup>
+                          <Form.Select 
+                            value={selectedProductName || 'custom'}
+                            onChange={(e) => setSelectedProductName(e.target.value)}
+                            className="border-end-0"
+                          >
+                            <option value="custom">Tên khác</option>
+                            {productNames.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </Form.Select>
+                          {(selectedProductName === 'custom' || !selectedProductName) && (
+                            <Form.Control
+                              type="text"
+                              placeholder="Nhập tên khác"
+                              value={customProductName}
+                              onChange={(e) => setCustomProductName(e.target.value)}
+                            />
+                          )}
+                        </InputGroup>
+                      </Form.Group>
+
+                      {/* Chọn màu sắc - Sử dụng dữ liệu từ app config */}
                       <Form.Group className="mb-4">
                         <Form.Label className="fw-bold">Màu sắc</Form.Label>
                         <InputGroup>
@@ -1444,7 +1535,7 @@ const Orders = () => {
                             className="border-end-0"
                           >
                             <option value="custom">Màu khác</option>
-                            {COLORS.map(color => (
+                            {colorOptions.map(color => (
                               <option key={color} value={color}>{color}</option>
                             ))}
                           </Form.Select>
@@ -1459,7 +1550,7 @@ const Orders = () => {
                         </InputGroup>
                       </Form.Group>
 
-                      {/* Chọn kích thước */}
+                      {/* Chọn kích thước - Sử dụng dữ liệu từ app config */}
                       <Form.Group className="mb-4">
                         <Form.Label className="fw-bold">Kích thước</Form.Label>
                         <InputGroup>
@@ -1469,7 +1560,7 @@ const Orders = () => {
                             className="border-end-0"
                           >
                             <option value="custom">Size khác</option>
-                            {SIZES.map(size => (
+                            {sizeOptions.map(size => (
                               <option key={size} value={size}>{size}</option>
                             ))}
                           </Form.Select>
@@ -1484,7 +1575,7 @@ const Orders = () => {
                         </InputGroup>
                       </Form.Group>
 
-                      {/* Nhập số lượng */}
+                      {/* Số lượng */}
                       <Form.Group className="mb-4">
                         <Form.Label className="fw-bold">Số lượng</Form.Label>
                         <InputGroup>
@@ -1534,7 +1625,7 @@ const Orders = () => {
                         size="lg"
                         className="w-100"
                         onClick={handleConfirmProductSelection}
-                        disabled={(!selectedColor && !customColor)}
+                        disabled={(!selectedColor && !customColor) || (!selectedProductName && !customProductName)}
                       >
                         <FaCheck className="me-2" /> Xác nhận chọn sản phẩm
                       </Button>
@@ -1544,6 +1635,16 @@ const Orders = () => {
               )}
             </Modal.Body>
           </Modal>
+          
+          {/* Thêm ImageViewer component */}
+          <ImageViewer
+            show={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+            images={viewerImages}
+            startIndex={viewerStartIndex}
+            productCode={selectedImageProduct?.product_code}
+            productName={selectedImageProduct?.product_name}
+          />
 
           <Row>
             {/* Cột trái - 70% */}

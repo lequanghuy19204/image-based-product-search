@@ -300,7 +300,7 @@
   display: flex;
   gap: 1px;
   overflow-x: auto;
-  padding: 4px;
+  padding: 0px;
   max-width: 100%;
   scrollbar-width: thin;
 }
@@ -308,7 +308,7 @@
 .product-table-image {
   position: relative;
   width: auto;
-  height: 110px; /* Chiều cao cố định */
+  height: 160px; /* Chiều cao cố định */
   flex-shrink: 0;
   cursor: default;
 }

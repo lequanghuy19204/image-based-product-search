@@ -5,6 +5,7 @@ import Sidebar from './common/Sidebar';
 import '../styles/ImageSearch.css';
 import { apiService } from '../services/api.service';
 import { Modal } from 'react-bootstrap';
+import ImageViewer from './common/ImageViewer';
 
 
 function ImageSearch() {
@@ -28,6 +29,8 @@ function ImageSearch() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerStartIndex, setViewerStartIndex] = useState(0);
 
   // Thêm useEffect để tự động tìm kiếm khi có ảnh
   useEffect(() => {
@@ -100,6 +103,11 @@ function ImageSearch() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageClick = (index) => {
+    setViewerStartIndex(index);
+    setViewerOpen(true);
   };
 
   return (
@@ -315,7 +323,7 @@ function ImageSearch() {
         <Modal 
           show={showModal} 
           onHide={() => setShowModal(false)}
-          size="md"
+          size="lg"
         >
           <Modal.Header closeButton>
             <Modal.Title>Chi tiết sản phẩm</Modal.Title>
@@ -330,30 +338,31 @@ function ImageSearch() {
             ) : selectedProduct && (
               <div className="product-detail">
                 <h5>{selectedProduct.product_name}</h5>
-                <p className="text-muted small">Mã SP: {selectedProduct.product_code}</p>
+                <p className="mb-2">Mã SP: {selectedProduct.product_code}</p>
                 <p className="text-primary h5 mb-3">{selectedProduct.price.toLocaleString()}đ</p>
                 
                 {/* Hiển thị tất cả ảnh */}
                 <div className="product-images-grid mb-3">
                   {selectedProduct.image_urls.map((url, index) => (
-                    <img 
-                      key={index}
-                      src={url} 
-                      alt={`Ảnh ${index + 1}`}
-                      className="product-detail-image"
-                    />
+                    <div key={index} onClick={() => handleImageClick(index)} className="cursor-pointer">
+                      <img 
+                        src={url} 
+                        alt={`Ảnh ${index + 1}`}
+                        className="product-detail-image img-fluid"
+                      />
+                    </div>
                   ))}
                 </div>
-
+                {selectedProduct.colors && (
+                  <p className='mb-2'><strong>Màu sắc:</strong> {selectedProduct.colors}</p>
+                )}
                 {selectedProduct.brand && (
                   <p className="mb-2"><strong>Thương hiệu:</strong> {selectedProduct.brand}</p>
                 )}
                 {selectedProduct.description && (
-                  <div className="mb-2">
-                    <strong>Mô tả:</strong>
-                    <p className="small">{selectedProduct.description}</p>
-                  </div>
+                  <p className="mb-2"><strong>Mô tả:</strong> {selectedProduct.description}</p>
                 )}
+                <p className='mb-2'><strong>Người tạo SP:</strong> {selectedProduct.creator_name}</p>
                 <p className="text-muted small mb-0">
                   Ngày tạo: {selectedProduct.created_at}
                 </p>
@@ -361,6 +370,18 @@ function ImageSearch() {
             )}
           </Modal.Body>
         </Modal>
+        
+        {/* Thêm ImageViewer component */}
+        {selectedProduct && (
+          <ImageViewer
+            show={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+            images={selectedProduct.image_urls || []}
+            startIndex={viewerStartIndex}
+            productCode={selectedProduct.product_code}
+            productName={selectedProduct.product_name}
+          />
+        )}
       </main>
     </div>
   );
