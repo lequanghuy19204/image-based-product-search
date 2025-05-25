@@ -90,8 +90,6 @@ class ImageSearchEngine:
             # Đưa dữ liệu vào index
             binary_data = all_descriptors.reshape(-1, dimension // 8)
             self.faiss_index.add(binary_data)
-            
-            logger.info(f"Built FAISS index with {len(valid_images)} images")
 
         except Exception as e:
             logger.error(f"Error building FAISS index: {str(e)}")
@@ -135,7 +133,7 @@ class ImageSearchEngine:
                 results.append({
                     'product_id': str(img['product_id']),
                     'image_url': img['image_url'],
-                    'hamming_distance': int(distance),  # Khoảng cách hamming
+                    'hamming_distance': float(distance),  # Khoảng cách hamming
                     'company_id': str(img['company_id']),
                     'created_at': img['created_at'].isoformat() if isinstance(img['created_at'], datetime) else img['created_at']
                 })

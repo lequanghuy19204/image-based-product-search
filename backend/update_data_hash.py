@@ -104,6 +104,7 @@ async def update_images_range(start_index, end_index):
         async for image in cursor:
             image_url = image.get('image_url')
             image_id = image.get('_id')
+            old_hash = image.get('image_hash')
             
             if not image_url:
                 logger.warning(f"Không tìm thấy URL ảnh cho bản ghi {image_id}")
@@ -124,16 +125,23 @@ async def update_images_range(start_index, end_index):
             orb_features = await calculate_orb_features(image_bytes)
             
             if orb_features:
-                # Cập nhật features mới vào cơ sở dữ liệu
-                result = await images_collection.update_one(
-                    {"_id": image_id},
-                    {"$set": {"image_hash": orb_features}}
-                )
-                
-                if result.modified_count > 0:
-                    count_updated += 1
+                # Kiểm tra xem hash mới có khác với hash cũ không
+                if old_hash != orb_features:
+                    # Cập nhật features mới vào cơ sở dữ liệu
+                    result = await images_collection.update_one(
+                        {"_id": image_id},
+                        {"$set": {"image_hash": orb_features}}
+                    )
+                    
+                    if result.modified_count > 0:
+                        count_updated += 1
+                        logger.info(f"Đã cập nhật hash cho ảnh {image_id}: hash cũ ({len(old_hash) if old_hash else 'None'} bytes) -> hash mới ({len(orb_features)} bytes)")
+                    else:
+                        count_unchanged += 1
+                        logger.info(f"Không thể cập nhật hash cho ảnh {image_id} mặc dù hash đã thay đổi")
                 else:
                     count_unchanged += 1
+                    logger.info(f"Không cần cập nhật hash cho ảnh {image_id}: hash không thay đổi ({len(old_hash) if old_hash else 'None'} bytes)")
             else:
                 logger.error(f"Không thể tính toán ORB features cho ảnh {image_url} - ID: {image_id}")
                 count_failed += 1

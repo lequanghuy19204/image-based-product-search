@@ -25,7 +25,7 @@ def normalize_percentage(value):
 async def search_similar_images(
     file: UploadFile = File(..., description="Ảnh cần tìm kiếm"),
     company_id: str = Form(..., min_length=1),
-    top_k: int = 10,
+    top_k: int = 6,
     current_user: dict = Depends(verify_token)
 ):
     try:
@@ -79,11 +79,11 @@ async def search_similar_images(
                 # Tính độ tương đồng từ hamming_distance
                 # Giá trị hamming_distance càng thấp thì độ tương đồng càng cao
                 # Giả sử max hamming_distance là khoảng 1024 (32 features * 32 bytes * 8 bits)
-                similarity = max(0, 100 - (result['hamming_distance'] / 10.24))
+                similarity = max(0, 100 - (result['hamming_distance'] / 81.92))
                 
                 enriched_results.append({
                     **result,
-                    'similarity': round(similarity, 2),  # Đổi từ hamming_distance sang similarity percentage
+                    'similarity': round(similarity, 10),  # round(similarity, 10) Đổi từ hamming_distance sang similarity percentage
                     'product_name': product.get('product_name', ''),
                     'product_code': product.get('product_code', ''),
                     'price': float(product.get('price', 0)),
