@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import react from '@vitejs/plugin-react';
 import fs from 'fs';
 
 export default defineConfig({
@@ -20,7 +20,13 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+    commonjsOptions: {
       include: [/@cloudinary\/url-gen/, /@cloudinary\/react/]
     }
+  },
+  resolve: {
+    mainFields: ['browser', 'module', 'main'],
   }
 });
