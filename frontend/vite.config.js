@@ -22,9 +22,9 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-    commonjsOptions: {
-      include: [/@cloudinary\/url-gen/, /@cloudinary\/react/]
-    }
+    // commonjsOptions: {
+    //   include: [/@cloudinary\/url-gen/, /@cloudinary\/react/]
+    // }
   },
   resolve: {
     mainFields: ['browser', 'module', 'main'],
