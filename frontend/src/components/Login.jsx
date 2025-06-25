@@ -249,11 +249,6 @@ function Login() {
             <div className="form-field">
               <div className="password-label-container">
                 <label>Password</label>
-                {isLogin && (
-                  <a href="#" className="forgot-password" onClick={(e) => e.preventDefault()}>
-                    forgot password
-                  </a>
-                )}
               </div>
               <div className={`input-container ${errors.password ? 'is-invalid' : ''}`}>
                 <input
