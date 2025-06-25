@@ -1,4 +1,5 @@
 .env
+venv/
 __pycache__/
 *.pyc
 search-images-v1-firebase-adminsdk-4bt6a-1e4cb02df9.json 
