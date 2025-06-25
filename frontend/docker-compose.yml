@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: react-frontend
+    container_name: search-images-frontend
     volumes:
       - .:/app
       - /app/node_modules
@@ -13,28 +13,10 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=https://api.ipasearchimage.id.vn
+    restart: unless-stopped
     networks:
-      - app-network
-
-  caddy:
-    image: caddy:2
-    container_name: caddy-server
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - frontend
-    networks:
-      - app-network
-
-volumes:
-  caddy_data:
-  caddy_config:
+      - search-images-network
 
 networks:
-  app-network:
-    driver: bridge
+  search-images-network:
+    external: true

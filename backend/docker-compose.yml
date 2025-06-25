@@ -3,6 +3,7 @@ version: '3.8'
 services:
   backend:
     build: .
+    container_name: search-images-backend
     ports:
       - "8000:8000"
     environment:
@@ -12,8 +13,8 @@ services:
       - ./.env:/app/.env
     restart: unless-stopped
     networks:
-      - app-network
+      - search-images-network
 
 networks:
-  app-network:
-    driver: bridge 
+  search-images-network:
+    external: true 
