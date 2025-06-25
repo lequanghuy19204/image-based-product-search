@@ -14,7 +14,7 @@ services:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=https://n8n.ipasearchimage.id.vn/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
       - N8N_METRICS=true
@@ -41,8 +41,6 @@ services:
       - ./nodes:/home/node/.n8n/nodes
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-    networks:
-      - n8n_network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5678/healthz"]
       interval: 30s
@@ -50,81 +48,9 @@ services:
       retries: 3
       start_period: 40s
 
-  # PostgreSQL database (optional - uncomment nếu muốn dùng PostgreSQL thay vì SQLite)
-  # postgres:
-  #   image: postgres:15
-  #   container_name: n8n_postgres
-  #   restart: unless-stopped
-  #   environment:
-  #     - POSTGRES_DB=n8n
-  #     - POSTGRES_USER=n8n
-  #     - POSTGRES_PASSWORD=n8n_password
-  #     - POSTGRES_NON_ROOT_USER=n8n
-  #     - POSTGRES_NON_ROOT_PASSWORD=n8n_password
-  #     - TZ=Asia/Ho_Chi_Minh
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - /etc/localtime:/etc/localtime:ro
-  #   networks:
-  #     - n8n_network
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # Redis cho caching (optional)
-  redis:
-    image: redis:7-alpine
-    container_name: n8n_redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass redis_password
-    environment:
-      - TZ=Asia/Ho_Chi_Minh
-    volumes:
-      - redis_data:/data
-      - /etc/localtime:/etc/localtime:ro
-    networks:
-      - n8n_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
-  # Nginx reverse proxy (optional)
-  nginx:
-    image: nginx:alpine
-    container_name: n8n_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - n8n
-    networks:
-      - n8n_network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 volumes:
   n8n_data:
     driver: local
-  # postgres_data:
-  #   driver: local
-  redis_data:
-    driver: local
 
-networks:
-  n8n_network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16 
+
+ 
