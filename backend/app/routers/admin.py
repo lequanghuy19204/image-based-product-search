@@ -66,23 +66,7 @@ async def get_users(current_user: dict = Depends(verify_admin)):
         print(f"Error in get_users: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Route cho cả admin và user
-@admin_router.get("/products")
-async def get_products(current_user: dict = Depends(verify_token)):
-    try:
-        products_ref = products_collection.find()
-        products = await products_ref.to_list(None)
-        
-        products_list = []
-        for product in products:
-            products_list.append({
-                "id": product['_id'],
-                **product
-            })
-            
-        return products_list
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Route get products đã được chuyển sang product_router để tránh xung đột routing
 
 # Route chỉ cho admin
 @admin_router.delete("/products/{product_id}")

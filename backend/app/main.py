@@ -14,10 +14,12 @@ import os
 
 app = FastAPI(title="Search Images API")
 
+
 # Add CORS middleware
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS"),  # Lấy danh sách origins từ biến môi trường
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,7 +27,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"status": "Welcome to Search Images API"}
+    return {"message": "Welcome to Search Images API"}
 
 @app.head("/")
 async def health_check():
@@ -33,19 +35,11 @@ async def health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-
-
-    print(f"Global error: {str(exc)}")  # Log lỗi
+    print(f"Global error: {str(exc)}")
     return JSONResponse(
         status_code=500,
         content={"detail": f"Lỗi server: {str(exc)}"}
     )
-
-
-# Route không cần xác thực
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Search Images API"}
 
 # Route xác thực (login/register) không cần token
 app.include_router(
