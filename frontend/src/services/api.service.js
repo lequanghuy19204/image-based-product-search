@@ -206,11 +206,8 @@ class ApiService {
   // Thêm phương thức để lấy cache hiệu quả hơn
   async get(endpoint, options = {}) {
     try {
-        // Đảm bảo endpoint luôn kết thúc bằng /
-        let normalizedEndpoint = endpoint.endsWith('/') ? endpoint : `${endpoint}/`;
-        
         // Tạo URL với params
-        let url = `${this.baseURL}${normalizedEndpoint}`;
+        let url = `${this.baseURL}${endpoint}`;
         if (options.params) {
             const params = new URLSearchParams();
             Object.entries(options.params).forEach(([key, value]) => {
@@ -425,11 +422,13 @@ class ApiService {
         creator_name: productData.creator_name || ""
       };
 
-      const response = await this.post('/api/products', formattedData);
+      const response = await this.post('/api/products/', formattedData);
       
-      // Xóa cache bất đồng bộ
+      // Invalidate cache sau khi tạo sản phẩm thành công
       setTimeout(() => {
-        this.clearProductsCache(userDetails.company_id);
+        if (userDetails?.company_id) {
+          this.clearProductsCache(userDetails.company_id);
+        }
       }, 0);
       
       return this.transformMongoResponse(response);
@@ -479,7 +478,7 @@ class ApiService {
         throw new Error('Không tìm thấy thông tin công ty');
       }
 
-      const response = await this.get('/api/products', { 
+      const response = await this.get('/api/products/', { 
         params: {
           ...params,
           search_field: params.search_field || 'all'
@@ -531,7 +530,7 @@ class ApiService {
 
   async searchProducts(params) {
     try {
-      const response = await this.get('/api/products', { params });
+      const response = await this.get('/api/products/', { params });
       return response;
     } catch (error) {
       console.error('Error searching products:', error);
